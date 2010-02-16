@@ -13,6 +13,7 @@
 #include "klee/util/Bits.h"
 #include "klee/util/Ref.h"
 
+#include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -103,6 +104,7 @@ public:
     // Primitive
 
     IConstant = 0,
+    FConstant,
 
     // Special
 
@@ -156,7 +158,7 @@ public:
     LastKind=Sge,
 
     ConstantKindFirst=IConstant,
-    ConstantKindLast=IConstant,
+    ConstantKindLast=FConstant,
     NonConstantKindFirst=NotOptimized,
     NonConstantKindLast=LastKind,
     CastKindFirst=ZExt,
@@ -449,6 +451,40 @@ public:
   ref<IConstantExpr> Not();
 };
 
+class FConstantExpr : public ConstantExpr {
+public:
+  static const Kind kind = FConstant;
+  static const unsigned numKids = 0;
+
+private:
+  llvm::APFloat value;
+
+  FConstantExpr(const llvm::APFloat &v) : value(v) {}
+
+public:
+  ~FConstantExpr() {};
+
+  Kind getKind() const { return kind; }
+  unsigned int getWidth() const;
+
+  unsigned getNumKids() const { return 0; }
+  ref<Expr> getKid(unsigned i) const { return 0; }
+
+  ref<Expr> rebuild(ref<Expr> kids[]) const { 
+    assert(0 && "rebuild() on FConstantExpr"); 
+    return (Expr*) this;
+  }
+
+  static ref<FConstantExpr> create(const llvm::APFloat &v) {
+    ref<FConstantExpr> r(new FConstantExpr(v));
+    return r;
+  }
+  
+  static bool classof(const Expr *E) {
+    return E->getKind() == Expr::FConstant;
+  }
+  static bool classof(const FConstantExpr *) { return true; }
+};
   
 // Utility classes
 

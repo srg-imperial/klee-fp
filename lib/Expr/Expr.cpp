@@ -105,6 +105,7 @@ void Expr::printKind(std::ostream &os, Kind k) {
   switch(k) {
 #define X(C) case C: os << #C; break
     X(IConstant);
+    X(FConstant);
     X(NotOptimized);
     X(Read);
     X(Select);
@@ -445,6 +446,23 @@ ref<IConstantExpr> IConstantExpr::Sgt(const ref<IConstantExpr> &RHS) {
 
 ref<IConstantExpr> IConstantExpr::Sge(const ref<IConstantExpr> &RHS) {
   return IConstantExpr::alloc(value.sge(RHS->value), Expr::Bool);
+}
+
+/***/
+
+unsigned FConstantExpr::getWidth() const {
+  const fltSemantics *s = &value.getSemantics();
+  if (s == &APFloat::IEEEsingle) 
+    return 32;
+  if (s == &APFloat::IEEEdouble) 
+    return 64;
+  if (s == &APFloat::IEEEquad || s == &APFloat::PPCDoubleDouble) 
+    return 128;
+  if (s == &APFloat::x87DoubleExtended) 
+    return 80;
+
+  assert(0 && "unknown format");
+  return 0;
 }
 
 /***/
