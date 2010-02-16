@@ -475,6 +475,8 @@ public:
     return (Expr*) this;
   }
 
+  const llvm::APFloat &getAPValue() const { return value; }
+
   static ref<FConstantExpr> create(const llvm::APFloat &v) {
     ref<FConstantExpr> r(new FConstantExpr(v));
     return r;
