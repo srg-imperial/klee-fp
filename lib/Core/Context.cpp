@@ -51,6 +51,6 @@ ref<Expr> Expr::createCoerceToPointerType(ref<Expr> e) {
   return ZExtExpr::create(e, Context::get().getPointerWidth());
 }
 
-ref<ConstantExpr> Expr::createPointer(uint64_t v) {
-  return ConstantExpr::create(v, Context::get().getPointerWidth());
+ref<IConstantExpr> Expr::createPointer(uint64_t v) {
+  return IConstantExpr::create(v, Context::get().getPointerWidth());
 }

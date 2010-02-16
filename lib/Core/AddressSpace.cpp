@@ -51,7 +51,7 @@ ObjectState *AddressSpace::getWriteable(const MemoryObject *mo,
 
 /// 
 
-bool AddressSpace::resolveOne(const ref<ConstantExpr> &addr, 
+bool AddressSpace::resolveOne(const ref<IConstantExpr> &addr, 
                               ObjectPair &result) {
   uint64_t address = addr->getZExtValue();
   MemoryObject hack(address);
@@ -73,7 +73,7 @@ bool AddressSpace::resolveOne(ExecutionState &state,
                               ref<Expr> address,
                               ObjectPair &result,
                               bool &success) {
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(address)) {
+  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(address)) {
     success = resolveOne(CE, result);
     return true;
   } else {
@@ -81,7 +81,7 @@ bool AddressSpace::resolveOne(ExecutionState &state,
 
     // try cheap search, will succeed for any inbounds pointer
 
-    ref<ConstantExpr> cex;
+    ref<IConstantExpr> cex;
     if (!solver->getValue(state, address, cex))
       return false;
     uint64_t example = cex->getZExtValue();
@@ -164,7 +164,7 @@ bool AddressSpace::resolve(ExecutionState &state,
                            ResolutionList &rl, 
                            unsigned maxResolutions,
                            double timeout) {
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(p)) {
+  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(p)) {
     ObjectPair res;
     if (resolveOne(CE, res))
       rl.push_back(res);
@@ -188,7 +188,7 @@ bool AddressSpace::resolve(ExecutionState &state,
     // to hit the fast path with exactly 2 queries). we could also
     // just get this by inspection of the expr.
     
-    ref<ConstantExpr> cex;
+    ref<IConstantExpr> cex;
     if (!solver->getValue(state, p, cex))
       return true;
     uint64_t example = cex->getZExtValue();

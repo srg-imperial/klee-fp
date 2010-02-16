@@ -100,11 +100,11 @@ public:
     this->name = name;
   }
 
-  ref<ConstantExpr> getBaseExpr() const { 
-    return ConstantExpr::create(address, Context::get().getPointerWidth());
+  ref<IConstantExpr> getBaseExpr() const { 
+    return IConstantExpr::create(address, Context::get().getPointerWidth());
   }
-  ref<ConstantExpr> getSizeExpr() const { 
-    return ConstantExpr::create(size, Context::get().getPointerWidth());
+  ref<IConstantExpr> getSizeExpr() const { 
+    return IConstantExpr::create(size, Context::get().getPointerWidth());
   }
   ref<Expr> getOffsetExpr(ref<Expr> pointer) const {
     return SubExpr::create(pointer, getBaseExpr());
@@ -119,7 +119,7 @@ public:
   ref<Expr> getBoundsCheckOffset(ref<Expr> offset) const {
     if (size==0) {
       return EqExpr::create(offset, 
-                            ConstantExpr::alloc(0, Context::get().getPointerWidth()));
+                            IConstantExpr::alloc(0, Context::get().getPointerWidth()));
     } else {
       return UltExpr::create(offset, getSizeExpr());
     }
@@ -127,10 +127,10 @@ public:
   ref<Expr> getBoundsCheckOffset(ref<Expr> offset, unsigned bytes) const {
     if (bytes<=size) {
       return UltExpr::create(offset, 
-                             ConstantExpr::alloc(size - bytes + 1, 
+                             IConstantExpr::alloc(size - bytes + 1, 
                                                  Context::get().getPointerWidth()));
     } else {
-      return ConstantExpr::alloc(0, Expr::Bool);
+      return IConstantExpr::alloc(0, Expr::Bool);
     }
   }
 };

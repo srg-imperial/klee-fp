@@ -35,7 +35,7 @@ namespace klee {
 
     /// withFalse - Return a copy of the query with a false expression.
     Query withFalse() const {
-      return Query(constraints, ConstantExpr::alloc(0, Expr::Bool));
+      return Query(constraints, IConstantExpr::alloc(0, Expr::Bool));
     }
 
     /// negateExpr - Return a copy of the query with the expression negated.
@@ -116,7 +116,7 @@ namespace klee {
     /// satisying assignment.
     ///
     /// \return True on success.
-    bool getValue(const Query&, ref<ConstantExpr> &result);
+    bool getValue(const Query&, ref<IConstantExpr> &result);
 
     /// getInitialValues - Compute the initial values for a list of objects.
     ///

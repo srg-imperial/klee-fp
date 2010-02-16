@@ -29,7 +29,7 @@ const Expr::Width g_types[] = { Expr::Bool,
 ref<Expr> getConstant(int value, Expr::Width width) {
   int64_t ext = value;
   uint64_t trunc = ext & (((uint64_t) -1LL) >> (64 - width));
-  return ConstantExpr::create(trunc, width);
+  return IConstantExpr::create(trunc, width);
 }
 
 

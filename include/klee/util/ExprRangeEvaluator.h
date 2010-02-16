@@ -92,8 +92,8 @@ T ExprRangeEvaluator<T>::evalRead(const UpdateList &ul,
 template<class T>
 T ExprRangeEvaluator<T>::evaluate(const ref<Expr> &e) {
   switch (e->getKind()) {
-  case Expr::Constant:
-    return T(cast<ConstantExpr>(e));
+  case Expr::IConstant:
+    return T(cast<IConstantExpr>(e));
 
   case Expr::NotOptimized: 
     break;

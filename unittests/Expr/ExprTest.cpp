@@ -19,13 +19,13 @@ namespace {
 ref<Expr> getConstant(int value, Expr::Width width) {
   int64_t ext = value;
   uint64_t trunc = ext & (((uint64_t) -1LL) >> (64 - width));
-  return ConstantExpr::create(trunc, width);
+  return IConstantExpr::create(trunc, width);
 }
 
 TEST(ExprTest, BasicConstruction) {
-  EXPECT_EQ(ref<Expr>(ConstantExpr::alloc(0, 32)),
-            SubExpr::create(ConstantExpr::alloc(10, 32),
-                            ConstantExpr::alloc(10, 32)));
+  EXPECT_EQ(ref<Expr>(IConstantExpr::alloc(0, 32)),
+            SubExpr::create(IConstantExpr::alloc(10, 32),
+                            IConstantExpr::alloc(10, 32)));
 }
 
 TEST(ExprTest, ConcatExtract) {
@@ -77,7 +77,7 @@ TEST(ExprTest, ConcatExtract) {
 
   ref<Expr> concat10 = ConcatExpr::create4(read8, c100, c100, read8);    
   ref<Expr> extract10 = ExtractExpr::create(concat10, 8, 16);
-  EXPECT_EQ(Expr::Constant, extract10->getKind());
+  EXPECT_EQ(Expr::IConstant, extract10->getKind());
 }
 
 TEST(ExprTest, ExtractConcat) {
