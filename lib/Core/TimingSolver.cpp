@@ -25,7 +25,7 @@ using namespace llvm;
 bool TimingSolver::evaluate(const ExecutionState& state, ref<Expr> expr,
                             Solver::Validity &result) {
   // Fast path, to avoid timer and OS overhead.
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
+  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(expr)) {
     result = CE->isTrue() ? Solver::True : Solver::False;
     return true;
   }
@@ -49,7 +49,7 @@ bool TimingSolver::evaluate(const ExecutionState& state, ref<Expr> expr,
 bool TimingSolver::mustBeTrue(const ExecutionState& state, ref<Expr> expr, 
                               bool &result) {
   // Fast path, to avoid timer and OS overhead.
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
+  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(expr)) {
     result = CE->isTrue() ? true : false;
     return true;
   }
@@ -94,9 +94,9 @@ bool TimingSolver::mayBeFalse(const ExecutionState& state, ref<Expr> expr,
 }
 
 bool TimingSolver::getValue(const ExecutionState& state, ref<Expr> expr, 
-                            ref<ConstantExpr> &result) {
+                            ref<IConstantExpr> &result) {
   // Fast path, to avoid timer and OS overhead.
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
+  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(expr)) {
     result = CE;
     return true;
   }
@@ -130,7 +130,7 @@ TimingSolver::getInitialValues(const ExecutionState& state,
   sys::Process::GetTimeUsage(now,user,sys);
 
   bool success = solver->getInitialValues(Query(state.constraints,
-                                                ConstantExpr::alloc(0, Expr::Bool)), 
+                                                IConstantExpr::alloc(0, Expr::Bool)), 
                                           objects, result);
   
   sys::Process::GetTimeUsage(delta,user,sys);

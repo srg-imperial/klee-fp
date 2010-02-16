@@ -21,19 +21,19 @@
 // and their computed values.
 
 namespace klee {
-  class ConstantExpr;
+  class IConstantExpr;
   class Expr;
   class ReadExpr;
   class Solver;
 
   typedef std::vector< std::pair<ref<ReadExpr>, 
-                                 ref<ConstantExpr> > > ImpliedValueList;
+                                 ref<IConstantExpr> > > ImpliedValueList;
   
   namespace ImpliedValue {        
-    void getImpliedValues(ref<Expr> e, ref<ConstantExpr> cvalue, 
+    void getImpliedValues(ref<Expr> e, ref<IConstantExpr> cvalue, 
                           ImpliedValueList &result);
     void checkForImpliedValues(Solver *S, ref<Expr> e, 
-                               ref<ConstantExpr> cvalue);    
+                               ref<IConstantExpr> cvalue);    
   }
 
 }

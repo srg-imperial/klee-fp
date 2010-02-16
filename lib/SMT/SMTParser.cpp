@@ -185,7 +185,7 @@ ExprHandle SMTParser::GetConstExpr(std::string val, uint8_t base, klee::Expr::Wi
   assert(base == 2 || base == 10 || base == 16);
   llvm::APInt ap(w, val.c_str(), val.length(), base);
   
-  return klee::ConstantExpr::alloc(ap);
+  return klee::IConstantExpr::alloc(ap);
 }
 
 

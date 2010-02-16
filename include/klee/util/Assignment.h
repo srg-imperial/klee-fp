@@ -69,13 +69,13 @@ namespace klee {
                                         unsigned index) const {
     bindings_ty::const_iterator it = bindings.find(array);
     if (it!=bindings.end() && index<it->second.size()) {
-      return ConstantExpr::alloc(it->second[index], Expr::Int8);
+      return IConstantExpr::alloc(it->second[index], Expr::Int8);
     } else {
       if (allowFreeValues) {
         return ReadExpr::create(UpdateList(array, 0), 
-                                ConstantExpr::alloc(index, Expr::Int32));
+                                IConstantExpr::alloc(index, Expr::Int32));
       } else {
-        return ConstantExpr::alloc(0, Expr::Int8);
+        return IConstantExpr::alloc(0, Expr::Int8);
       }
     }
   }

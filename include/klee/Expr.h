@@ -27,7 +27,7 @@ namespace llvm {
 namespace klee {
 
 class Array;
-class ConstantExpr;
+class IConstantExpr;
 class ObjectState;
 
 template<class T> class ref;
@@ -102,7 +102,7 @@ public:
 
     // Primitive
 
-    Constant = 0,
+    IConstant = 0,
 
     // Special
 
@@ -155,6 +155,10 @@ public:
 
     LastKind=Sge,
 
+    ConstantKindFirst=IConstant,
+    ConstantKindLast=IConstant,
+    NonConstantKindFirst=NotOptimized,
+    NonConstantKindLast=LastKind,
     CastKindFirst=ZExt,
     CastKindLast=SExt,
     BinaryKindFirst=Add,
@@ -231,7 +235,7 @@ public:
   /// given object.
   static ref<Expr> createTempRead(const Array *array, Expr::Width w);
   
-  static ref<ConstantExpr> createPointer(uint64_t v);
+  static ref<IConstantExpr> createPointer(uint64_t v);
 
   struct CreateArg;
   static ref<Expr> createFromKind(Kind k, std::vector<CreateArg> args);
@@ -295,19 +299,28 @@ inline std::ostream &operator<<(std::ostream &os, const Expr::Kind kind) {
 
 class ConstantExpr : public Expr {
 public:
-  static const Kind kind = Constant;
+  static bool classof(const Expr *E) {
+    Kind k = E->getKind();
+    return Expr::ConstantKindFirst <= k && k <= Expr::ConstantKindLast;
+  }
+  static bool classof(const ConstantExpr *) { return true; }
+};
+
+class IConstantExpr : public ConstantExpr {
+public:
+  static const Kind kind = IConstant;
   static const unsigned numKids = 0;
 
 private:
   llvm::APInt value;
 
-  ConstantExpr(const llvm::APInt &v) : value(v) {}
+  IConstantExpr(const llvm::APInt &v) : value(v) {}
 
 public:
-  ~ConstantExpr() {};
+  ~IConstantExpr() {};
   
   Width getWidth() const { return value.getBitWidth(); }
-  Kind getKind() const { return Constant; }
+  Kind getKind() const { return IConstant; }
 
   unsigned getNumKids() const { return 0; }
   ref<Expr> getKid(unsigned i) const { return 0; }
@@ -315,7 +328,7 @@ public:
   /// getAPValue - Return the arbitrary precision value directly.
   ///
   /// Clients should generally not use the APInt value directly and instead use
-  /// native ConstantExpr APIs.
+  /// native IConstantExpr APIs.
   const llvm::APInt &getAPValue() const { return value; }
 
   /// getZExtValue - Return the constant value for a limited number of bits.
@@ -337,7 +350,7 @@ public:
   void toString(std::string &Res) const;
  
   int compareContents(const Expr &b) const { 
-    const ConstantExpr &cb = static_cast<const ConstantExpr&>(b);
+    const IConstantExpr &cb = static_cast<const IConstantExpr&>(b);
     if (getWidth() != cb.getWidth()) 
       return getWidth() < cb.getWidth() ? -1 : 1;
     if (value == cb.value)
@@ -346,7 +359,7 @@ public:
   }
 
   virtual ref<Expr> rebuild(ref<Expr> kids[]) const { 
-    assert(0 && "rebuild() on ConstantExpr"); 
+    assert(0 && "rebuild() on IConstantExpr"); 
     return (Expr*) this;
   }
 
@@ -355,26 +368,26 @@ public:
   static ref<Expr> fromMemory(void *address, Width w);
   void toMemory(void *address);
 
-  static ref<ConstantExpr> alloc(const llvm::APInt &v) {
-    ref<ConstantExpr> r(new ConstantExpr(v));
+  static ref<IConstantExpr> alloc(const llvm::APInt &v) {
+    ref<IConstantExpr> r(new IConstantExpr(v));
     r->computeHash();
     return r;
   }
 
-  static ref<ConstantExpr> alloc(uint64_t v, Width w) {
+  static ref<IConstantExpr> alloc(uint64_t v, Width w) {
     return alloc(llvm::APInt(w, v));
   }
   
-  static ref<ConstantExpr> create(uint64_t v, Width w) {
+  static ref<IConstantExpr> create(uint64_t v, Width w) {
     assert(v == bits64::truncateToNBits(v, w) &&
            "invalid constant");
     return alloc(v, w);
   }
 
   static bool classof(const Expr *E) {
-    return E->getKind() == Expr::Constant;
+    return E->getKind() == Expr::IConstant;
   }
-  static bool classof(const ConstantExpr *) { return true; }
+  static bool classof(const IConstantExpr *) { return true; }
 
   /* Utility Functions */
 
@@ -401,39 +414,39 @@ public:
 
   /* Constant Operations */
 
-  ref<ConstantExpr> Concat(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Extract(unsigned offset, Width W);
-  ref<ConstantExpr> ZExt(Width W);
-  ref<ConstantExpr> SExt(Width W);
-  ref<ConstantExpr> Add(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Sub(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Mul(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> UDiv(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> SDiv(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> URem(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> SRem(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> And(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Or(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Xor(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Shl(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> LShr(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> AShr(const ref<ConstantExpr> &RHS);
+  ref<IConstantExpr> Concat(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Extract(unsigned offset, Width W);
+  ref<IConstantExpr> ZExt(Width W);
+  ref<IConstantExpr> SExt(Width W);
+  ref<IConstantExpr> Add(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Sub(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Mul(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> UDiv(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> SDiv(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> URem(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> SRem(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> And(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Or(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Xor(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Shl(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> LShr(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> AShr(const ref<IConstantExpr> &RHS);
 
   // Comparisons return a constant expression of width 1.
 
-  ref<ConstantExpr> Eq(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Ne(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Ult(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Ule(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Ugt(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Uge(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Slt(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Sle(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Sgt(const ref<ConstantExpr> &RHS);
-  ref<ConstantExpr> Sge(const ref<ConstantExpr> &RHS);
+  ref<IConstantExpr> Eq(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Ne(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Ult(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Ule(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Ugt(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Uge(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Slt(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Sle(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Sgt(const ref<IConstantExpr> &RHS);
+  ref<IConstantExpr> Sge(const ref<IConstantExpr> &RHS);
 
-  ref<ConstantExpr> Neg();
-  ref<ConstantExpr> Not();
+  ref<IConstantExpr> Neg();
+  ref<IConstantExpr> Not();
 };
 
   
@@ -442,7 +455,8 @@ public:
 class NonConstantExpr : public Expr {
 public:
   static bool classof(const Expr *E) {
-    return E->getKind() != Expr::Constant;
+    Kind k = E->getKind();
+    return Expr::NonConstantKindFirst <= k && k <= Expr::NonConstantKindLast;
   }
   static bool classof(const NonConstantExpr *) { return true; }
 };
@@ -1040,21 +1054,21 @@ COMPARISON_EXPR_CLASS(Sge)
 // Implementations
 
 inline bool Expr::isZero() const {
-  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(this))
+  if (const IConstantExpr *CE = dyn_cast<IConstantExpr>(this))
     return CE->isZero();
   return false;
 }
   
 inline bool Expr::isTrue() const {
   assert(getWidth() == Expr::Bool && "Invalid isTrue() call!");
-  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(this))
+  if (const IConstantExpr *CE = dyn_cast<IConstantExpr>(this))
     return CE->isTrue();
   return false;
 }
   
 inline bool Expr::isFalse() const {
   assert(getWidth() == Expr::Bool && "Invalid isFalse() call!");
-  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(this))
+  if (const IConstantExpr *CE = dyn_cast<IConstantExpr>(this))
     return CE->isFalse();
   return false;
 }

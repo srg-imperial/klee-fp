@@ -133,7 +133,7 @@ private:
 
   /// Map of globals to their bound address. This also includes
   /// globals that have no representative object (i.e. functions).
-  std::map<const llvm::GlobalValue*, ref<ConstantExpr> > globalAddresses;
+  std::map<const llvm::GlobalValue*, ref<IConstantExpr> > globalAddresses;
 
   /// The set of legal function addresses, used to validate function
   /// pointers. We use the actual Function* address as the function address.
@@ -321,7 +321,7 @@ private:
   /// should generally be avoided.
   ///
   /// \param purpose An identify string to printed in case of concretization.
-  ref<klee::ConstantExpr> toConstant(ExecutionState &state, ref<Expr> e, 
+  ref<klee::IConstantExpr> toConstant(ExecutionState &state, ref<Expr> e, 
                                      const char *purpose);
 
   /// Bind a constant value for e to the given target. NOTE: This
@@ -365,7 +365,7 @@ private:
 
   void doImpliedValueConcretization(ExecutionState &state,
                                     ref<Expr> e,
-                                    ref<ConstantExpr> value);
+                                    ref<IConstantExpr> value);
 
   /// Add a timer to be executed periodically.
   ///

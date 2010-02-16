@@ -40,42 +40,42 @@ ref<Expr> Expr::createTempRead(const Array *array, Expr::Width w) {
   default: assert(0 && "invalid width");
   case Expr::Bool: 
     return ZExtExpr::create(ReadExpr::create(ul, 
-                                             ConstantExpr::alloc(0, Expr::Int32)),
+                                             IConstantExpr::alloc(0, Expr::Int32)),
                             Expr::Bool);
   case Expr::Int8: 
     return ReadExpr::create(ul, 
-                            ConstantExpr::alloc(0,Expr::Int32));
+                            IConstantExpr::alloc(0,Expr::Int32));
   case Expr::Int16: 
     return ConcatExpr::create(ReadExpr::create(ul, 
-                                               ConstantExpr::alloc(1,Expr::Int32)),
+                                               IConstantExpr::alloc(1,Expr::Int32)),
                               ReadExpr::create(ul, 
-                                               ConstantExpr::alloc(0,Expr::Int32)));
+                                               IConstantExpr::alloc(0,Expr::Int32)));
   case Expr::Int32: 
     return ConcatExpr::create4(ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(3,Expr::Int32)),
+                                                IConstantExpr::alloc(3,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(2,Expr::Int32)),
+                                                IConstantExpr::alloc(2,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(1,Expr::Int32)),
+                                                IConstantExpr::alloc(1,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(0,Expr::Int32)));
+                                                IConstantExpr::alloc(0,Expr::Int32)));
   case Expr::Int64: 
     return ConcatExpr::create8(ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(7,Expr::Int32)),
+                                                IConstantExpr::alloc(7,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(6,Expr::Int32)),
+                                                IConstantExpr::alloc(6,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(5,Expr::Int32)),
+                                                IConstantExpr::alloc(5,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(4,Expr::Int32)),
+                                                IConstantExpr::alloc(4,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(3,Expr::Int32)),
+                                                IConstantExpr::alloc(3,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(2,Expr::Int32)),
+                                                IConstantExpr::alloc(2,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(1,Expr::Int32)),
+                                                IConstantExpr::alloc(1,Expr::Int32)),
                                ReadExpr::create(ul, 
-                                                ConstantExpr::alloc(0,Expr::Int32)));
+                                                IConstantExpr::alloc(0,Expr::Int32)));
   }
 }
 
@@ -104,7 +104,7 @@ int Expr::compare(const Expr &b) const {
 void Expr::printKind(std::ostream &os, Kind k) {
   switch(k) {
 #define X(C) case C: os << #C; break
-    X(Constant);
+    X(IConstant);
     X(NotOptimized);
     X(Read);
     X(Select);
@@ -161,7 +161,7 @@ unsigned Expr::computeHash() {
   return hashValue;
 }
 
-unsigned ConstantExpr::computeHash() {
+unsigned IConstantExpr::computeHash() {
   hashValue = value.getHashValue() ^ (getWidth() * MAGIC_HASH_CONSTANT);
   return hashValue;
 }
@@ -196,7 +196,7 @@ ref<Expr> Expr::createFromKind(Kind k, std::vector<CreateArg> args) {
   (void) numArgs;
 
   switch(k) {
-    case Constant:
+    case IConstant:
     case Extract:
     case Read:
     default:
@@ -283,7 +283,7 @@ ref<Expr> Expr::createImplies(ref<Expr> hyp, ref<Expr> conc) {
 }
 
 ref<Expr> Expr::createIsZero(ref<Expr> e) {
-  return EqExpr::create(e, ConstantExpr::create(0, e->getWidth()));
+  return EqExpr::create(e, IConstantExpr::create(0, e->getWidth()));
 }
 
 void Expr::print(std::ostream &os) const {
@@ -297,19 +297,19 @@ void Expr::dump() const {
 
 /***/
 
-ref<Expr> ConstantExpr::fromMemory(void *address, Width width) {
+ref<Expr> IConstantExpr::fromMemory(void *address, Width width) {
   switch (width) {
   default: assert(0 && "invalid type");
-  case  Expr::Bool: return ConstantExpr::create(*(( uint8_t*) address), width);
-  case  Expr::Int8: return ConstantExpr::create(*(( uint8_t*) address), width);
-  case Expr::Int16: return ConstantExpr::create(*((uint16_t*) address), width);
-  case Expr::Int32: return ConstantExpr::create(*((uint32_t*) address), width);
-  case Expr::Int64: return ConstantExpr::create(*((uint64_t*) address), width);
+  case  Expr::Bool: return IConstantExpr::create(*(( uint8_t*) address), width);
+  case  Expr::Int8: return IConstantExpr::create(*(( uint8_t*) address), width);
+  case Expr::Int16: return IConstantExpr::create(*((uint16_t*) address), width);
+  case Expr::Int32: return IConstantExpr::create(*((uint32_t*) address), width);
+  case Expr::Int64: return IConstantExpr::create(*((uint64_t*) address), width);
     // FIXME: Should support long double, at least.
   }
 }
 
-void ConstantExpr::toMemory(void *address) {
+void IConstantExpr::toMemory(void *address) {
   switch (getWidth()) {
   default: assert(0 && "invalid type");
   case  Expr::Bool: *(( uint8_t*) address) = getZExtValue(1); break;
@@ -321,130 +321,130 @@ void ConstantExpr::toMemory(void *address) {
   }
 }
 
-void ConstantExpr::toString(std::string &Res) const {
+void IConstantExpr::toString(std::string &Res) const {
   Res = value.toString(10, false);
 }
 
-ref<ConstantExpr> ConstantExpr::Concat(const ref<ConstantExpr> &RHS) {
+ref<IConstantExpr> IConstantExpr::Concat(const ref<IConstantExpr> &RHS) {
   Expr::Width W = getWidth() + RHS->getWidth();
   APInt Tmp(value);
   Tmp.zext(W);
   Tmp <<= RHS->getWidth();
   Tmp |= APInt(RHS->value).zext(W);
 
-  return ConstantExpr::alloc(Tmp);
+  return IConstantExpr::alloc(Tmp);
 }
 
-ref<ConstantExpr> ConstantExpr::Extract(unsigned Offset, Width W) {
-  return ConstantExpr::alloc(APInt(value.ashr(Offset)).zextOrTrunc(W));
+ref<IConstantExpr> IConstantExpr::Extract(unsigned Offset, Width W) {
+  return IConstantExpr::alloc(APInt(value.ashr(Offset)).zextOrTrunc(W));
 }
 
-ref<ConstantExpr> ConstantExpr::ZExt(Width W) {
-  return ConstantExpr::alloc(APInt(value).zextOrTrunc(W));
+ref<IConstantExpr> IConstantExpr::ZExt(Width W) {
+  return IConstantExpr::alloc(APInt(value).zextOrTrunc(W));
 }
 
-ref<ConstantExpr> ConstantExpr::SExt(Width W) {
-  return ConstantExpr::alloc(APInt(value).sextOrTrunc(W));
+ref<IConstantExpr> IConstantExpr::SExt(Width W) {
+  return IConstantExpr::alloc(APInt(value).sextOrTrunc(W));
 }
 
-ref<ConstantExpr> ConstantExpr::Add(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value + RHS->value);
+ref<IConstantExpr> IConstantExpr::Add(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value + RHS->value);
 }
 
-ref<ConstantExpr> ConstantExpr::Neg() {
-  return ConstantExpr::alloc(-value);
+ref<IConstantExpr> IConstantExpr::Neg() {
+  return IConstantExpr::alloc(-value);
 }
 
-ref<ConstantExpr> ConstantExpr::Sub(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value - RHS->value);
+ref<IConstantExpr> IConstantExpr::Sub(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value - RHS->value);
 }
 
-ref<ConstantExpr> ConstantExpr::Mul(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value * RHS->value);
+ref<IConstantExpr> IConstantExpr::Mul(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value * RHS->value);
 }
 
-ref<ConstantExpr> ConstantExpr::UDiv(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.udiv(RHS->value));
+ref<IConstantExpr> IConstantExpr::UDiv(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.udiv(RHS->value));
 }
 
-ref<ConstantExpr> ConstantExpr::SDiv(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.sdiv(RHS->value));
+ref<IConstantExpr> IConstantExpr::SDiv(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.sdiv(RHS->value));
 }
 
-ref<ConstantExpr> ConstantExpr::URem(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.urem(RHS->value));
+ref<IConstantExpr> IConstantExpr::URem(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.urem(RHS->value));
 }
 
-ref<ConstantExpr> ConstantExpr::SRem(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.srem(RHS->value));
+ref<IConstantExpr> IConstantExpr::SRem(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.srem(RHS->value));
 }
 
-ref<ConstantExpr> ConstantExpr::And(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value & RHS->value);
+ref<IConstantExpr> IConstantExpr::And(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value & RHS->value);
 }
 
-ref<ConstantExpr> ConstantExpr::Or(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value | RHS->value);
+ref<IConstantExpr> IConstantExpr::Or(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value | RHS->value);
 }
 
-ref<ConstantExpr> ConstantExpr::Xor(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value ^ RHS->value);
+ref<IConstantExpr> IConstantExpr::Xor(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value ^ RHS->value);
 }
 
-ref<ConstantExpr> ConstantExpr::Shl(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.shl(RHS->value));
+ref<IConstantExpr> IConstantExpr::Shl(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.shl(RHS->value));
 }
 
-ref<ConstantExpr> ConstantExpr::LShr(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.lshr(RHS->value));
+ref<IConstantExpr> IConstantExpr::LShr(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.lshr(RHS->value));
 }
 
-ref<ConstantExpr> ConstantExpr::AShr(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.ashr(RHS->value));
+ref<IConstantExpr> IConstantExpr::AShr(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.ashr(RHS->value));
 }
 
-ref<ConstantExpr> ConstantExpr::Not() {
-  return ConstantExpr::alloc(~value);
+ref<IConstantExpr> IConstantExpr::Not() {
+  return IConstantExpr::alloc(~value);
 }
 
-ref<ConstantExpr> ConstantExpr::Eq(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value == RHS->value, Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Eq(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value == RHS->value, Expr::Bool);
 }
 
-ref<ConstantExpr> ConstantExpr::Ne(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value != RHS->value, Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Ne(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value != RHS->value, Expr::Bool);
 }
 
-ref<ConstantExpr> ConstantExpr::Ult(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.ult(RHS->value), Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Ult(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.ult(RHS->value), Expr::Bool);
 }
 
-ref<ConstantExpr> ConstantExpr::Ule(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.ule(RHS->value), Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Ule(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.ule(RHS->value), Expr::Bool);
 }
 
-ref<ConstantExpr> ConstantExpr::Ugt(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.ugt(RHS->value), Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Ugt(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.ugt(RHS->value), Expr::Bool);
 }
 
-ref<ConstantExpr> ConstantExpr::Uge(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.uge(RHS->value), Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Uge(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.uge(RHS->value), Expr::Bool);
 }
 
-ref<ConstantExpr> ConstantExpr::Slt(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.slt(RHS->value), Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Slt(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.slt(RHS->value), Expr::Bool);
 }
 
-ref<ConstantExpr> ConstantExpr::Sle(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.sle(RHS->value), Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Sle(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.sle(RHS->value), Expr::Bool);
 }
 
-ref<ConstantExpr> ConstantExpr::Sgt(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.sgt(RHS->value), Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Sgt(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.sgt(RHS->value), Expr::Bool);
 }
 
-ref<ConstantExpr> ConstantExpr::Sge(const ref<ConstantExpr> &RHS) {
-  return ConstantExpr::alloc(value.sge(RHS->value), Expr::Bool);
+ref<IConstantExpr> IConstantExpr::Sge(const ref<IConstantExpr> &RHS) {
+  return IConstantExpr::alloc(value.sge(RHS->value), Expr::Bool);
 }
 
 /***/
@@ -480,7 +480,7 @@ ref<Expr> ReadExpr::create(const UpdateList &ul, ref<Expr> index) {
   for (; un; un=un->next) {
     ref<Expr> cond = EqExpr::create(index, un->index);
     
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(cond)) {
+    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(cond)) {
       if (CE->isTrue())
         return un->value;
     } else {
@@ -501,18 +501,18 @@ ref<Expr> SelectExpr::create(ref<Expr> c, ref<Expr> t, ref<Expr> f) {
   assert(c->getWidth()==Bool && "type mismatch");
   assert(kt==f->getWidth() && "type mismatch");
 
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(c)) {
+  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(c)) {
     return CE->isTrue() ? t : f;
   } else if (t==f) {
     return t;
   } else if (kt==Expr::Bool) { // c ? t : f  <=> (c and t) or (not c and f)
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(t)) {      
+    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(t)) {      
       if (CE->isTrue()) {
         return OrExpr::create(c, f);
       } else {
         return AndExpr::create(Expr::createIsZero(c), f);
       }
-    } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(f)) {
+    } else if (IConstantExpr *CE = dyn_cast<IConstantExpr>(f)) {
       if (CE->isTrue()) {
         return OrExpr::create(Expr::createIsZero(c), t);
       } else {
@@ -532,8 +532,8 @@ ref<Expr> ConcatExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
   // Fold concatenation of constants.
   //
   // FIXME: concat 0 x -> zext x ?
-  if (ConstantExpr *lCE = dyn_cast<ConstantExpr>(l))
-    if (ConstantExpr *rCE = dyn_cast<ConstantExpr>(r))
+  if (IConstantExpr *lCE = dyn_cast<IConstantExpr>(l))
+    if (IConstantExpr *rCE = dyn_cast<IConstantExpr>(r))
       return lCE->Concat(rCE);
 
   // Merge contiguous Extracts
@@ -584,7 +584,7 @@ ref<Expr> ExtractExpr::create(ref<Expr> expr, unsigned off, Width w) {
   
   if (w == kw) {
     return expr;
-  } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
+  } else if (IConstantExpr *CE = dyn_cast<IConstantExpr>(expr)) {
     return CE->Extract(off, w);
   } else {
     // Extract(Concat)
@@ -609,7 +609,7 @@ ref<Expr> ExtractExpr::create(ref<Expr> expr, unsigned off, Width w) {
 /***/
 
 ref<Expr> NotExpr::create(const ref<Expr> &e) {
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
+  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(e))
     return CE->Not();
   
   return NotExpr::alloc(e);
@@ -624,7 +624,7 @@ ref<Expr> ZExtExpr::create(const ref<Expr> &e, Width w) {
     return e;
   } else if (w < kBits) { // trunc
     return ExtractExpr::create(e, 0, w);
-  } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
+  } else if (IConstantExpr *CE = dyn_cast<IConstantExpr>(e)) {
     return CE->ZExt(w);
   } else {
     return ZExtExpr::alloc(e, w);
@@ -637,7 +637,7 @@ ref<Expr> SExtExpr::create(const ref<Expr> &e, Width w) {
     return e;
   } else if (w < kBits) { // trunc
     return ExtractExpr::create(e, 0, w);
-  } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
+  } else if (IConstantExpr *CE = dyn_cast<IConstantExpr>(e)) {
     return CE->SExt(w);
   } else {    
     return SExtExpr::alloc(e, w);
@@ -649,12 +649,12 @@ ref<Expr> SExtExpr::create(const ref<Expr> &e, Width w) {
 static ref<Expr> AndExpr_create(Expr *l, Expr *r);
 static ref<Expr> XorExpr_create(Expr *l, Expr *r);
 
-static ref<Expr> EqExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr);
-static ref<Expr> AndExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r);
-static ref<Expr> SubExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r);
-static ref<Expr> XorExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r);
+static ref<Expr> EqExpr_createPartial(Expr *l, const ref<IConstantExpr> &cr);
+static ref<Expr> AndExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r);
+static ref<Expr> SubExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r);
+static ref<Expr> XorExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r);
 
-static ref<Expr> AddExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
+static ref<Expr> AddExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r) {
   Expr::Width type = cl->getWidth();
 
   if (type==Expr::Bool) {
@@ -663,10 +663,10 @@ static ref<Expr> AddExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
     return r;
   } else {
     Expr::Kind rk = r->getKind();
-    if (rk==Expr::Add && isa<ConstantExpr>(r->getKid(0))) { // A + (B+c) == (A+B) + c
+    if (rk==Expr::Add && isa<IConstantExpr>(r->getKid(0))) { // A + (B+c) == (A+B) + c
       return AddExpr::create(AddExpr::create(cl, r->getKid(0)),
                              r->getKid(1));
-    } else if (rk==Expr::Sub && isa<ConstantExpr>(r->getKid(0))) { // A + (B-c) == (A+B) - c
+    } else if (rk==Expr::Sub && isa<IConstantExpr>(r->getKid(0))) { // A + (B-c) == (A+B) - c
       return SubExpr::create(AddExpr::create(cl, r->getKid(0)),
                              r->getKid(1));
     } else {
@@ -674,7 +674,7 @@ static ref<Expr> AddExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
     }
   }
 }
-static ref<Expr> AddExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
+static ref<Expr> AddExpr_createPartial(Expr *l, const ref<IConstantExpr> &cr) {
   return AddExpr_createPartialR(cr, l);
 }
 static ref<Expr> AddExpr_create(Expr *l, Expr *r) {
@@ -684,16 +684,16 @@ static ref<Expr> AddExpr_create(Expr *l, Expr *r) {
     return XorExpr_create(l, r);
   } else {
     Expr::Kind lk = l->getKind(), rk = r->getKind();
-    if (lk==Expr::Add && isa<ConstantExpr>(l->getKid(0))) { // (k+a)+b = k+(a+b)
+    if (lk==Expr::Add && isa<IConstantExpr>(l->getKid(0))) { // (k+a)+b = k+(a+b)
       return AddExpr::create(l->getKid(0),
                              AddExpr::create(l->getKid(1), r));
-    } else if (lk==Expr::Sub && isa<ConstantExpr>(l->getKid(0))) { // (k-a)+b = k+(b-a)
+    } else if (lk==Expr::Sub && isa<IConstantExpr>(l->getKid(0))) { // (k-a)+b = k+(b-a)
       return AddExpr::create(l->getKid(0),
                              SubExpr::create(r, l->getKid(1)));
-    } else if (rk==Expr::Add && isa<ConstantExpr>(r->getKid(0))) { // a + (k+b) = k+(a+b)
+    } else if (rk==Expr::Add && isa<IConstantExpr>(r->getKid(0))) { // a + (k+b) = k+(a+b)
       return AddExpr::create(r->getKid(0),
                              AddExpr::create(l, r->getKid(1)));
-    } else if (rk==Expr::Sub && isa<ConstantExpr>(r->getKid(0))) { // a + (k-b) = k+(a-b)
+    } else if (rk==Expr::Sub && isa<IConstantExpr>(r->getKid(0))) { // a + (k-b) = k+(a-b)
       return AddExpr::create(r->getKid(0),
                              SubExpr::create(l, r->getKid(1)));
     } else {
@@ -702,17 +702,17 @@ static ref<Expr> AddExpr_create(Expr *l, Expr *r) {
   }  
 }
 
-static ref<Expr> SubExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
+static ref<Expr> SubExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r) {
   Expr::Width type = cl->getWidth();
 
   if (type==Expr::Bool) {
     return XorExpr_createPartialR(cl, r);
   } else {
     Expr::Kind rk = r->getKind();
-    if (rk==Expr::Add && isa<ConstantExpr>(r->getKid(0))) { // A - (B+c) == (A-B) - c
+    if (rk==Expr::Add && isa<IConstantExpr>(r->getKid(0))) { // A - (B+c) == (A-B) - c
       return SubExpr::create(SubExpr::create(cl, r->getKid(0)),
                              r->getKid(1));
-    } else if (rk==Expr::Sub && isa<ConstantExpr>(r->getKid(0))) { // A - (B-c) == (A-B) + c
+    } else if (rk==Expr::Sub && isa<IConstantExpr>(r->getKid(0))) { // A - (B-c) == (A-B) + c
       return AddExpr::create(SubExpr::create(cl, r->getKid(0)),
                              r->getKid(1));
     } else {
@@ -720,10 +720,10 @@ static ref<Expr> SubExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
     }
   }
 }
-static ref<Expr> SubExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
+static ref<Expr> SubExpr_createPartial(Expr *l, const ref<IConstantExpr> &cr) {
   // l - c => l + (-c)
   return AddExpr_createPartial(l, 
-                               ConstantExpr::alloc(0, cr->getWidth())->Sub(cr));
+                               IConstantExpr::alloc(0, cr->getWidth())->Sub(cr));
 }
 static ref<Expr> SubExpr_create(Expr *l, Expr *r) {
   Expr::Width type = l->getWidth();
@@ -731,19 +731,19 @@ static ref<Expr> SubExpr_create(Expr *l, Expr *r) {
   if (type == Expr::Bool) {
     return XorExpr_create(l, r);
   } else if (*l==*r) {
-    return ConstantExpr::alloc(0, type);
+    return IConstantExpr::alloc(0, type);
   } else {
     Expr::Kind lk = l->getKind(), rk = r->getKind();
-    if (lk==Expr::Add && isa<ConstantExpr>(l->getKid(0))) { // (k+a)-b = k+(a-b)
+    if (lk==Expr::Add && isa<IConstantExpr>(l->getKid(0))) { // (k+a)-b = k+(a-b)
       return AddExpr::create(l->getKid(0),
                              SubExpr::create(l->getKid(1), r));
-    } else if (lk==Expr::Sub && isa<ConstantExpr>(l->getKid(0))) { // (k-a)-b = k-(a+b)
+    } else if (lk==Expr::Sub && isa<IConstantExpr>(l->getKid(0))) { // (k-a)-b = k-(a+b)
       return SubExpr::create(l->getKid(0),
                              AddExpr::create(l->getKid(1), r));
-    } else if (rk==Expr::Add && isa<ConstantExpr>(r->getKid(0))) { // a - (k+b) = (a-c) - k
+    } else if (rk==Expr::Add && isa<IConstantExpr>(r->getKid(0))) { // a - (k+b) = (a-c) - k
       return SubExpr::create(SubExpr::create(l, r->getKid(1)),
                              r->getKid(0));
-    } else if (rk==Expr::Sub && isa<ConstantExpr>(r->getKid(0))) { // a - (k-b) = (a+b) - k
+    } else if (rk==Expr::Sub && isa<IConstantExpr>(r->getKid(0))) { // a - (k-b) = (a+b) - k
       return SubExpr::create(AddExpr::create(l, r->getKid(1)),
                              r->getKid(0));
     } else {
@@ -752,7 +752,7 @@ static ref<Expr> SubExpr_create(Expr *l, Expr *r) {
   }  
 }
 
-static ref<Expr> MulExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
+static ref<Expr> MulExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r) {
   Expr::Width type = cl->getWidth();
 
   if (type == Expr::Bool) {
@@ -765,7 +765,7 @@ static ref<Expr> MulExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
     return MulExpr::alloc(cl, r);
   }
 }
-static ref<Expr> MulExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
+static ref<Expr> MulExpr_createPartial(Expr *l, const ref<IConstantExpr> &cr) {
   return MulExpr_createPartialR(cr, l);
 }
 static ref<Expr> MulExpr_create(Expr *l, Expr *r) {
@@ -778,7 +778,7 @@ static ref<Expr> MulExpr_create(Expr *l, Expr *r) {
   }
 }
 
-static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
+static ref<Expr> AndExpr_createPartial(Expr *l, const ref<IConstantExpr> &cr) {
   if (cr->isAllOnes()) {
     return l;
   } else if (cr->isZero()) {
@@ -787,14 +787,14 @@ static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
     return AndExpr::alloc(l, cr);
   }
 }
-static ref<Expr> AndExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
+static ref<Expr> AndExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r) {
   return AndExpr_createPartial(r, cl);
 }
 static ref<Expr> AndExpr_create(Expr *l, Expr *r) {
   return AndExpr::alloc(l, r);
 }
 
-static ref<Expr> OrExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
+static ref<Expr> OrExpr_createPartial(Expr *l, const ref<IConstantExpr> &cr) {
   if (cr->isAllOnes()) {
     return cr;
   } else if (cr->isZero()) {
@@ -803,24 +803,24 @@ static ref<Expr> OrExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
     return OrExpr::alloc(l, cr);
   }
 }
-static ref<Expr> OrExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
+static ref<Expr> OrExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r) {
   return OrExpr_createPartial(r, cl);
 }
 static ref<Expr> OrExpr_create(Expr *l, Expr *r) {
   return OrExpr::alloc(l, r);
 }
 
-static ref<Expr> XorExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
+static ref<Expr> XorExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r) {
   if (cl->isZero()) {
     return r;
   } else if (cl->getWidth() == Expr::Bool) {
-    return EqExpr_createPartial(r, ConstantExpr::create(0, Expr::Bool));
+    return EqExpr_createPartial(r, IConstantExpr::create(0, Expr::Bool));
   } else {
     return XorExpr::alloc(cl, r);
   }
 }
 
-static ref<Expr> XorExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
+static ref<Expr> XorExpr_createPartial(Expr *l, const ref<IConstantExpr> &cr) {
   return XorExpr_createPartialR(cr, l);
 }
 static ref<Expr> XorExpr_create(Expr *l, Expr *r) {
@@ -845,7 +845,7 @@ static ref<Expr> SDivExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
 
 static ref<Expr> URemExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
   if (l->getWidth() == Expr::Bool) { // r must be 1
-    return ConstantExpr::create(0, Expr::Bool);
+    return IConstantExpr::create(0, Expr::Bool);
   } else{
     return URemExpr::alloc(l, r);
   }
@@ -853,7 +853,7 @@ static ref<Expr> URemExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
 
 static ref<Expr> SRemExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
   if (l->getWidth() == Expr::Bool) { // r must be 1
-    return ConstantExpr::create(0, Expr::Bool);
+    return IConstantExpr::create(0, Expr::Bool);
   } else{
     return SRemExpr::alloc(l, r);
   }
@@ -886,11 +886,11 @@ static ref<Expr> AShrExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
 #define BCREATE_R(_e_op, _op, partialL, partialR) \
 ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
   assert(l->getWidth()==r->getWidth() && "type mismatch");              \
-  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {                   \
-    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))                   \
+  if (IConstantExpr *cl = dyn_cast<IConstantExpr>(l)) {                   \
+    if (IConstantExpr *cr = dyn_cast<IConstantExpr>(r))                   \
       return cl->_op(cr);                                               \
     return _e_op ## _createPartialR(cl, r.get());                       \
-  } else if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {            \
+  } else if (IConstantExpr *cr = dyn_cast<IConstantExpr>(r)) {            \
     return _e_op ## _createPartial(l.get(), cr);                        \
   }                                                                     \
   return _e_op ## _create(l.get(), r.get());                            \
@@ -899,8 +899,8 @@ ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
 #define BCREATE(_e_op, _op) \
 ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
   assert(l->getWidth()==r->getWidth() && "type mismatch");          \
-  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l))                 \
-    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))               \
+  if (IConstantExpr *cl = dyn_cast<IConstantExpr>(l))                 \
+    if (IConstantExpr *cr = dyn_cast<IConstantExpr>(r))               \
       return cl->_op(cr);                                           \
   return _e_op ## _create(l, r);                                    \
 }
@@ -922,8 +922,8 @@ BCREATE(AShrExpr, AShr)
 #define CMPCREATE(_e_op, _op) \
 ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
   assert(l->getWidth()==r->getWidth() && "type mismatch");              \
-  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l))                     \
-    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))                   \
+  if (IConstantExpr *cl = dyn_cast<IConstantExpr>(l))                     \
+    if (IConstantExpr *cr = dyn_cast<IConstantExpr>(r))                   \
       return cl->_op(cr);                                               \
   return _e_op ## _create(l, r);                                        \
 }
@@ -931,11 +931,11 @@ ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
 #define CMPCREATE_T(_e_op, _op, _reflexive_e_op, partialL, partialR) \
 ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) {    \
   assert(l->getWidth()==r->getWidth() && "type mismatch");             \
-  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {                  \
-    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))                  \
+  if (IConstantExpr *cl = dyn_cast<IConstantExpr>(l)) {                  \
+    if (IConstantExpr *cr = dyn_cast<IConstantExpr>(r))                  \
       return cl->_op(cr);                                              \
     return partialR(cl, r.get());                                      \
-  } else if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {           \
+  } else if (IConstantExpr *cr = dyn_cast<IConstantExpr>(r)) {           \
     return partialL(l.get(), cr);                                      \
   } else {                                                             \
     return _e_op ## _create(l.get(), r.get());                         \
@@ -945,14 +945,14 @@ ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) {    \
 
 static ref<Expr> EqExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
   if (l == r) {
-    return ConstantExpr::alloc(1, Expr::Bool);
+    return IConstantExpr::alloc(1, Expr::Bool);
   } else {
     return EqExpr::alloc(l, r);
   }
 }
 
 
-/// Tries to optimize EqExpr cl == rd, where cl is a ConstantExpr and
+/// Tries to optimize EqExpr cl == rd, where cl is a IConstantExpr and
 /// rd a ReadExpr.  If rd is a read into an all-constant array,
 /// returns a disjunction of equalities on the index.  Otherwise,
 /// returns the initial equality expression. 
@@ -966,7 +966,7 @@ static ref<Expr> TryConstArrayOpt(const ref<ConstantExpr> &cl,
 
   // for now, just assume standard "flushing" of a concrete array,
   // where the concrete array has one update for each index, in order
-  ref<Expr> res = ConstantExpr::alloc(0, Expr::Bool);
+  ref<Expr> res = IConstantExpr::alloc(0, Expr::Bool);
   for (unsigned i = 0, e = rd->updates.root->size; i != e; ++i) {
     if (cl == rd->updates.root->constantValues[i]) {
       // Arbitrary maximum on the size of disjunction.
@@ -974,7 +974,7 @@ static ref<Expr> TryConstArrayOpt(const ref<ConstantExpr> &cl,
         return EqExpr_create(cl, rd);
       
       ref<Expr> mayBe = 
-        EqExpr::create(rd->index, ConstantExpr::alloc(i, 
+        EqExpr::create(rd->index, IConstantExpr::alloc(i, 
                                                       rd->index->getWidth()));
       res = OrExpr::create(res, mayBe);
     }
@@ -983,7 +983,7 @@ static ref<Expr> TryConstArrayOpt(const ref<ConstantExpr> &cl,
   return res;
 }
 
-static ref<Expr> EqExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {  
+static ref<Expr> EqExpr_createPartialR(const ref<IConstantExpr> &cl, Expr *r) {  
   Expr::Width width = cl->getWidth();
 
   Expr::Kind rk = r->getKind();
@@ -997,7 +997,7 @@ static ref<Expr> EqExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
         const EqExpr *ree = cast<EqExpr>(r);
 
         // eliminate double negation
-        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(ree->left)) {
+        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(ree->left)) {
           // 0 == (0 == A) => A
           if (CE->getWidth() == Expr::Bool &&
               CE->isFalse())
@@ -1015,41 +1015,41 @@ static ref<Expr> EqExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
     // (sext(a,T)==c) == (a==c)
     const SExtExpr *see = cast<SExtExpr>(r);
     Expr::Width fromBits = see->src->getWidth();
-    ref<ConstantExpr> trunc = cl->ZExt(fromBits);
+    ref<IConstantExpr> trunc = cl->ZExt(fromBits);
 
     // pathological check, make sure it is possible to
     // sext to this value *from any value*
     if (cl == trunc->SExt(width)) {
       return EqExpr::create(see->src, trunc);
     } else {
-      return ConstantExpr::create(0, Expr::Bool);
+      return IConstantExpr::create(0, Expr::Bool);
     }
   } else if (rk == Expr::ZExt) {
     // (zext(a,T)==c) == (a==c)
     const ZExtExpr *zee = cast<ZExtExpr>(r);
     Expr::Width fromBits = zee->src->getWidth();
-    ref<ConstantExpr> trunc = cl->ZExt(fromBits);
+    ref<IConstantExpr> trunc = cl->ZExt(fromBits);
     
     // pathological check, make sure it is possible to
     // zext to this value *from any value*
     if (cl == trunc->ZExt(width)) {
       return EqExpr::create(zee->src, trunc);
     } else {
-      return ConstantExpr::create(0, Expr::Bool);
+      return IConstantExpr::create(0, Expr::Bool);
     }
   } else if (rk==Expr::Add) {
     const AddExpr *ae = cast<AddExpr>(r);
-    if (isa<ConstantExpr>(ae->left)) {
+    if (isa<IConstantExpr>(ae->left)) {
       // c0 = c1 + b => c0 - c1 = b
-      return EqExpr_createPartialR(cast<ConstantExpr>(SubExpr::create(cl, 
+      return EqExpr_createPartialR(cast<IConstantExpr>(SubExpr::create(cl, 
                                                                       ae->left)),
                                    ae->right.get());
     }
   } else if (rk==Expr::Sub) {
     const SubExpr *se = cast<SubExpr>(r);
-    if (isa<ConstantExpr>(se->left)) {
+    if (isa<IConstantExpr>(se->left)) {
       // c0 = c1 - b => c1 - c0 = b
-      return EqExpr_createPartialR(cast<ConstantExpr>(SubExpr::create(se->left, 
+      return EqExpr_createPartialR(cast<IConstantExpr>(SubExpr::create(se->left, 
                                                                       cl)),
                                    se->right.get());
     }
@@ -1060,12 +1060,12 @@ static ref<Expr> EqExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
   return EqExpr_create(cl, r);
 }
 
-static ref<Expr> EqExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {  
+static ref<Expr> EqExpr_createPartial(Expr *l, const ref<IConstantExpr> &cr) {  
   return EqExpr_createPartialR(cr, l);
 }
   
 ref<Expr> NeExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  return EqExpr::create(ConstantExpr::create(0, Expr::Bool),
+  return EqExpr::create(IConstantExpr::create(0, Expr::Bool),
                         EqExpr::create(l, r));
 }
 

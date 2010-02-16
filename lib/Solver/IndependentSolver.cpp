@@ -102,7 +102,7 @@ public:
         continue;
 
       if (!wholeObjects.count(array)) {
-        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(re->index)) {
+        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(re->index)) {
           DenseSet<unsigned> &dis = elements[array];
           dis.add((unsigned) CE->getZExtValue(32));
         } else {
