@@ -465,6 +465,16 @@ unsigned FConstantExpr::getWidth() const {
   return 0;
 }
 
+void FConstantExpr::toMemory(void *address) {
+  const fltSemantics *s = &value.getSemantics();
+       if (s == &APFloat::IEEEsingle) 
+    *((float  *) address) = value.convertToFloat();
+  else if (s == &APFloat::IEEEdouble) 
+    *((double *) address) = value.convertToDouble();
+  else
+    assert(0 && "unknown format");
+}
+
 /***/
 
 ref<Expr>  NotOptimizedExpr::create(ref<Expr> src) {

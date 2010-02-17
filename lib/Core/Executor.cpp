@@ -2556,7 +2556,7 @@ void Executor::callExternalFunction(ExecutionState &state,
       static_cast<IConstantExpr*>(ce.get())->toMemory((void*) &args[i]);
     } else {
       ref<Expr> arg = toUnique(state, *ai);
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(arg)) {
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(arg)) {
         // XXX kick toMemory functions from here
         CE->toMemory((void*) &args[i]);
       } else {

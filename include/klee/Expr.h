@@ -306,6 +306,7 @@ public:
     return Expr::ConstantKindFirst <= k && k <= Expr::ConstantKindLast;
   }
   static bool classof(const ConstantExpr *) { return true; }
+  virtual void toMemory(void *address) = 0;
 };
 
 class IConstantExpr : public ConstantExpr {
@@ -474,6 +475,8 @@ public:
     assert(0 && "rebuild() on FConstantExpr"); 
     return (Expr*) this;
   }
+
+  void toMemory(void *address);
 
   const llvm::APFloat &getAPValue() const { return value; }
 
