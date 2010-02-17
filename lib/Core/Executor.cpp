@@ -40,7 +40,7 @@
 #include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
-#include "klee/Internal/Support/FloatEvaluation.h"
+// #include "klee/Internal/Support/FloatEvaluation.h"
 #include "klee/Internal/System/Time.h"
 
 #include "llvm/Attributes.h"
@@ -1312,6 +1312,20 @@ static bool isDebugIntrinsic(const Function *f, KModule *KM) {
   }
 }
 
+static const fltSemantics *TypeToFloatSemantics(const Type *Ty) {
+  if (Ty == Type::getFloatTy(Ty->getContext()))
+    return &APFloat::IEEEsingle;
+  if (Ty == Type::getDoubleTy(Ty->getContext()))
+    return &APFloat::IEEEdouble;
+  if (Ty == Type::getX86_FP80Ty(Ty->getContext()))
+    return &APFloat::x87DoubleExtended;
+  else if (Ty == Type::getFP128Ty(Ty->getContext()))
+    return &APFloat::IEEEquad;
+  
+  assert(Ty == Type::getPPC_FP128Ty(Ty->getContext()) && "Unknown FP format");
+  return &APFloat::PPCDoubleDouble;
+}
+
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
   switch (i->getOpcode()) {
@@ -1941,93 +1955,68 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     // Floating point instructions
 
   case Instruction::FAdd: {
-    ref<IConstantExpr> left = toConstant(state, eval(ki, 0, state).value,
-                                        "floating point");
-    ref<IConstantExpr> right = toConstant(state, eval(ki, 1, state).value,
-                                         "floating point");
-    llvm::APFloat Res(left->getAPValue());
-    Res.add(APFloat(right->getAPValue()), APFloat::rmNearestTiesToEven);
-    bindLocal(ki, state, IConstantExpr::alloc(Res.bitcastToAPInt()));
+    ref<FConstantExpr> left (cast<FConstantExpr>(eval(ki, 0, state).value));
+    ref<FConstantExpr> right (cast<FConstantExpr>(eval(ki, 1, state).value));
+    llvm::APFloat Res = left->getAPValue();
+    Res.add(right->getAPValue(), APFloat::rmNearestTiesToEven);
+    bindLocal(ki, state, FConstantExpr::create(Res));
     break;
   }
 
   case Instruction::FSub: {
-    ref<IConstantExpr> left = toConstant(state, eval(ki, 0, state).value,
-                                        "floating point");
-    ref<IConstantExpr> right = toConstant(state, eval(ki, 1, state).value,
-                                         "floating point");
-    llvm::APFloat Res(left->getAPValue());
-    Res.subtract(APFloat(right->getAPValue()), APFloat::rmNearestTiesToEven);
-    bindLocal(ki, state, IConstantExpr::alloc(Res.bitcastToAPInt()));
+    ref<FConstantExpr> left (cast<FConstantExpr>(eval(ki, 0, state).value));
+    ref<FConstantExpr> right (cast<FConstantExpr>(eval(ki, 1, state).value));
+    llvm::APFloat Res = left->getAPValue();
+    Res.subtract(right->getAPValue(), APFloat::rmNearestTiesToEven);
+    bindLocal(ki, state, FConstantExpr::create(Res));
     break;
   }
  
   case Instruction::FMul: {
-    ref<IConstantExpr> left = toConstant(state, eval(ki, 0, state).value,
-                                        "floating point");
-    ref<IConstantExpr> right = toConstant(state, eval(ki, 1, state).value,
-                                         "floating point");
-    llvm::APFloat Res(left->getAPValue());
-    Res.multiply(APFloat(right->getAPValue()), APFloat::rmNearestTiesToEven);
-    bindLocal(ki, state, IConstantExpr::alloc(Res.bitcastToAPInt()));
+    ref<FConstantExpr> left (cast<FConstantExpr>(eval(ki, 0, state).value));
+    ref<FConstantExpr> right (cast<FConstantExpr>(eval(ki, 1, state).value));
+    llvm::APFloat Res = left->getAPValue();
+    Res.multiply(right->getAPValue(), APFloat::rmNearestTiesToEven);
+    bindLocal(ki, state, FConstantExpr::create(Res));
     break;
   }
 
   case Instruction::FDiv: {
-    ref<IConstantExpr> left = toConstant(state, eval(ki, 0, state).value,
-                                        "floating point");
-    ref<IConstantExpr> right = toConstant(state, eval(ki, 1, state).value,
-                                         "floating point");
-    llvm::APFloat Res(left->getAPValue());
-    Res.divide(APFloat(right->getAPValue()), APFloat::rmNearestTiesToEven);
-    bindLocal(ki, state, IConstantExpr::alloc(Res.bitcastToAPInt()));
+    ref<FConstantExpr> left (cast<FConstantExpr>(eval(ki, 0, state).value));
+    ref<FConstantExpr> right (cast<FConstantExpr>(eval(ki, 1, state).value));
+    llvm::APFloat Res = left->getAPValue();
+    Res.divide(right->getAPValue(), APFloat::rmNearestTiesToEven);
+    bindLocal(ki, state, FConstantExpr::create(Res));
     break;
   }
 
   case Instruction::FRem: {
-    ref<IConstantExpr> left = toConstant(state, eval(ki, 0, state).value,
-                                        "floating point");
-    ref<IConstantExpr> right = toConstant(state, eval(ki, 1, state).value,
-                                         "floating point");
-    llvm::APFloat Res(left->getAPValue());
-    Res.mod(APFloat(right->getAPValue()), APFloat::rmNearestTiesToEven);
-    bindLocal(ki, state, IConstantExpr::alloc(Res.bitcastToAPInt()));
+    ref<FConstantExpr> left (cast<FConstantExpr>(eval(ki, 0, state).value));
+    ref<FConstantExpr> right (cast<FConstantExpr>(eval(ki, 1, state).value));
+    llvm::APFloat Res = left->getAPValue();
+    Res.mod(right->getAPValue(), APFloat::rmNearestTiesToEven);
+    bindLocal(ki, state, FConstantExpr::create(Res));
     break;
   }
 
-  case Instruction::FPTrunc: {
-    FPTruncInst *fi = cast<FPTruncInst>(i);
-    Expr::Width resultType = Expr::getWidthForLLVMType(fi->getType());
-    ref<IConstantExpr> arg = toConstant(state, eval(ki, 0, state).value,
-                                       "floating point");
-    if (arg->getWidth() > 64)
-      return terminateStateOnExecError(state, "Unsupported FPTrunc operation");
-    uint64_t value = floats::trunc(arg->getZExtValue(),
-                                   resultType,
-                                   arg->getWidth());
-    bindLocal(ki, state, IConstantExpr::alloc(value, resultType));
-    break;
-  }
-
+  case Instruction::FPTrunc:
   case Instruction::FPExt: {
-    FPExtInst *fi = cast<FPExtInst>(i);
-    Expr::Width resultType = Expr::getWidthForLLVMType(fi->getType());
-    ref<IConstantExpr> arg = toConstant(state, eval(ki, 0, state).value,
-                                       "floating point");
-    if (arg->getWidth() > 64)
-      return terminateStateOnExecError(state, "Unsupported FPExt operation");
-    uint64_t value = floats::ext(arg->getZExtValue(),
-                                 resultType,
-                                 arg->getWidth());
-    bindLocal(ki, state, IConstantExpr::alloc(value, resultType));
+    ref<FConstantExpr> arg (cast<FConstantExpr>(eval(ki, 0, state).value));
+    const llvm::Type *type = i->getType();
+    const fltSemantics *sem = TypeToFloatSemantics(type);
+    bool losesInfo;
+
+    llvm::APFloat Res = arg->getAPValue();
+    Res.convert(*sem, APFloat::rmNearestTiesToEven, &losesInfo);
+    bindLocal(ki, state, FConstantExpr::create(Res));
     break;
   }
 
+/*
   case Instruction::FPToUI: {
     FPToUIInst *fi = cast<FPToUIInst>(i);
     Expr::Width resultType = Expr::getWidthForLLVMType(fi->getType());
-    ref<IConstantExpr> arg = toConstant(state, eval(ki, 0, state).value,
-                                       "floating point");
+    ref<FConstantExpr> arg (cast<FConstantExpr>(eval(ki, 0, state).value));
     if (arg->getWidth() > 64)
       return terminateStateOnExecError(state, "Unsupported FPToUI operation");
     uint64_t value = floats::toUnsignedInt(arg->getZExtValue(),
@@ -2040,8 +2029,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::FPToSI: {
     FPToSIInst *fi = cast<FPToSIInst>(i);
     Expr::Width resultType = Expr::getWidthForLLVMType(fi->getType());
-    ref<IConstantExpr> arg = toConstant(state, eval(ki, 0, state).value,
-                                       "floating point");
+    ref<FConstantExpr> arg (cast<FConstantExpr>(eval(ki, 0, state).value));
     if (arg->getWidth() > 64)
       return terminateStateOnExecError(state, "Unsupported FPToSI operation");
     uint64_t value = floats::toSignedInt(arg->getZExtValue(),
@@ -2080,12 +2068,10 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::FCmp: {
     FCmpInst *fi = cast<FCmpInst>(i);
-    ref<IConstantExpr> left = toConstant(state, eval(ki, 0, state).value,
-                                        "floating point");
-    ref<IConstantExpr> right = toConstant(state, eval(ki, 1, state).value,
-                                         "floating point");
-    APFloat LHS(left->getAPValue());
-    APFloat RHS(right->getAPValue());
+    ref<FConstantExpr> left (cast<FConstantExpr>(eval(ki, 0, state).value));
+    ref<FConstantExpr> right (cast<FConstantExpr>(eval(ki, 1, state).value));
+    const APFloat &LHS = left->getAPValue();
+    const APFloat &RHS = right->getAPValue();
     APFloat::cmpResult CmpRes = LHS.compare(RHS);
 
     bool Result = false;
@@ -2166,6 +2152,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     bindLocal(ki, state, IConstantExpr::alloc(Result, Expr::Bool));
     break;
   }
+*/
  
     // Other instructions...
     // Unhandled
