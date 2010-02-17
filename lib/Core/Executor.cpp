@@ -2027,34 +2027,17 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     break;
   }
 
-/*
-  case Instruction::UIToFP: {
-    UIToFPInst *fi = cast<UIToFPInst>(i);
-    Expr::Width resultType = Expr::getWidthForLLVMType(fi->getType());
-    ref<IConstantExpr> arg = toConstant(state, eval(ki, 0, state).value,
-                                       "floating point");
-    if (arg->getWidth() > 64)
-      return terminateStateOnExecError(state, "Unsupported UIToFP operation");
-    uint64_t value = floats::UnsignedIntToFP(arg->getZExtValue(),
-                                             resultType);
-    bindLocal(ki, state, IConstantExpr::alloc(value, resultType));
-    break;
-  }
-
+  case Instruction::UIToFP:
   case Instruction::SIToFP: {
-    SIToFPInst *fi = cast<SIToFPInst>(i);
-    Expr::Width resultType = Expr::getWidthForLLVMType(fi->getType());
     ref<IConstantExpr> arg = toConstant(state, eval(ki, 0, state).value,
                                        "floating point");
-    if (arg->getWidth() > 64)
-      return terminateStateOnExecError(state, "Unsupported SIToFP operation");
-    uint64_t value = floats::SignedIntToFP(arg->getZExtValue(),
-                                           resultType,
-                                           arg->getWidth());
-    bindLocal(ki, state, IConstantExpr::alloc(value, resultType));
+    APFloat res(*TypeToFloatSemantics(i->getType()), 0);
+    res.convertFromAPInt(arg->getAPValue(),
+                         i->getOpcode() == Instruction::SIToFP,
+                         APFloat::rmTowardZero);
+    bindLocal(ki, state, FConstantExpr::create(res));
     break;
   }
-*/
 
   case Instruction::FCmp: {
     FCmpInst *fi = cast<FCmpInst>(i);
