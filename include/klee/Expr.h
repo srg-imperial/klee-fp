@@ -480,6 +480,9 @@ public:
 
   const llvm::APFloat &getAPValue() const { return value; }
 
+  float getFloatValue() const { return value.convertToFloat(); }
+  double getDoubleValue() const { return value.convertToDouble(); }
+
   static ref<FConstantExpr> create(const llvm::APFloat &v) {
     ref<FConstantExpr> r(new FConstantExpr(v));
     return r;
