@@ -987,7 +987,7 @@ ref<Expr> Executor::toUnique(const ExecutionState &state,
                              ref<Expr> &e) {
   ref<Expr> result = e;
 
-  if (!isa<IConstantExpr>(e)) {
+  if (!isa<ConstantExpr>(e)) {
     ref<IConstantExpr> value;
     bool isTrue = false;
 
