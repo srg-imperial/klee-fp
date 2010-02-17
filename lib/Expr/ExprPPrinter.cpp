@@ -395,9 +395,28 @@ public:
     }    
   }
 
+  void printConst(const ref<FConstantExpr> &e, PrintContext &PC, 
+                  bool printWidth) {
+    int w = e->getWidth();
+
+    if (printWidth)
+      PC << "(w" << w << " ";
+ 
+    switch (w) {
+      case 32: PC << e->getFloatValue(); break;
+      case 64: PC << e->getDoubleValue(); break;
+      default: assert(0 && "unrecognised width");
+    }
+
+    if (printWidth)
+      PC << ")";
+  }
+
   void print(const ref<Expr> &e, PrintContext &PC, bool printConstWidth=false) {
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(e))
-      printConst(CE, PC, printConstWidth);
+    if (IConstantExpr *ICE = dyn_cast<IConstantExpr>(e))
+      printConst(ICE, PC, printConstWidth);
+    else if (FConstantExpr *FCE = dyn_cast<FConstantExpr>(e))
+      printConst(FCE, PC, printConstWidth);
     else {
       std::map<ref<Expr>, unsigned>::iterator it = bindings.find(e);
       if (it!=bindings.end()) {
