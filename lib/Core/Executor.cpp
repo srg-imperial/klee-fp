@@ -940,7 +940,7 @@ ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
     if (const ConstantInt *ci = dyn_cast<ConstantInt>(c)) {
       return IConstantExpr::alloc(ci->getValue());
     } else if (const ConstantFP *cf = dyn_cast<ConstantFP>(c)) {      
-      return IConstantExpr::alloc(cf->getValueAPF().bitcastToAPInt());
+      return FConstantExpr::create(cf->getValueAPF());
     } else if (const GlobalValue *gv = dyn_cast<GlobalValue>(c)) {
       return globalAddresses.find(gv)->second;
     } else if (isa<ConstantPointerNull>(c)) {
