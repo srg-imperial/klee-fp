@@ -2012,33 +2012,22 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     break;
   }
 
-/*
-  case Instruction::FPToUI: {
-    FPToUIInst *fi = cast<FPToUIInst>(i);
-    Expr::Width resultType = Expr::getWidthForLLVMType(fi->getType());
-    ref<FConstantExpr> arg (cast<FConstantExpr>(eval(ki, 0, state).value));
-    if (arg->getWidth() > 64)
-      return terminateStateOnExecError(state, "Unsupported FPToUI operation");
-    uint64_t value = floats::toUnsignedInt(arg->getZExtValue(),
-                                           resultType,
-                                           arg->getWidth());
-    bindLocal(ki, state, IConstantExpr::alloc(value, resultType));
-    break;
-  }
-
+  case Instruction::FPToUI:
   case Instruction::FPToSI: {
-    FPToSIInst *fi = cast<FPToSIInst>(i);
-    Expr::Width resultType = Expr::getWidthForLLVMType(fi->getType());
+    Expr::Width resultType = Expr::getWidthForLLVMType(i->getType());
     ref<FConstantExpr> arg (cast<FConstantExpr>(eval(ki, 0, state).value));
-    if (arg->getWidth() > 64)
-      return terminateStateOnExecError(state, "Unsupported FPToSI operation");
-    uint64_t value = floats::toSignedInt(arg->getZExtValue(),
-                                         resultType,
-                                         arg->getWidth());
-    bindLocal(ki, state, IConstantExpr::alloc(value, resultType));
+    uint64_t bits[2];
+    bool isExact;
+    arg->getAPValue().convertToInteger(bits,
+		                       resultType,
+				       i->getOpcode() == Instruction::FPToSI, 
+				       APFloat::rmTowardZero, 
+				       &isExact);
+    bindLocal(ki, state, IConstantExpr::alloc(APInt(resultType, 2, bits)));
     break;
   }
 
+/*
   case Instruction::UIToFP: {
     UIToFPInst *fi = cast<UIToFPInst>(i);
     Expr::Width resultType = Expr::getWidthForLLVMType(fi->getType());
@@ -2065,6 +2054,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     bindLocal(ki, state, IConstantExpr::alloc(value, resultType));
     break;
   }
+*/
 
   case Instruction::FCmp: {
     FCmpInst *fi = cast<FCmpInst>(i);
@@ -2152,7 +2142,6 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     bindLocal(ki, state, IConstantExpr::alloc(Result, Expr::Bool));
     break;
   }
-*/
  
     // Other instructions...
     // Unhandled
