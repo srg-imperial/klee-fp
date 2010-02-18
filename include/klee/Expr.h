@@ -134,6 +134,10 @@ public:
     URem,
     SRem,
     FAdd,
+    FSub,
+    FMul,
+    FDiv,
+    FRem,
 
     // Bit
     Not,
@@ -495,7 +499,8 @@ public:
   static bool classof(const FConstantExpr *) { return true; }
 
   /* Constant Operations */
-  ref<FConstantExpr> FAdd(const ref<FConstantExpr> &RHS);
+  typedef ref<FConstantExpr> FConstBinOp(const ref<FConstantExpr> &RHS);
+  FConstBinOp FAdd, FSub, FMul, FDiv, FRem;
 };
   
 // Utility classes
@@ -1062,6 +1067,10 @@ ARITHMETIC_EXPR_CLASS(AShr)
 
 // Floating point
 ARITHMETIC_EXPR_CLASS(FAdd)
+ARITHMETIC_EXPR_CLASS(FSub)
+ARITHMETIC_EXPR_CLASS(FMul)
+ARITHMETIC_EXPR_CLASS(FDiv)
+ARITHMETIC_EXPR_CLASS(FRem)
 
 // Comparison Exprs
 
