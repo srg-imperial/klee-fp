@@ -120,6 +120,7 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(SDiv);
     X(URem);
     X(SRem);
+    X(FAdd);
     X(Not);
     X(And);
     X(Or);
@@ -473,6 +474,12 @@ void FConstantExpr::toMemory(void *address) {
     *((double *) address) = value.convertToDouble();
   else
     assert(0 && "unknown format");
+}
+
+ref<FConstantExpr> FConstantExpr::FAdd(const ref<FConstantExpr> &RHS) {
+  APFloat f = value;
+  f.add(RHS->value, APFloat::rmNearestTiesToEven);
+  return FConstantExpr::create(f);
 }
 
 /***/
@@ -946,6 +953,21 @@ BCREATE(SRemExpr, SRem)
 BCREATE(ShlExpr, Shl)
 BCREATE(LShrExpr, LShr)
 BCREATE(AShrExpr, AShr)
+
+static ref<Expr> FAddExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
+  return FAddExpr::alloc(l, r);
+}
+
+#define FBCREATE(_e_op, _op) \
+ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
+  assert(l->getWidth()==r->getWidth() && "type mismatch");          \
+  if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l))                 \
+    if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r))               \
+      return cl->_op(cr);                                           \
+  return _e_op ## _create(l, r);                                    \
+}
+
+FBCREATE(FAddExpr, FAdd)
 
 #define CMPCREATE(_e_op, _op) \
 ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
