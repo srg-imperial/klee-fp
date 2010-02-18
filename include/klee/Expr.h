@@ -30,6 +30,7 @@ namespace klee {
 class Array;
 class IConstantExpr;
 class ObjectState;
+class FPExpr;
 
 template<class T> class ref;
 
@@ -185,7 +186,9 @@ public:
 
   virtual Kind getKind() const = 0;
   virtual Width getWidth() const = 0;
-  
+  virtual FPExpr *asFPExpr() { return 0; }
+  const FPExpr *asFPExpr() const { return const_cast<Expr *>(this)->asFPExpr(); }
+
   virtual unsigned getNumKids() const = 0;
   virtual ref<Expr> getKid(unsigned i) const = 0;
     
@@ -262,6 +265,19 @@ struct Expr::CreateArg {
   
   bool isExpr() { return !isWidth(); }
   bool isWidth() { return width != Expr::InvalidWidth; }
+};
+
+// This is a second base class of any Expr representing a floating point number
+// It is reachable via Expr::asFPExpr()
+// TODO: make it work with isa<> and dyn_cast<>
+class FPExpr {
+public:
+  virtual Expr *asExpr() = 0;
+  const Expr *asExpr() const { return const_cast<FPExpr *>(this)->asExpr(); }
+
+  virtual const llvm::fltSemantics *getSemantics() const = 0;
+
+  unsigned getWidth() const;
 };
 
 // Comparison operators
@@ -457,7 +473,7 @@ public:
   ref<IConstantExpr> Not();
 };
 
-class FConstantExpr : public ConstantExpr {
+class FConstantExpr : public ConstantExpr, public FPExpr {
 public:
   static const Kind kind = FConstant;
   static const unsigned numKids = 0;
@@ -471,7 +487,12 @@ public:
   ~FConstantExpr() {};
 
   Kind getKind() const { return kind; }
-  unsigned int getWidth() const;
+
+  FPExpr *asFPExpr() { return this; }
+  Expr *asExpr() { return this; }
+
+  const llvm::fltSemantics *getSemantics() const { return &value.getSemantics(); }
+  unsigned getWidth() const { return FPExpr::getWidth(); }
 
   unsigned getNumKids() const { return 0; }
   ref<Expr> getKid(unsigned i) const { return 0; }
