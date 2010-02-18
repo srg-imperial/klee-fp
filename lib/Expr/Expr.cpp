@@ -460,8 +460,8 @@ ref<IConstantExpr> IConstantExpr::Sge(const ref<IConstantExpr> &RHS) {
 
 /***/
 
-unsigned FConstantExpr::getWidth() const {
-  const fltSemantics *s = &value.getSemantics();
+unsigned FPExpr::getWidth() const {
+  const fltSemantics *s = getSemantics();
   if (s == &APFloat::IEEEsingle) 
     return 32;
   if (s == &APFloat::IEEEdouble) 
