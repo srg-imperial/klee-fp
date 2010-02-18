@@ -133,6 +133,7 @@ public:
     SDiv,
     URem,
     SRem,
+    FAdd,
 
     // Bit
     Not,
@@ -492,6 +493,9 @@ public:
     return E->getKind() == Expr::FConstant;
   }
   static bool classof(const FConstantExpr *) { return true; }
+
+  /* Constant Operations */
+  ref<FConstantExpr> FAdd(const ref<FConstantExpr> &RHS);
 };
   
 // Utility classes
@@ -1041,6 +1045,7 @@ public:                                                              \
     }                                                                \
 };                                                                   \
 
+// Bitvector
 ARITHMETIC_EXPR_CLASS(Add)
 ARITHMETIC_EXPR_CLASS(Sub)
 ARITHMETIC_EXPR_CLASS(Mul)
@@ -1054,6 +1059,9 @@ ARITHMETIC_EXPR_CLASS(Xor)
 ARITHMETIC_EXPR_CLASS(Shl)
 ARITHMETIC_EXPR_CLASS(LShr)
 ARITHMETIC_EXPR_CLASS(AShr)
+
+// Floating point
+ARITHMETIC_EXPR_CLASS(FAdd)
 
 // Comparison Exprs
 

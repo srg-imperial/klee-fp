@@ -1954,11 +1954,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     // Floating point instructions
 
   case Instruction::FAdd: {
-    ref<FConstantExpr> left (cast<FConstantExpr>(eval(ki, 0, state).value));
-    ref<FConstantExpr> right (cast<FConstantExpr>(eval(ki, 1, state).value));
-    llvm::APFloat Res = left->getAPValue();
-    Res.add(right->getAPValue(), APFloat::rmNearestTiesToEven);
-    bindLocal(ki, state, FConstantExpr::create(Res));
+    ref<Expr> left = eval(ki, 0, state).value;
+    ref<Expr> right  = eval(ki, 1, state).value;
+    bindLocal(ki, state, FAddExpr::create(left, right));
     break;
   }
 
