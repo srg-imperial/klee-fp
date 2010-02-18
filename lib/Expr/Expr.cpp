@@ -172,6 +172,11 @@ unsigned IConstantExpr::computeHash() {
   return hashValue;
 }
 
+unsigned FConstantExpr::computeHash() {
+  hashValue = value.getHashValue() ^ (getWidth() * MAGIC_HASH_CONSTANT);
+  return hashValue;
+}
+
 unsigned CastExpr::computeHash() {
   unsigned res = getWidth() * Expr::MAGIC_HASH_CONSTANT;
   hashValue = res ^ src->hash() * Expr::MAGIC_HASH_CONSTANT;
