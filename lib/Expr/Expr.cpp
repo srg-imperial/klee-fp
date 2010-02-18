@@ -121,6 +121,10 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(URem);
     X(SRem);
     X(FAdd);
+    X(FSub);
+    X(FMul);
+    X(FDiv);
+    X(FRem);
     X(Not);
     X(And);
     X(Or);
@@ -479,6 +483,30 @@ void FConstantExpr::toMemory(void *address) {
 ref<FConstantExpr> FConstantExpr::FAdd(const ref<FConstantExpr> &RHS) {
   APFloat f = value;
   f.add(RHS->value, APFloat::rmNearestTiesToEven);
+  return FConstantExpr::create(f);
+}
+
+ref<FConstantExpr> FConstantExpr::FSub(const ref<FConstantExpr> &RHS) {
+  APFloat f = value;
+  f.subtract(RHS->value, APFloat::rmNearestTiesToEven);
+  return FConstantExpr::create(f);
+}
+
+ref<FConstantExpr> FConstantExpr::FMul(const ref<FConstantExpr> &RHS) {
+  APFloat f = value;
+  f.multiply(RHS->value, APFloat::rmNearestTiesToEven);
+  return FConstantExpr::create(f);
+}
+
+ref<FConstantExpr> FConstantExpr::FDiv(const ref<FConstantExpr> &RHS) {
+  APFloat f = value;
+  f.divide(RHS->value, APFloat::rmNearestTiesToEven);
+  return FConstantExpr::create(f);
+}
+
+ref<FConstantExpr> FConstantExpr::FRem(const ref<FConstantExpr> &RHS) {
+  APFloat f = value;
+  f.mod(RHS->value, APFloat::rmNearestTiesToEven);
   return FConstantExpr::create(f);
 }
 
@@ -958,6 +986,22 @@ static ref<Expr> FAddExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
   return FAddExpr::alloc(l, r);
 }
 
+static ref<Expr> FSubExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
+  return FSubExpr::alloc(l, r);
+}
+
+static ref<Expr> FMulExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
+  return FMulExpr::alloc(l, r);
+}
+
+static ref<Expr> FDivExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
+  return FDivExpr::alloc(l, r);
+}
+
+static ref<Expr> FRemExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
+  return FRemExpr::alloc(l, r);
+}
+
 #define FBCREATE(_e_op, _op) \
 ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
   assert(l->getWidth()==r->getWidth() && "type mismatch");          \
@@ -968,6 +1012,10 @@ ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
 }
 
 FBCREATE(FAddExpr, FAdd)
+FBCREATE(FSubExpr, FSub)
+FBCREATE(FMulExpr, FMul)
+FBCREATE(FDivExpr, FDiv)
+FBCREATE(FRemExpr, FRem)
 
 #define CMPCREATE(_e_op, _op) \
 ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
