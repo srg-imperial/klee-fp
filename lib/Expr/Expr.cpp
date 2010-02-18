@@ -113,6 +113,7 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(Extract);
     X(ZExt);
     X(SExt);
+    X(FConvert);
     X(Add);
     X(Sub);
     X(Mul);
@@ -178,6 +179,12 @@ unsigned FConstantExpr::computeHash() {
 }
 
 unsigned CastExpr::computeHash() {
+  unsigned res = getWidth() * Expr::MAGIC_HASH_CONSTANT;
+  hashValue = res ^ src->hash() * Expr::MAGIC_HASH_CONSTANT;
+  return hashValue;
+}
+
+unsigned FConvertExpr::computeHash() {
   unsigned res = getWidth() * Expr::MAGIC_HASH_CONSTANT;
   hashValue = res ^ src->hash() * Expr::MAGIC_HASH_CONSTANT;
   return hashValue;
