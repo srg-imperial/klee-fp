@@ -124,6 +124,9 @@ public:
     ZExt,
     SExt,
 
+    // FP Casting
+    FConvert,
+
     // All subsequent kinds are binary.
 
     // Arithmetic
@@ -1060,6 +1063,40 @@ public:                                                          \
 
 CAST_EXPR_CLASS(SExt)
 CAST_EXPR_CLASS(ZExt)
+
+class FConvertExpr : public NonConstantExpr, public FPExpr {
+public:
+  ref<Expr> src;
+  const llvm::fltSemantics *sem;
+
+public:
+  FConvertExpr(const ref<Expr> &src, const llvm::fltSemantics *sem)
+    : src(src), sem(sem) {}
+
+  FPExpr *asFPExpr() { return this; }
+  Expr *asExpr() { return this; }
+  unsigned getWidth() const { return FPExpr::getWidth(); }
+
+  const llvm::fltSemantics *getSemantics() const { return sem; }
+
+  unsigned getNumKids() const { return 1; }
+  ref<Expr> getKid(unsigned i) const { return (i==0) ? src : 0; }
+  
+  static bool needsResultType() { return true; }
+
+  int compareContents(const Expr &b) const {
+    const FConvertExpr &eb = static_cast<const FConvertExpr&>(b);
+    if (sem != eb.sem) return sem < eb.sem ? -1 : 1;
+    return 0;
+  }
+
+  virtual unsigned computeHash();
+
+  static bool classof(const Expr *E) {
+    return E->getKind() == Expr::FConvert;
+  }
+  static bool classof(const FConvertExpr *) { return true; }
+};
 
 // Arithmetic/Bit Exprs
 
