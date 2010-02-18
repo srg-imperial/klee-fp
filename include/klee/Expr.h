@@ -171,6 +171,8 @@ public:
     CastKindLast=SExt,
     BinaryKindFirst=Add,
     BinaryKindLast=Sge,
+    FBinaryKindFirst=FAdd,
+    FBinaryKindLast=FRem,
     CmpKindFirst=Eq,
     CmpKindLast=Sge
   };
@@ -563,6 +565,21 @@ public:
   static bool classof(const BinaryExpr *) { return true; }
 };
 
+class FBinaryExpr : public BinaryExpr, public FPExpr {
+protected:
+  FBinaryExpr(const ref<Expr> &l, const ref<Expr> &r) : BinaryExpr(l, r) {}
+
+public:
+  FPExpr *asFPExpr() { return this; }
+  Expr *asExpr() { return this; }
+  const llvm::fltSemantics *getSemantics() const { return left->asFPExpr()->getSemantics(); }
+
+  static bool classof(const Expr *E) {
+    Kind k = E->getKind();
+    return Expr::FBinaryKindFirst <= k && k <= Expr::FBinaryKindLast;
+  }
+  static bool classof(const FBinaryExpr *) { return true; }
+};
 
 class CmpExpr : public BinaryExpr {
 
@@ -1046,14 +1063,14 @@ CAST_EXPR_CLASS(ZExt)
 
 // Arithmetic/Bit Exprs
 
-#define ARITHMETIC_EXPR_CLASS(_class_kind)                           \
-class _class_kind ## Expr : public BinaryExpr {                      \
+#define ARITHMETIC_EXPR_CLASS(_class_kind, _base_class)              \
+class _class_kind ## Expr : public _base_class {                     \
 public:                                                              \
   static const Kind kind = _class_kind;                              \
   static const unsigned numKids = 2;                                 \
 public:                                                              \
     _class_kind ## Expr(const ref<Expr> &l,                          \
-                        const ref<Expr> &r) : BinaryExpr(l,r) {}     \
+                        const ref<Expr> &r) : _base_class(l,r) {}    \
     static ref<Expr> alloc(const ref<Expr> &l, const ref<Expr> &r) { \
       ref<Expr> res(new _class_kind ## Expr (l, r));                 \
       res->computeHash();                                            \
@@ -1073,27 +1090,32 @@ public:                                                              \
     }                                                                \
 };                                                                   \
 
+#define INT_ARITHMETIC_EXPR_CLASS(_class_kind) \
+    ARITHMETIC_EXPR_CLASS(_class_kind, BinaryExpr)
+#define FLOAT_ARITHMETIC_EXPR_CLASS(_class_kind) \
+    ARITHMETIC_EXPR_CLASS(_class_kind, FBinaryExpr)
+
 // Bitvector
-ARITHMETIC_EXPR_CLASS(Add)
-ARITHMETIC_EXPR_CLASS(Sub)
-ARITHMETIC_EXPR_CLASS(Mul)
-ARITHMETIC_EXPR_CLASS(UDiv)
-ARITHMETIC_EXPR_CLASS(SDiv)
-ARITHMETIC_EXPR_CLASS(URem)
-ARITHMETIC_EXPR_CLASS(SRem)
-ARITHMETIC_EXPR_CLASS(And)
-ARITHMETIC_EXPR_CLASS(Or)
-ARITHMETIC_EXPR_CLASS(Xor)
-ARITHMETIC_EXPR_CLASS(Shl)
-ARITHMETIC_EXPR_CLASS(LShr)
-ARITHMETIC_EXPR_CLASS(AShr)
+INT_ARITHMETIC_EXPR_CLASS(Add)
+INT_ARITHMETIC_EXPR_CLASS(Sub)
+INT_ARITHMETIC_EXPR_CLASS(Mul)
+INT_ARITHMETIC_EXPR_CLASS(UDiv)
+INT_ARITHMETIC_EXPR_CLASS(SDiv)
+INT_ARITHMETIC_EXPR_CLASS(URem)
+INT_ARITHMETIC_EXPR_CLASS(SRem)
+INT_ARITHMETIC_EXPR_CLASS(And)
+INT_ARITHMETIC_EXPR_CLASS(Or)
+INT_ARITHMETIC_EXPR_CLASS(Xor)
+INT_ARITHMETIC_EXPR_CLASS(Shl)
+INT_ARITHMETIC_EXPR_CLASS(LShr)
+INT_ARITHMETIC_EXPR_CLASS(AShr)
 
 // Floating point
-ARITHMETIC_EXPR_CLASS(FAdd)
-ARITHMETIC_EXPR_CLASS(FSub)
-ARITHMETIC_EXPR_CLASS(FMul)
-ARITHMETIC_EXPR_CLASS(FDiv)
-ARITHMETIC_EXPR_CLASS(FRem)
+FLOAT_ARITHMETIC_EXPR_CLASS(FAdd)
+FLOAT_ARITHMETIC_EXPR_CLASS(FSub)
+FLOAT_ARITHMETIC_EXPR_CLASS(FMul)
+FLOAT_ARITHMETIC_EXPR_CLASS(FDiv)
+FLOAT_ARITHMETIC_EXPR_CLASS(FRem)
 
 // Comparison Exprs
 
