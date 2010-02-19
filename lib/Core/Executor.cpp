@@ -1990,14 +1990,10 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::FPTrunc:
   case Instruction::FPExt: {
-    ref<FConstantExpr> arg (cast<FConstantExpr>(eval(ki, 0, state).value));
+    ref<Expr> arg = eval(ki, 0, state).value;
     const llvm::Type *type = i->getType();
     const fltSemantics *sem = TypeToFloatSemantics(type);
-    bool losesInfo;
-
-    llvm::APFloat Res = arg->getAPValue();
-    Res.convert(*sem, APFloat::rmNearestTiesToEven, &losesInfo);
-    bindLocal(ki, state, FConstantExpr::create(Res));
+    bindLocal(ki, state, FConvertExpr::create(arg, sem));
     break;
   }
 

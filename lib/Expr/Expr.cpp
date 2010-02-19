@@ -522,6 +522,13 @@ ref<FConstantExpr> FConstantExpr::FRem(const ref<FConstantExpr> &RHS) {
   return FConstantExpr::create(f);
 }
 
+ref<FConstantExpr> FConstantExpr::FConvert(const fltSemantics *sem) {
+  APFloat f = value;
+  bool losesInfo;
+  f.convert(*sem, APFloat::rmNearestTiesToEven, &losesInfo);
+  return FConstantExpr::create(f);
+}
+
 /***/
 
 ref<Expr>  NotOptimizedExpr::create(ref<Expr> src) {
@@ -716,6 +723,20 @@ ref<Expr> SExtExpr::create(const ref<Expr> &e, Width w) {
     return CE->SExt(w);
   } else {    
     return SExtExpr::alloc(e, w);
+  }
+}
+
+/***/
+
+ref<Expr> FConvertExpr::create(const ref<Expr> &e, const fltSemantics *sem) {
+  FPExpr *fe = e->asFPExpr();
+  assert(fe && "arg must be an FPExpr");
+  if (fe->getSemantics() == sem) {
+    return e;
+  } else if (FConstantExpr *CE = dyn_cast<FConstantExpr>(e)) {
+    return CE->FConvert(sem);
+  } else {
+    return FConvertExpr::alloc(e, sem);
   }
 }
 
