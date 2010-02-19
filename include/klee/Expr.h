@@ -29,6 +29,7 @@ namespace klee {
 
 class Array;
 class IConstantExpr;
+class FConstantExpr;
 class ObjectState;
 class FPExpr;
 
@@ -125,7 +126,12 @@ public:
     SExt,
 
     // FP Casting
-    FConvert,
+    FPExt,
+    FPTrunc,
+
+    // I->F Conversion
+    UIToFP,
+    SIToFP,
 
     // All subsequent kinds are binary.
 
@@ -172,6 +178,8 @@ public:
     NonConstantKindLast=LastKind,
     CastKindFirst=ZExt,
     CastKindLast=SExt,
+    FConvertKindFirst=FPExt,
+    FConvertKindLast=SIToFP,
     BinaryKindFirst=Add,
     BinaryKindLast=Sge,
     FBinaryKindFirst=FAdd,
@@ -476,6 +484,11 @@ public:
 
   ref<IConstantExpr> Neg();
   ref<IConstantExpr> Not();
+
+  typedef ref<FConstantExpr> FConvertOp(const llvm::fltSemantics *sem);
+  FConvertOp UIToFP, SIToFP;
+private:
+  ref<FConstantExpr> IToFP(const llvm::fltSemantics *sem, bool isUnsigned);
 };
 
 class FConstantExpr : public ConstantExpr, public FPExpr {
@@ -529,7 +542,9 @@ public:
   /* Constant Operations */
   typedef ref<FConstantExpr> FConstBinOp(const ref<FConstantExpr> &RHS);
   FConstBinOp FAdd, FSub, FMul, FDiv, FRem;
-  ref<FConstantExpr> FConvert(const llvm::fltSemantics *sem);
+
+  typedef ref<FConstantExpr> FConvertOp(const llvm::fltSemantics *sem);
+  FConvertOp FPExt, FPTrunc;
 };
   
 // Utility classes
@@ -1074,22 +1089,9 @@ public:
   FConvertExpr(const ref<Expr> &src, const llvm::fltSemantics *sem)
     : src(src), sem(sem) {}
 
-  static ref<Expr> alloc(const ref<Expr> &e, const llvm::fltSemantics *sem) {
-    ref<Expr> r(new FConvertExpr(e, sem));
-    r->computeHash();
-    return r;
-  }
-  static ref<Expr> create(const ref<Expr> &e, const llvm::fltSemantics *sem);
-
-  Kind getKind() const { return FConvert; }
-
   FPExpr *asFPExpr() { return this; }
   Expr *asExpr() { return this; }
   unsigned getWidth() const { return FPExpr::getWidth(); }
-
-  ref<Expr> rebuild(ref<Expr> kids[]) const {
-    return create(kids[0], sem);
-  }
 
   const llvm::fltSemantics *getSemantics() const { return sem; }
 
@@ -1107,10 +1109,41 @@ public:
   virtual unsigned computeHash();
 
   static bool classof(const Expr *E) {
-    return E->getKind() == Expr::FConvert;
+    Kind k = E->getKind();
+    return Expr::FConvertKindFirst <= k && k <= Expr::FConvertKindLast;
   }
   static bool classof(const FConvertExpr *) { return true; }
 };
+
+#define FLOAT_CONVERT_EXPR_CLASS(_class_kind)                                 \
+class _class_kind ## Expr : public FConvertExpr {                             \
+public:                                                                       \
+  _class_kind ## Expr(const ref<Expr> &src, const llvm::fltSemantics *sem)    \
+    : FConvertExpr(src, sem) {}                                               \
+                                                                              \
+  static ref<Expr> alloc(const ref<Expr> &e, const llvm::fltSemantics *sem) { \
+    ref<Expr> r(new _class_kind ## Expr(e, sem));                             \
+    r->computeHash();                                                         \
+    return r;                                                                 \
+  }                                                                           \
+  static ref<Expr> create(const ref<Expr> &e, const llvm::fltSemantics *sem); \
+                                                                              \
+  Kind getKind() const { return _class_kind; }                                \
+                                                                              \
+  ref<Expr> rebuild(ref<Expr> kids[]) const {                                 \
+    return create(kids[0], sem);                                              \
+  }                                                                           \
+                                                                              \
+  static bool classof(const Expr *E) {                                        \
+    return E->getKind() == Expr::_class_kind;                                 \
+  }                                                                           \
+  static bool classof(const _class_kind ## Expr *) { return true; }           \
+};
+
+FLOAT_CONVERT_EXPR_CLASS(FPExt)
+FLOAT_CONVERT_EXPR_CLASS(FPTrunc)
+FLOAT_CONVERT_EXPR_CLASS(UIToFP)
+FLOAT_CONVERT_EXPR_CLASS(SIToFP)
 
 // Arithmetic/Bit Exprs
 

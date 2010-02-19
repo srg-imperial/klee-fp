@@ -113,7 +113,10 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(Extract);
     X(ZExt);
     X(SExt);
-    X(FConvert);
+    X(FPExt);
+    X(FPTrunc);
+    X(UIToFP);
+    X(SIToFP);
     X(Add);
     X(Sub);
     X(Mul);
@@ -465,6 +468,22 @@ ref<IConstantExpr> IConstantExpr::Sge(const ref<IConstantExpr> &RHS) {
   return IConstantExpr::alloc(value.sge(RHS->value), Expr::Bool);
 }
 
+ref<FConstantExpr> IConstantExpr::UIToFP(const fltSemantics *sem) {
+  return IToFP(sem, false);
+}
+
+ref<FConstantExpr> IConstantExpr::SIToFP(const fltSemantics *sem) {
+  return IToFP(sem, true);
+}
+
+ref<FConstantExpr> IConstantExpr::IToFP(const fltSemantics *sem, bool isUnsigned) {
+  APFloat res(*sem, 0);
+  res.convertFromAPInt(value,
+                       isUnsigned,
+                       APFloat::rmTowardZero);
+  return FConstantExpr::create(res);
+}
+
 /***/
 
 unsigned FPExpr::getWidth() const {
@@ -522,11 +541,15 @@ ref<FConstantExpr> FConstantExpr::FRem(const ref<FConstantExpr> &RHS) {
   return FConstantExpr::create(f);
 }
 
-ref<FConstantExpr> FConstantExpr::FConvert(const fltSemantics *sem) {
+ref<FConstantExpr> FConstantExpr::FPExt(const fltSemantics *sem) {
   APFloat f = value;
   bool losesInfo;
   f.convert(*sem, APFloat::rmNearestTiesToEven, &losesInfo);
   return FConstantExpr::create(f);
+}
+
+ref<FConstantExpr> FConstantExpr::FPTrunc(const fltSemantics *sem) {
+  return FPExt(sem);
 }
 
 /***/
@@ -728,17 +751,33 @@ ref<Expr> SExtExpr::create(const ref<Expr> &e, Width w) {
 
 /***/
 
-ref<Expr> FConvertExpr::create(const ref<Expr> &e, const fltSemantics *sem) {
-  FPExpr *fe = e->asFPExpr();
-  assert(fe && "arg must be an FPExpr");
-  if (fe->getSemantics() == sem) {
-    return e;
-  } else if (FConstantExpr *CE = dyn_cast<FConstantExpr>(e)) {
-    return CE->FConvert(sem);
-  } else {
-    return FConvertExpr::alloc(e, sem);
-  }
+#define FCCREATE(_e_op, _op) \
+ref<Expr> _e_op::create(const ref<Expr> &e, const fltSemantics *sem) { \
+  FPExpr *fe = e->asFPExpr();                                          \
+  assert(fe && "arg must be an FPExpr");                               \
+  if (fe->getSemantics() == sem) {                                     \
+    return e;                                                          \
+  } else if (FConstantExpr *CE = dyn_cast<FConstantExpr>(e)) {         \
+    return CE->_op(sem);                                               \
+  } else {                                                             \
+    return _e_op::alloc(e, sem);                                       \
+  }                                                                    \
 }
+
+FCCREATE(FPExtExpr, FPExt)
+FCCREATE(FPTruncExpr, FPTrunc)
+
+#define I2FCREATE(_e_op, _op) \
+ref<Expr> _e_op::create(const ref<Expr> &e, const fltSemantics *sem) { \
+  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(e)) {                \
+    return CE->_op(sem);                                               \
+  } else {                                                             \
+    return _e_op::alloc(e, sem);                                       \
+  }                                                                    \
+}
+
+I2FCREATE(UIToFPExpr, UIToFP)
+I2FCREATE(SIToFPExpr, SIToFP)
 
 /***/
 
