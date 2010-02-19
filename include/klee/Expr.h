@@ -529,6 +529,7 @@ public:
   /* Constant Operations */
   typedef ref<FConstantExpr> FConstBinOp(const ref<FConstantExpr> &RHS);
   FConstBinOp FAdd, FSub, FMul, FDiv, FRem;
+  ref<FConstantExpr> FConvert(const llvm::fltSemantics *sem);
 };
   
 // Utility classes
@@ -1073,9 +1074,22 @@ public:
   FConvertExpr(const ref<Expr> &src, const llvm::fltSemantics *sem)
     : src(src), sem(sem) {}
 
+  static ref<Expr> alloc(const ref<Expr> &e, const llvm::fltSemantics *sem) {
+    ref<Expr> r(new FConvertExpr(e, sem));
+    r->computeHash();
+    return r;
+  }
+  static ref<Expr> create(const ref<Expr> &e, const llvm::fltSemantics *sem);
+
+  Kind getKind() const { return FConvert; }
+
   FPExpr *asFPExpr() { return this; }
   Expr *asExpr() { return this; }
   unsigned getWidth() const { return FPExpr::getWidth(); }
+
+  ref<Expr> rebuild(ref<Expr> kids[]) const {
+    return create(kids[0], sem);
+  }
 
   const llvm::fltSemantics *getSemantics() const { return sem; }
 
