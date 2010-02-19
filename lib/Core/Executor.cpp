@@ -1993,7 +1993,10 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> arg = eval(ki, 0, state).value;
     const llvm::Type *type = i->getType();
     const fltSemantics *sem = TypeToFloatSemantics(type);
-    bindLocal(ki, state, FConvertExpr::create(arg, sem));
+    bindLocal(ki, state,
+       (i->getOpcode() == Instruction::FPTrunc
+      ? FPTruncExpr::create
+      : FPExtExpr::create)(arg, sem));
     break;
   }
 
