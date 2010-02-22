@@ -2017,13 +2017,13 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::UIToFP:
   case Instruction::SIToFP: {
-    ref<IConstantExpr> arg = toConstant(state, eval(ki, 0, state).value,
-                                       "floating point");
-    APFloat res(*TypeToFloatSemantics(i->getType()), 0);
-    res.convertFromAPInt(arg->getAPValue(),
-                         i->getOpcode() == Instruction::SIToFP,
-                         APFloat::rmTowardZero);
-    bindLocal(ki, state, FConstantExpr::create(res));
+    ref<Expr> arg = eval(ki, 0, state).value;
+    const llvm::Type *type = i->getType();
+    const fltSemantics *sem = TypeToFloatSemantics(type);
+    bindLocal(ki, state,
+       (i->getOpcode() == Instruction::UIToFP
+      ? UIToFPExpr::create
+      : SIToFPExpr::create)(arg, sem));
     break;
   }
 
