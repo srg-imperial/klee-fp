@@ -291,6 +291,18 @@ public:
   virtual const llvm::fltSemantics *getSemantics() const = 0;
 
   unsigned getWidth() const;
+
+  enum FPCategories {
+    fcMaybeZero = 1<<0,
+    fcMaybePNorm = 1<<1,
+    fcMaybeNNorm = 1<<2,
+    fcMaybePInf = 1<<3,
+    fcMaybeNInf = 1<<4,
+    fcMaybeNaN = 1<<5,
+    fcAll = (1<<6)-1
+  };
+
+  virtual FPCategories getCategories() const = 0;
 };
 
 // Comparison operators
@@ -538,6 +550,8 @@ public:
     return E->getKind() == Expr::FConstant;
   }
   static bool classof(const FConstantExpr *) { return true; }
+
+  FPCategories getCategories() const;
 
   /* Constant Operations */
   typedef ref<FConstantExpr> FConstBinOp(const ref<FConstantExpr> &RHS);
@@ -1138,6 +1152,8 @@ public:                                                                       \
     return E->getKind() == Expr::_class_kind;                                 \
   }                                                                           \
   static bool classof(const _class_kind ## Expr *) { return true; }           \
+                                                                              \
+  FPCategories getCategories() const;                                         \
 };
 
 FLOAT_CONVERT_EXPR_CLASS(FPExt)
@@ -1171,13 +1187,14 @@ public:                                                              \
     }                                                                \
     static bool classof(const  _class_kind ## Expr *) {              \
       return true;                                                   \
-    }                                                                \
-};                                                                   \
+    }
 
 #define INT_ARITHMETIC_EXPR_CLASS(_class_kind) \
-    ARITHMETIC_EXPR_CLASS(_class_kind, BinaryExpr)
+    ARITHMETIC_EXPR_CLASS(_class_kind, BinaryExpr) };
 #define FLOAT_ARITHMETIC_EXPR_CLASS(_class_kind) \
-    ARITHMETIC_EXPR_CLASS(_class_kind, FBinaryExpr)
+    ARITHMETIC_EXPR_CLASS(_class_kind, FBinaryExpr) \
+    FPCategories getCategories() const;             \
+};
 
 // Bitvector
 INT_ARITHMETIC_EXPR_CLASS(Add)

@@ -511,6 +511,20 @@ void FConstantExpr::toMemory(void *address) {
     assert(0 && "unknown format");
 }
 
+FPExpr::FPCategories FConstantExpr::getCategories() const {
+  if (value.isZero())
+    return fcMaybeZero;
+  if (value.isInfinity()) {
+    if (value.isNegative())
+      return fcMaybeNInf;
+    else
+      return fcMaybePInf;
+  }
+  if (value.isNaN())
+    return fcMaybeNaN;
+  return value.isNegative() ? fcMaybeNNorm : fcMaybePNorm;
+}
+
 ref<FConstantExpr> FConstantExpr::FAdd(const ref<FConstantExpr> &RHS) {
   APFloat f = value;
   f.add(RHS->value, APFloat::rmNearestTiesToEven);
@@ -1088,6 +1102,186 @@ FBCREATE(FSubExpr, FSub)
 FBCREATE(FMulExpr, FMul)
 FBCREATE(FDivExpr, FDiv)
 FBCREATE(FRemExpr, FRem)
+
+// N.B. The NaN semantics for these functions were taken from the following source:
+//   DRAFT Standard for
+//   Floating-Point Arithmetic P754
+//   Draft 1.2.9
+//   (section 9.2)
+// and confirmed using real calculations.
+
+FPExpr::FPCategories FAddExpr::getCategories() const {
+  FPCategories lcat = left->asFPExpr()->getCategories();
+  FPCategories rcat = right->asFPExpr()->getCategories();
+  int cat;
+  if (lcat == fcAll || rcat == fcAll)
+    return fcAll;
+  if (lcat & fcMaybePNorm && rcat & fcMaybeNNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybePNorm
+   || lcat & fcMaybeZero && rcat & fcMaybeZero)
+    cat |= fcMaybeZero;
+  if (lcat & fcMaybePNorm && rcat & fcMaybePNorm
+   || lcat & fcMaybeZero && rcat & fcMaybePNorm
+   || lcat & fcMaybePNorm && rcat & fcMaybeZero)
+    cat |= fcMaybePNorm;
+  if (lcat & fcMaybeNNorm && rcat & fcMaybeNNorm
+   || lcat & fcMaybeZero && rcat & fcMaybeNNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybeZero)
+    cat |= fcMaybeNNorm;
+  if (lcat & fcMaybePNorm && rcat & fcMaybePNorm
+   || lcat & fcMaybePInf && rcat & fcMaybeZero
+   || lcat & fcMaybeZero && rcat & fcMaybePInf
+   || lcat & fcMaybePInf && rcat & fcMaybePNorm
+   || lcat & fcMaybePNorm && rcat & fcMaybePInf
+   || lcat & fcMaybePInf && rcat & fcMaybeNNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybePInf
+   || lcat & fcMaybePInf && rcat & fcMaybePInf)
+    cat |= fcMaybePInf;
+  if (lcat & fcMaybeNNorm && rcat & fcMaybeNNorm
+   || lcat & fcMaybeNInf && rcat & fcMaybeZero
+   || lcat & fcMaybeZero && rcat & fcMaybeNInf
+   || lcat & fcMaybeNInf && rcat & fcMaybePNorm
+   || lcat & fcMaybePNorm && rcat & fcMaybeNInf
+   || lcat & fcMaybeNInf && rcat & fcMaybeNNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybeNInf
+   || lcat & fcMaybeNInf && rcat & fcMaybeNInf)
+    cat |= fcMaybeNInf;
+  if (lcat & fcMaybeNaN
+   || rcat & fcMaybeNaN
+   || lcat & fcMaybePInf && rcat & fcMaybeNInf
+   || lcat & fcMaybeNInf && rcat & fcMaybePInf)
+    cat |= fcMaybeNaN;
+  return (FPCategories) cat;
+}
+
+FPExpr::FPCategories FSubExpr::getCategories() const {
+  FPCategories lcat = left->asFPExpr()->getCategories();
+  FPCategories rcat = right->asFPExpr()->getCategories();
+  int cat;
+  if (lcat == fcAll || rcat == fcAll)
+    return fcAll;
+  if (lcat & fcMaybePNorm && rcat & fcMaybePNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybeNNorm
+   || lcat & fcMaybeZero && rcat & fcMaybeZero)
+    cat |= fcMaybeZero;
+  if (lcat & fcMaybePNorm && rcat & fcMaybeNNorm
+   || lcat & fcMaybeZero && rcat & fcMaybeNNorm
+   || lcat & fcMaybePNorm && rcat & fcMaybeZero)
+    cat |= fcMaybePNorm;
+  if (lcat & fcMaybeNNorm && rcat & fcMaybePNorm
+   || lcat & fcMaybeZero && rcat & fcMaybePNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybeZero)
+    cat |= fcMaybeNNorm;
+  if (lcat & fcMaybePNorm && rcat & fcMaybeNNorm
+   || lcat & fcMaybePInf && rcat & fcMaybeZero
+   || lcat & fcMaybeZero && rcat & fcMaybeNInf
+   || lcat & fcMaybePInf && rcat & fcMaybeNNorm
+   || lcat & fcMaybePNorm && rcat & fcMaybeNInf
+   || lcat & fcMaybePInf && rcat & fcMaybePNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybeNInf
+   || lcat & fcMaybePInf && rcat & fcMaybeNInf)
+    cat |= fcMaybePInf;
+  if (lcat & fcMaybeNNorm && rcat & fcMaybePNorm
+   || lcat & fcMaybeNInf && rcat & fcMaybeZero
+   || lcat & fcMaybeZero && rcat & fcMaybePInf
+   || lcat & fcMaybeNInf && rcat & fcMaybePNorm
+   || lcat & fcMaybePNorm && rcat & fcMaybePInf
+   || lcat & fcMaybeNInf && rcat & fcMaybeNNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybePInf
+   || lcat & fcMaybeNInf && rcat & fcMaybePInf)
+    cat |= fcMaybeNInf;
+  if (lcat & fcMaybeNaN
+   || rcat & fcMaybeNaN
+   || lcat & fcMaybePInf && rcat & fcMaybePInf
+   || lcat & fcMaybeNInf && rcat & fcMaybeNInf)
+    cat |= fcMaybeNaN;
+  return (FPCategories) cat;
+}
+
+FPExpr::FPCategories FMulExpr::getCategories() const {
+  FPCategories lcat = left->asFPExpr()->getCategories();
+  FPCategories rcat = right->asFPExpr()->getCategories();
+  int cat;
+  if (lcat == fcAll || rcat == fcAll)
+    return fcAll;
+  if (lcat & fcMaybeZero && rcat & (fcMaybeNNorm | fcMaybeZero | fcMaybePNorm)
+   || rcat & fcMaybeZero && lcat & (fcMaybeNNorm | fcMaybeZero | fcMaybePNorm))
+    cat |= fcMaybeZero;
+  if (lcat & fcMaybePNorm && rcat & fcMaybePNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybeNNorm)
+    cat |= fcMaybePNorm;
+  if (lcat & fcMaybePNorm && rcat & fcMaybeNNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybePNorm)
+    cat |= fcMaybeNNorm;
+  if (lcat & (fcMaybePNorm | fcMaybePInf) && rcat & (fcMaybePNorm | fcMaybePInf)
+   || lcat & (fcMaybeNNorm | fcMaybeNInf) && rcat & (fcMaybeNNorm | fcMaybeNInf))
+    cat |= fcMaybePInf;
+  if (lcat & (fcMaybePNorm | fcMaybePInf) && rcat & (fcMaybeNNorm | fcMaybeNInf)
+   || lcat & (fcMaybeNNorm | fcMaybeNInf) && rcat & (fcMaybePNorm | fcMaybePInf))
+    cat |= fcMaybeNInf;
+  if (lcat & fcMaybeNaN
+   || rcat & fcMaybeNaN
+   || lcat & fcMaybeZero && rcat & (fcMaybeNInf | fcMaybePInf)
+   || rcat & fcMaybeZero && lcat & (fcMaybeNInf | fcMaybePInf))
+    cat |= fcMaybeNaN;
+  return (FPCategories) cat;
+}
+
+FPExpr::FPCategories FDivExpr::getCategories() const {
+  FPCategories lcat = left->asFPExpr()->getCategories();
+  FPCategories rcat = right->asFPExpr()->getCategories();
+  int cat;
+  if (lcat == fcAll || rcat == fcAll)
+    return fcAll;
+  if (lcat & (fcMaybeNNorm | fcMaybeZero | fcMaybePNorm) && rcat & (fcMaybeNNorm | fcMaybePNorm))
+    cat |= fcMaybeZero;
+  if (lcat & fcMaybePNorm && rcat & fcMaybePNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybeNNorm)
+    cat |= fcMaybePNorm;
+  if (lcat & fcMaybePNorm && rcat & fcMaybeNNorm
+   || lcat & fcMaybeNNorm && rcat & fcMaybePNorm)
+    cat |= fcMaybeNNorm;
+  if (lcat & (fcMaybePNorm | fcMaybePInf) && rcat & (fcMaybePNorm | fcMaybeZero)
+   || lcat & (fcMaybeNNorm | fcMaybeNInf) && rcat & (fcMaybeNNorm | fcMaybeZero))
+    cat |= fcMaybePInf;
+  if (lcat & (fcMaybePNorm | fcMaybePInf) && rcat & (fcMaybeNNorm | fcMaybeZero)
+   || lcat & (fcMaybeNNorm | fcMaybeNInf) && rcat & (fcMaybePNorm | fcMaybeZero))
+    cat |= fcMaybeNInf;
+  if (lcat & fcMaybeNaN
+   || rcat & fcMaybeNaN
+   || lcat & fcMaybeZero && rcat & fcMaybeZero 
+   || rcat & (fcMaybeNInf | fcMaybePInf) && lcat & (fcMaybeNInf | fcMaybePInf))
+    cat |= fcMaybeNaN;
+  return (FPCategories) cat;
+}
+
+FPExpr::FPCategories FRemExpr::getCategories() const {
+  return fcAll; // TODO
+}
+
+FPExpr::FPCategories FPExtExpr::getCategories() const {
+  return src->asFPExpr()->getCategories();
+}
+
+FPExpr::FPCategories FPTruncExpr::getCategories() const {
+  int cat = src->asFPExpr()->getCategories();
+  if (cat & fcMaybePNorm)
+    cat |= fcMaybePInf;
+  if (cat & fcMaybeNNorm)
+    cat |= fcMaybeNInf;
+  return (FPCategories) cat;
+}
+
+/* An interesting addition for the I->F cases would be to use STP
+ * to determine which categories the result falls into */
+
+FPExpr::FPCategories UIToFPExpr::getCategories() const {
+  return (FPCategories) (fcMaybeNNorm | fcMaybeZero | fcMaybePNorm);
+}
+
+FPExpr::FPCategories SIToFPExpr::getCategories() const {
+  return (FPCategories) (fcMaybeZero | fcMaybePNorm);
+}
 
 #define CMPCREATE(_e_op, _op) \
 ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
