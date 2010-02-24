@@ -566,6 +566,18 @@ ref<FConstantExpr> FConstantExpr::FPTrunc(const fltSemantics *sem) {
   return FPExt(sem);
 }
 
+ref<IConstantExpr> FConstantExpr::FOeq(const ref<FConstantExpr> &RHS) {
+  return IConstantExpr::create(value.compare(RHS->value) == APFloat::cmpEqual, Expr::Bool);
+}
+
+ref<IConstantExpr> FConstantExpr::FOlt(const ref<FConstantExpr> &RHS) {
+  return IConstantExpr::create(value.compare(RHS->value) == APFloat::cmpLessThan, Expr::Bool);
+}
+
+ref<IConstantExpr> FConstantExpr::FOrd() {
+  return IConstantExpr::create(!value.isNaN(), Expr::Bool);
+}
+
 /***/
 
 ref<Expr>  NotOptimizedExpr::create(ref<Expr> src) {
@@ -1485,3 +1497,98 @@ CMPCREATE(UltExpr, Ult)
 CMPCREATE(UleExpr, Ule)
 CMPCREATE(SltExpr, Slt)
 CMPCREATE(SleExpr, Sle)
+
+ref<Expr> FOeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l)) {
+    if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r))
+      return cl->FOeq(cr);
+
+    // NaN == X is always false
+    const APFloat &lv = cl->getAPValue();
+    if (lv.isNaN())
+      return IConstantExpr::create(0, Expr::Bool);
+  }
+  else if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r)) {
+    // likewise X == NaN
+    const APFloat &rv = cr->getAPValue();
+    if (rv.isNaN())
+      return IConstantExpr::create(0, Expr::Bool);
+  }
+
+  return FOeqExpr::alloc(l, r);
+}
+
+ref<Expr> FOltExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l)) {
+    if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r))
+      return cl->FOlt(cr);
+
+    // inf < X and NaN < X are always false
+    const APFloat &lv = cl->getAPValue();
+    if (lv.isInfinity() && !lv.isNegative() || lv.isNaN())
+      return IConstantExpr::create(0, Expr::Bool);
+  }
+  else if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r)) {
+    // likewise X < -inf and X < NaN
+    const APFloat &rv = cr->getAPValue();
+    if (rv.isInfinity() && rv.isNegative() || rv.isNaN())
+      return IConstantExpr::create(0, Expr::Bool);
+  }
+
+  return FOltExpr::alloc(l, r);
+}
+
+ref<Expr> FOleExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return OrExpr::create(FOltExpr::create(l, r), FOeqExpr::create(l, r));
+}
+
+ref<Expr> FOgtExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return FOltExpr::create(r, l);
+}
+
+ref<Expr> FOgeExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return FOleExpr::create(r, l);
+}
+
+ref<Expr> FOneExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return OrExpr::create(FOltExpr::create(l, r), FOgtExpr::create(l, r));
+}
+
+ref<Expr> FOrd1Expr::create(const ref<Expr> &e) {
+  if (FConstantExpr *ce = dyn_cast<FConstantExpr>(e))
+    return ce->FOrd();
+
+  return FOrd1Expr::create(e);
+}
+
+ref<Expr> FOrdExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return OrExpr::create(FOrd1Expr::create(l), FOrd1Expr::create(r));
+}
+
+ref<Expr> FUeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return NotExpr::create(FOneExpr::create(l, r));
+}
+
+ref<Expr> FUltExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return NotExpr::create(FOgeExpr::create(l, r));
+}
+
+ref<Expr> FUleExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return NotExpr::create(FOgtExpr::create(l, r));
+}
+
+ref<Expr> FUgtExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return NotExpr::create(FOleExpr::create(l, r));
+}
+
+ref<Expr> FUgeExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return NotExpr::create(FOltExpr::create(l, r));
+}
+
+ref<Expr> FUneExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return NotExpr::create(FOeqExpr::create(l, r));
+}
+
+ref<Expr> FUnoExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
+  return NotExpr::create(FOrdExpr::create(l, r));
+}

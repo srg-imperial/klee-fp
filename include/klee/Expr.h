@@ -133,6 +133,9 @@ public:
     UIToFP,
     SIToFP,
 
+    // Unary NaN check
+    FOrd1,
+
     // All subsequent kinds are binary.
 
     // Arithmetic
@@ -170,6 +173,22 @@ public:
     Sgt, ///< Not used in canonical form
     Sge, ///< Not used in canonical form
 
+    // FP Compare
+    FOrd,
+    FOeq,
+    FOlt,
+    FOle,
+    FOgt, ///< Not used in canonical form
+    FOge, ///< Not used in canonical form
+    FOne,
+    FUno, ///< Not used in canonical form
+    FUeq, ///< Not used in canonical form
+    FUlt, ///< Not used in canonical form
+    FUle, ///< Not used in canonical form
+    FUgt, ///< Not used in canonical form
+    FUge, ///< Not used in canonical form
+    FUne, ///< Not used in canonical form
+
     LastKind=Sge,
 
     ConstantKindFirst=IConstant,
@@ -185,7 +204,7 @@ public:
     FBinaryKindFirst=FAdd,
     FBinaryKindLast=FRem,
     CmpKindFirst=Eq,
-    CmpKindLast=Sge
+    CmpKindLast=FUne
   };
 
   unsigned refCount;
@@ -556,6 +575,10 @@ public:
   /* Constant Operations */
   typedef ref<FConstantExpr> FConstBinOp(const ref<FConstantExpr> &RHS);
   FConstBinOp FAdd, FSub, FMul, FDiv, FRem;
+
+  typedef ref<IConstantExpr> FConstCmpOp(const ref<FConstantExpr> &RHS);
+  ref<IConstantExpr> FOrd();
+  FConstCmpOp FOeq, FOlt;
 
   typedef ref<FConstantExpr> FConvertOp(const llvm::fltSemantics *sem);
   FConvertOp FPExt, FPTrunc;
@@ -1161,6 +1184,36 @@ FLOAT_CONVERT_EXPR_CLASS(FPTrunc)
 FLOAT_CONVERT_EXPR_CLASS(UIToFP)
 FLOAT_CONVERT_EXPR_CLASS(SIToFP)
 
+class FOrd1Expr : public NonConstantExpr {
+public:
+  ref<Expr> src;
+
+public:
+  FOrd1Expr(const ref<Expr> &src) : src(src) {}
+
+  unsigned getWidth() const { return Bool; }
+
+  Kind getKind() const { return FOrd1; }
+  static ref<Expr> create(const ref<Expr> &e);
+  static ref<Expr> alloc(const ref<Expr> &e) {
+    ref<Expr> r(new FOrd1Expr(e));
+    r->computeHash();
+    return r;
+  }
+
+  unsigned getNumKids() const { return 1; }
+  ref<Expr> getKid(unsigned i) const { return (i==0) ? src : 0; }
+  
+  virtual ref<Expr> rebuild(ref<Expr> kids[]) const {
+    return create(kids[0]);
+  }
+
+  static bool classof(const Expr *E) {
+    return E->getKind() == Expr::FOrd1;
+  }
+  static bool classof(const FOrd1Expr *) { return true; }
+};
+
 // Arithmetic/Bit Exprs
 
 #define ARITHMETIC_EXPR_CLASS(_class_kind, _base_class)              \
@@ -1257,6 +1310,21 @@ COMPARISON_EXPR_CLASS(Slt)
 COMPARISON_EXPR_CLASS(Sle)
 COMPARISON_EXPR_CLASS(Sgt)
 COMPARISON_EXPR_CLASS(Sge)
+
+COMPARISON_EXPR_CLASS(FOrd)
+COMPARISON_EXPR_CLASS(FOeq)
+COMPARISON_EXPR_CLASS(FOlt)
+COMPARISON_EXPR_CLASS(FOle)
+COMPARISON_EXPR_CLASS(FOgt)
+COMPARISON_EXPR_CLASS(FOge)
+COMPARISON_EXPR_CLASS(FOne)
+COMPARISON_EXPR_CLASS(FUno)
+COMPARISON_EXPR_CLASS(FUeq)
+COMPARISON_EXPR_CLASS(FUlt)
+COMPARISON_EXPR_CLASS(FUle)
+COMPARISON_EXPR_CLASS(FUgt)
+COMPARISON_EXPR_CLASS(FUge)
+COMPARISON_EXPR_CLASS(FUne)
 
 // Implementations
 
