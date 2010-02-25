@@ -117,6 +117,7 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(FPTrunc);
     X(UIToFP);
     X(SIToFP);
+    X(FOrd1);
     X(Add);
     X(Sub);
     X(Mul);
@@ -146,6 +147,20 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(Sle);
     X(Sgt);
     X(Sge);
+    X(FOrd);
+    X(FOeq);
+    X(FOlt);
+    X(FOle);
+    X(FOgt);
+    X(FOge);
+    X(FOne);
+    X(FUno);
+    X(FUeq);
+    X(FUlt);
+    X(FUle);
+    X(FUgt);
+    X(FUge);
+    X(FUne);
 #undef X
   default:
     assert(0 && "invalid kind");
