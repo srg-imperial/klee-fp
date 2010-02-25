@@ -2029,88 +2029,47 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::FCmp: {
     FCmpInst *fi = cast<FCmpInst>(i);
-    ref<FConstantExpr> left (cast<FConstantExpr>(eval(ki, 0, state).value));
-    ref<FConstantExpr> right (cast<FConstantExpr>(eval(ki, 1, state).value));
-    const APFloat &LHS = left->getAPValue();
-    const APFloat &RHS = right->getAPValue();
-    APFloat::cmpResult CmpRes = LHS.compare(RHS);
+    ref<Expr> left = eval(ki, 0, state).value;
+    ref<Expr> right = eval(ki, 1, state).value;
 
-    bool Result = false;
+    ref<Expr> Result;
     switch( fi->getPredicate() ) {
+#define X(_inst_pred, _expr_type) \
+    case FCmpInst::_inst_pred: \
+      Result = _expr_type::create(left, right); \
+      break
       // Predicates which only care about whether or not the operands are NaNs.
-    case FCmpInst::FCMP_ORD:
-      Result = CmpRes != APFloat::cmpUnordered;
-      break;
-
-    case FCmpInst::FCMP_UNO:
-      Result = CmpRes == APFloat::cmpUnordered;
-      break;
+    X(FCMP_ORD, FOrdExpr);
+    X(FCMP_UNO, FUnoExpr);
 
       // Ordered comparisons return false if either operand is NaN.  Unordered
       // comparisons return true if either operand is NaN.
-    case FCmpInst::FCMP_UEQ:
-      if (CmpRes == APFloat::cmpUnordered) {
-        Result = true;
-        break;
-      }
-    case FCmpInst::FCMP_OEQ:
-      Result = CmpRes == APFloat::cmpEqual;
-      break;
+    X(FCMP_UEQ, FUeqExpr);
+    X(FCMP_OEQ, FOeqExpr);
+    X(FCMP_UGT, FUgtExpr);
+    X(FCMP_OGT, FOgtExpr);
+    X(FCMP_UGE, FUgeExpr);
+    X(FCMP_OGE, FOgeExpr);
+    X(FCMP_ULT, FUltExpr);
+    X(FCMP_OLT, FOltExpr);
+    X(FCMP_ULE, FUleExpr);
+    X(FCMP_OLE, FOleExpr);
+    X(FCMP_UNE, FUneExpr);
+    X(FCMP_ONE, FOneExpr);
+#undef X
 
-    case FCmpInst::FCMP_UGT:
-      if (CmpRes == APFloat::cmpUnordered) {
-        Result = true;
-        break;
-      }
-    case FCmpInst::FCMP_OGT:
-      Result = CmpRes == APFloat::cmpGreaterThan;
+    case FCmpInst::FCMP_FALSE:
+      Result = IConstantExpr::alloc(false, Expr::Bool);
       break;
-
-    case FCmpInst::FCMP_UGE:
-      if (CmpRes == APFloat::cmpUnordered) {
-        Result = true;
-        break;
-      }
-    case FCmpInst::FCMP_OGE:
-      Result = CmpRes == APFloat::cmpGreaterThan || CmpRes == APFloat::cmpEqual;
-      break;
-
-    case FCmpInst::FCMP_ULT:
-      if (CmpRes == APFloat::cmpUnordered) {
-        Result = true;
-        break;
-      }
-    case FCmpInst::FCMP_OLT:
-      Result = CmpRes == APFloat::cmpLessThan;
-      break;
-
-    case FCmpInst::FCMP_ULE:
-      if (CmpRes == APFloat::cmpUnordered) {
-        Result = true;
-        break;
-      }
-    case FCmpInst::FCMP_OLE:
-      Result = CmpRes == APFloat::cmpLessThan || CmpRes == APFloat::cmpEqual;
-      break;
-
-    case FCmpInst::FCMP_UNE:
-      Result = CmpRes == APFloat::cmpUnordered || CmpRes != APFloat::cmpEqual;
-      break;
-    case FCmpInst::FCMP_ONE:
-      Result = CmpRes != APFloat::cmpUnordered && CmpRes != APFloat::cmpEqual;
+    case FCmpInst::FCMP_TRUE:
+      Result = IConstantExpr::alloc(true, Expr::Bool);
       break;
 
     default:
       assert(0 && "Invalid FCMP predicate!");
-    case FCmpInst::FCMP_FALSE:
-      Result = false;
-      break;
-    case FCmpInst::FCMP_TRUE:
-      Result = true;
-      break;
     }
 
-    bindLocal(ki, state, IConstantExpr::alloc(Result, Expr::Bool));
+    bindLocal(ki, state, Result);
     break;
   }
  
