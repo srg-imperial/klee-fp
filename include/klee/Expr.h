@@ -177,7 +177,7 @@ public:
     FOrd,
     FOeq,
     FOlt,
-    FOle,
+    FOle, ///< Not used in canonical form
     FOgt, ///< Not used in canonical form
     FOge, ///< Not used in canonical form
     FOne,
