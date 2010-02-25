@@ -1140,7 +1140,7 @@ FBCREATE(FRemExpr, FRem)
 FPExpr::FPCategories FAddExpr::getCategories() const {
   FPCategories lcat = left->asFPExpr()->getCategories();
   FPCategories rcat = right->asFPExpr()->getCategories();
-  int cat;
+  int cat = 0;
   if (lcat == fcAll || rcat == fcAll)
     return fcAll;
   if (lcat & fcMaybePNorm && rcat & fcMaybeNNorm
@@ -1184,7 +1184,7 @@ FPExpr::FPCategories FAddExpr::getCategories() const {
 FPExpr::FPCategories FSubExpr::getCategories() const {
   FPCategories lcat = left->asFPExpr()->getCategories();
   FPCategories rcat = right->asFPExpr()->getCategories();
-  int cat;
+  int cat = 0;
   if (lcat == fcAll || rcat == fcAll)
     return fcAll;
   if (lcat & fcMaybePNorm && rcat & fcMaybePNorm
@@ -1228,7 +1228,7 @@ FPExpr::FPCategories FSubExpr::getCategories() const {
 FPExpr::FPCategories FMulExpr::getCategories() const {
   FPCategories lcat = left->asFPExpr()->getCategories();
   FPCategories rcat = right->asFPExpr()->getCategories();
-  int cat;
+  int cat = 0;
   if (lcat == fcAll || rcat == fcAll)
     return fcAll;
   if (lcat & fcMaybeZero && rcat & (fcMaybeNNorm | fcMaybeZero | fcMaybePNorm)
@@ -1257,7 +1257,7 @@ FPExpr::FPCategories FMulExpr::getCategories() const {
 FPExpr::FPCategories FDivExpr::getCategories() const {
   FPCategories lcat = left->asFPExpr()->getCategories();
   FPCategories rcat = right->asFPExpr()->getCategories();
-  int cat;
+  int cat = 0;
   if (lcat == fcAll || rcat == fcAll)
     return fcAll;
   if (lcat & (fcMaybeNNorm | fcMaybeZero | fcMaybePNorm) && rcat & (fcMaybeNNorm | fcMaybePNorm))
