@@ -202,6 +202,22 @@ bool ExecutionState::merge(const ExecutionState &b) {
     std::cerr << "]\n";
   }
 
+  // We cannot merge if either suffix contains floating point expressions
+  for (std::set< ref<Expr> >::iterator it = aSuffix.begin(), 
+         ie = aSuffix.end(); it != ie; ++it)
+    {
+      Expr::Kind kind = (*it)->getKind();
+      if (kind == Expr::FOrd1 || (kind >= Expr::FOrd && kind <= Expr::FUne))
+        return false;
+    }
+  for (std::set< ref<Expr> >::iterator it = bSuffix.begin(), 
+         ie = bSuffix.end(); it != ie; ++it)
+    {
+      Expr::Kind kind = (*it)->getKind();
+      if (kind == Expr::FOrd1 || (kind >= Expr::FOrd && kind <= Expr::FUne))
+        return false;
+    }
+
   // We cannot merge if addresses would resolve differently in the
   // states. This means:
   // 
