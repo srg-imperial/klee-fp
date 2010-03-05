@@ -65,6 +65,9 @@ public:
     return constraints == other.constraints;
   }
   
+  /// Dump the contents of this constraint set for debugging purposes.
+  void dump(std::ostream &out) const;
+
 private:
   std::vector< ref<Expr> > constraints;
 

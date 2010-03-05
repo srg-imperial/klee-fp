@@ -38,6 +38,14 @@ using namespace klee;
 
 /***/
 
+void Query::dump(std::ostream &out) const {
+  out << "=== Constraints: ===" << std::endl;
+  constraints.dump(out);
+  out << "=== Query:       ===" << std::endl;
+  expr->print(out);
+  out << std::endl << "====================" << std::endl;
+}
+
 const char *Solver::validity_to_str(Validity v) {
   switch (v) {
   default:    return "Unknown";

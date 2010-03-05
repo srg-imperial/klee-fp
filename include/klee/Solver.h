@@ -42,6 +42,9 @@ namespace klee {
     Query negateExpr() const {
       return withExpr(Expr::createIsZero(expr));
     }
+
+    /// Dumps the contents of this Query for debugging purposes.
+    void dump(std::ostream &out) const;
   };
 
   class Solver {
