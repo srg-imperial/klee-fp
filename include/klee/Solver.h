@@ -216,6 +216,10 @@ namespace klee {
   /// after writing them to the given path in .pc format.
   Solver *createPCLoggingSolver(Solver *s, std::string path);
 
+  /// createFPRewritingSolver - Create a solver which rewrites queries that
+  /// involve FP comparisons.
+  Solver *createFPRewritingSolver(Solver *s);
+
   /// createDummySolver - Create a dummy solver implementation which always
   /// fails.
   Solver *createDummySolver();

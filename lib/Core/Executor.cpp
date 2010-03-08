@@ -272,6 +272,8 @@ Solver *constructSolverChain(STPSolver *stpSolver,
                              std::string stpQueryPCLogPath) {
   Solver *solver = stpSolver;
 
+  solver = createFPRewritingSolver(solver);
+
   if (UseSTPQueryPCLog)
     solver = createPCLoggingSolver(solver, 
                                    stpQueryLogPath);
