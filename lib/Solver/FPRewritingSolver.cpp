@@ -33,6 +33,9 @@ public:
     : solver(_solver) {}
   ~FPRewritingSolver() { delete solver; }
 
+  Query rewriteQuery(const Query &q);
+  ref<Expr> rewriteConstraint(ref<Expr> e);
+
   bool computeTruth(const Query&, bool &isValid);
   bool computeValidity(const Query&, Solver::Validity &result);
   bool computeValue(const Query&, ref<Expr> &result);
@@ -41,28 +44,38 @@ public:
                             std::vector< std::vector<unsigned char> > &values,
                             bool &hasSolution);
 };
-  
+
+ref<Expr> FPRewritingSolver::rewriteConstraint(ref<Expr> e) {
+  return e;
+}
+
+Query FPRewritingSolver::rewriteQuery(const Query &q) {
+  std::vector< ref<Expr> > constraints;
+  for (ConstraintManager::constraint_iterator i  = q.constraints.begin();
+                                              i != q.constraints.end();
+                                            ++i) {
+    constraints.push_back(rewriteConstraint(*i));
+  }
+  return Query(ConstraintManager(constraints), rewriteConstraint(q.expr));
+}
+
 bool FPRewritingSolver::computeTruth(const Query &q, bool &isValid) {
-  puts("FPRewritingSolver::computeTruth called");
-  return solver->impl->computeTruth(q, isValid);
+  return solver->impl->computeTruth(rewriteQuery(q), isValid);
 }
 
 bool FPRewritingSolver::computeValidity(const Query &q, Solver::Validity &result) {
-  puts("FPRewritingSolver::computeValidity called");
-  return solver->impl->computeValidity(q, result);
+  return solver->impl->computeValidity(rewriteQuery(q), result);
 }
 
 bool FPRewritingSolver::computeValue(const Query &q, ref<Expr> &result) {
-  puts("FPRewritingSolver::computeValue called");
-  return solver->impl->computeValue(q, result);
+  return solver->impl->computeValue(rewriteQuery(q), result);
 }
 
 bool FPRewritingSolver::computeInitialValues(const Query& query,
                           const std::vector<const Array*> &objects,
                           std::vector< std::vector<unsigned char> > &values,
                           bool &hasSolution) {
-  puts("FPRewritingSolver::computeInitialValues called");
-  return solver->impl->computeInitialValues(query, objects, values,
+  return solver->impl->computeInitialValues(rewriteQuery(query), objects, values,
                                             hasSolution);
 }
 
