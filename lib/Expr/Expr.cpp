@@ -1573,7 +1573,7 @@ ref<Expr> FOrd1Expr::create(const ref<Expr> &e) {
   if (FConstantExpr *ce = dyn_cast<FConstantExpr>(e))
     return ce->FOrd();
 
-  return FOrd1Expr::create(e);
+  return FOrd1Expr::alloc(e);
 }
 
 ref<Expr> FOrdExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
