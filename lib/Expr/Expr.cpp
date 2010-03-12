@@ -1586,8 +1586,15 @@ ref<Expr> FOneExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
 }
 
 ref<Expr> FOrd1Expr::create(const ref<Expr> &e) {
-  if (FConstantExpr *ce = dyn_cast<FConstantExpr>(e))
-    return ce->FOrd();
+  FPExpr *fe = e->asFPExpr();
+  assert(fe && "FPExpr expected");
+  FPExpr::FPCategories cat = fe->getCategories();
+
+  if ((cat & (FPExpr::fcAll & ~FPExpr::fcMaybeNaN)) == 0) // Definitely a NaN
+    return IConstantExpr::create(0, Expr::Bool);
+
+  if ((cat & FPExpr::fcMaybeNaN) == 0) // Definitely not a NaN
+    return IConstantExpr::create(1, Expr::Bool);
 
   return FOrd1Expr::alloc(e);
 }
