@@ -1600,7 +1600,7 @@ ref<Expr> FOrd1Expr::create(const ref<Expr> &e) {
 }
 
 ref<Expr> FOrdExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  return OrExpr::create(FOrd1Expr::create(l), FOrd1Expr::create(r));
+  return AndExpr::create(FOrd1Expr::create(l), FOrd1Expr::create(r));
 }
 
 ref<Expr> FUeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
