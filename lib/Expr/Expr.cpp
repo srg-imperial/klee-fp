@@ -1604,29 +1604,29 @@ ref<Expr> FOrdExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
 }
 
 ref<Expr> FUeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  return NotExpr::create(FOneExpr::create(l, r));
+  return Expr::createIsZero(FOneExpr::create(l, r));
 }
 
 ref<Expr> FUltExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  return NotExpr::create(FOgeExpr::create(l, r));
+  return Expr::createIsZero(FOgeExpr::create(l, r));
 }
 
 ref<Expr> FUleExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  return NotExpr::create(FOgtExpr::create(l, r));
+  return Expr::createIsZero(FOgtExpr::create(l, r));
 }
 
 ref<Expr> FUgtExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  return NotExpr::create(FOleExpr::create(l, r));
+  return Expr::createIsZero(FOleExpr::create(l, r));
 }
 
 ref<Expr> FUgeExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  return NotExpr::create(FOltExpr::create(l, r));
+  return Expr::createIsZero(FOltExpr::create(l, r));
 }
 
 ref<Expr> FUneExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  return NotExpr::create(FOeqExpr::create(l, r));
+  return Expr::createIsZero(FOeqExpr::create(l, r));
 }
 
 ref<Expr> FUnoExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  return NotExpr::create(FOrdExpr::create(l, r));
+  return Expr::createIsZero(FOrdExpr::create(l, r));
 }
