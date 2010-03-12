@@ -593,6 +593,22 @@ ref<IConstantExpr> FConstantExpr::FOrd() {
   return IConstantExpr::create(!value.isNaN(), Expr::Bool);
 }
 
+int FConstantExpr::compareContents(const Expr &b) const {
+  const FConstantExpr &cb = static_cast<const FConstantExpr&>(b);
+  const fltSemantics *s1 = getSemantics(),
+                     *s2 = cb.getSemantics();
+  if (s1 != s2)
+    return s1 < s2 ? -1 : 1;
+
+  /* We order FP values using their bitwise representations */
+  APInt i1 = value.bitcastToAPInt(),
+        i2 = cb.value.bitcastToAPInt();
+  assert(i1.getBitWidth() == i2.getBitWidth() && "bitwidths of FP constants with same semantics unequal");
+  if (i1 == i2)
+    return 0;
+  return i1.ult(i2) ? -1 : 1;
+}
+
 /***/
 
 ref<Expr>  NotOptimizedExpr::create(ref<Expr> src) {

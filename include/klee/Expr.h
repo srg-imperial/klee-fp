@@ -565,6 +565,8 @@ public:
     return r;
   }
   
+  int compareContents(const Expr &b) const;
+
   static bool classof(const Expr *E) {
     return E->getKind() == Expr::FConstant;
   }
