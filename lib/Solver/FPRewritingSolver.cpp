@@ -36,6 +36,7 @@ public:
   ref<Expr> constrainEquality(ref<Expr> lhs, ref<Expr> rhs);
 
   ref<Expr> rewriteConstraint(const ref<Expr> &e);
+  ref<Expr> _rewriteConstraint(const ref<Expr> &e);
   const ConstraintManager *rewriteConstraints(const ConstraintManager &cm, bool &changed);
 
   bool computeTruth(const Query&, bool &isValid);
@@ -101,7 +102,7 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
   }
 }
 
-ref<Expr> FPRewritingSolver::rewriteConstraint(const ref<Expr> &e) {
+ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e) {
   switch (e->getKind()) {
     case Expr::FOeq:
       return constrainEquality(e->getKid(0), e->getKid(1)); /* I don't think this is right */
@@ -110,6 +111,15 @@ ref<Expr> FPRewritingSolver::rewriteConstraint(const ref<Expr> &e) {
     default:
       return e;
   }
+}
+
+ref<Expr> FPRewritingSolver::rewriteConstraint(const ref<Expr> &e) {
+  std::cerr << "Input constraint: ";
+  e->dump();
+  ref<Expr> ep = _rewriteConstraint(e);
+  std::cerr << "Output constraint: ";
+  ep->dump();
+  return ep;
 }
 
 const ConstraintManager *FPRewritingSolver::rewriteConstraints(const ConstraintManager &cm, bool &changed) {
