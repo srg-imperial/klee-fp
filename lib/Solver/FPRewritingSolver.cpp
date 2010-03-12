@@ -106,7 +106,7 @@ ref<Expr> FPRewritingSolver::rewriteConstraint(const ref<Expr> &e) {
     case Expr::FOeq:
       return constrainEquality(e->getKid(0), e->getKid(1)); /* I don't think this is right */
     case Expr::FOne:
-      return NotExpr::create(constrainEquality(e->getKid(0), e->getKid(1)));
+      return Expr::createIsZero(constrainEquality(e->getKid(0), e->getKid(1)));
     default:
       return e;
   }
