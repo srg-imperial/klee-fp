@@ -1530,41 +1530,43 @@ CMPCREATE(SltExpr, Slt)
 CMPCREATE(SleExpr, Sle)
 
 ref<Expr> FOeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l)) {
+  if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l))
     if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r))
       return cl->FOeq(cr);
 
-    // NaN == X is always false
-    const APFloat &lv = cl->getAPValue();
-    if (lv.isNaN())
-      return IConstantExpr::create(0, Expr::Bool);
-  }
-  else if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r)) {
-    // likewise X == NaN
-    const APFloat &rv = cr->getAPValue();
-    if (rv.isNaN())
-      return IConstantExpr::create(0, Expr::Bool);
-  }
+  FPExpr::FPCategories lcat = l->asFPExpr()->getCategories(),
+                       rcat = r->asFPExpr()->getCategories();
+
+  // NaN == X is always false
+  if (lcat == FPExpr::fcMaybeNaN)
+    return IConstantExpr::create(0, Expr::Bool);
+
+  // likewise X == NaN
+  if (rcat == FPExpr::fcMaybeNaN)
+    return IConstantExpr::create(0, Expr::Bool);
+
+  // likewise if the two category sets are disjoint
+  if ((lcat & rcat) == 0)
+    return IConstantExpr::create(0, Expr::Bool);
 
   return FOeqExpr::alloc(l, r);
 }
 
 ref<Expr> FOltExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
-  if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l)) {
+  if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l))
     if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r))
       return cl->FOlt(cr);
 
-    // inf < X and NaN < X are always false
-    const APFloat &lv = cl->getAPValue();
-    if ((lv.isInfinity() && !lv.isNegative()) || lv.isNaN())
-      return IConstantExpr::create(0, Expr::Bool);
-  }
-  else if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r)) {
-    // likewise X < -inf and X < NaN
-    const APFloat &rv = cr->getAPValue();
-    if ((rv.isInfinity() && rv.isNegative()) || rv.isNaN())
-      return IConstantExpr::create(0, Expr::Bool);
-  }
+  FPExpr::FPCategories lcat = l->asFPExpr()->getCategories(),
+                       rcat = r->asFPExpr()->getCategories();
+
+  // inf < X and NaN < X are always false
+  if ((lcat & ~(FPExpr::fcMaybePInf | FPExpr::fcMaybeNaN)) == 0)
+    return IConstantExpr::create(0, Expr::Bool);
+
+  // likewise X < -inf and X < NaN
+  if ((rcat & ~(FPExpr::fcMaybeNInf | FPExpr::fcMaybeNaN)) == 0)
+    return IConstantExpr::create(0, Expr::Bool);
 
   return FOltExpr::alloc(l, r);
 }
@@ -1590,7 +1592,7 @@ ref<Expr> FOrd1Expr::create(const ref<Expr> &e) {
   assert(fe && "FPExpr expected");
   FPExpr::FPCategories cat = fe->getCategories();
 
-  if ((cat & (FPExpr::fcAll & ~FPExpr::fcMaybeNaN)) == 0) // Definitely a NaN
+  if (cat == FPExpr::fcMaybeNaN) // Definitely a NaN
     return IConstantExpr::create(0, Expr::Bool);
 
   if ((cat & FPExpr::fcMaybeNaN) == 0) // Definitely not a NaN
