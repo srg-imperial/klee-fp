@@ -312,11 +312,11 @@ public:
   unsigned getWidth() const;
 
   enum FPCategories {
-    fcMaybeZero = 1<<0,
-    fcMaybePNorm = 1<<1,
-    fcMaybeNNorm = 1<<2,
-    fcMaybePInf = 1<<3,
-    fcMaybeNInf = 1<<4,
+    fcMaybeNInf = 1<<0,
+    fcMaybeNNorm = 1<<1,
+    fcMaybeZero = 1<<2,
+    fcMaybePNorm = 1<<3,
+    fcMaybePInf = 1<<4,
     fcMaybeNaN = 1<<5,
     fcAll = (1<<6)-1
   };

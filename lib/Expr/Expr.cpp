@@ -1545,8 +1545,10 @@ ref<Expr> FOeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
   if (rcat == FPExpr::fcMaybeNaN)
     return IConstantExpr::create(0, Expr::Bool);
 
-  // likewise if the two category sets are disjoint
-  if ((lcat & rcat) == 0)
+  // likewise if the ordered portions of the category sets are disjoint
+  int lcatOrd = lcat & ~FPExpr::fcMaybeNaN;
+  int rcatOrd = rcat & ~FPExpr::fcMaybeNaN;
+  if ((lcatOrd & rcatOrd) == 0)
     return IConstantExpr::create(0, Expr::Bool);
 
   return FOeqExpr::alloc(l, r);
@@ -1566,6 +1568,16 @@ ref<Expr> FOltExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
 
   // likewise X < -inf and X < NaN
   if ((rcat & ~(FPExpr::fcMaybeNInf | FPExpr::fcMaybeNaN)) == 0)
+    return IConstantExpr::create(0, Expr::Bool);
+
+  // likewise if the ordered portions of the category sets are disjoint
+  // and every category in the ordered portion of the lhs set refers to
+  // greater values than every category in the ordered portion of the
+  // rhs set (the bit representation is in ascending order of category
+  // so that we can use a simple greater-than operation to test this)
+  int lcatOrd = lcat & ~FPExpr::fcMaybeNaN;
+  int rcatOrd = rcat & ~FPExpr::fcMaybeNaN;
+  if ((lcatOrd & rcatOrd) == 0 && lcatOrd > rcatOrd)
     return IConstantExpr::create(0, Expr::Bool);
 
   return FOltExpr::alloc(l, r);
