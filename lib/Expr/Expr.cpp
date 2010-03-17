@@ -1529,6 +1529,14 @@ CMPCREATE(UleExpr, Ule)
 CMPCREATE(SltExpr, Slt)
 CMPCREATE(SleExpr, Sle)
 
+// A category is closed under ordered equality iff for all values v1,v2 in
+// that category, v1 == v2 (ordered equality comparison) holds.  The zero
+// category is closed under ordered equality because +0 == -0.
+#define CAT_CLOSED_UNDER_OEQ(cat) ( \
+        (cat) == FPExpr::fcMaybeNInf || \
+        (cat) == FPExpr::fcMaybeZero || \
+        (cat) == FPExpr::fcMaybePInf)
+
 ref<Expr> FOeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
   if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l))
     if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r))
@@ -1551,7 +1559,27 @@ ref<Expr> FOeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
   if ((lcatOrd & rcatOrd) == 0)
     return IConstantExpr::create(0, Expr::Bool);
 
+  // if both sets contain one element which is closed under ordered equality,
+  // l == r holds
+  if (lcat == rcat && CAT_CLOSED_UNDER_OEQ(lcat))
+    return IConstantExpr::create(1, Expr::Bool);
+
   return FOeqExpr::alloc(l, r);
+}
+
+inline FPExpr::FPCategories leastCategory(FPExpr::FPCategories cats) {
+  return FPExpr::FPCategories(cats & -cats);
+}
+
+inline FPExpr::FPCategories greatestCategory(FPExpr::FPCategories cats) {
+  int grCat = cats;
+  // N.B. This supports a maximum of 8 categories, we currently have 6
+  grCat |= grCat >> 1;
+  grCat |= grCat >> 2;
+  grCat |= grCat >> 4;
+  grCat++;
+  grCat >>= 1;
+  return FPExpr::FPCategories(grCat);
 }
 
 ref<Expr> FOltExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
@@ -1570,15 +1598,28 @@ ref<Expr> FOltExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
   if ((rcat & ~(FPExpr::fcMaybeNInf | FPExpr::fcMaybeNaN)) == 0)
     return IConstantExpr::create(0, Expr::Bool);
 
-  // likewise if the ordered portions of the category sets are disjoint
-  // and every category in the ordered portion of the lhs set refers to
-  // greater values than every category in the ordered portion of the
-  // rhs set (the bit representation is in ascending order of category
-  // so that we can use a simple greater-than operation to test this)
-  int lcatOrd = lcat & ~FPExpr::fcMaybeNaN;
-  int rcatOrd = rcat & ~FPExpr::fcMaybeNaN;
-  if ((lcatOrd & rcatOrd) == 0 && lcatOrd > rcatOrd)
+  // likewise if every category c1 in the ordered subset of the lhs set
+  // either contains greater values than every category c2 in the ordered
+  // subset of the rhs set, or c1 and c2 are the same category and are
+  // closed under ordered equality
+  FPExpr::FPCategories lcatOrd = FPExpr::FPCategories(lcat & ~FPExpr::fcMaybeNaN);
+  FPExpr::FPCategories rcatOrd = FPExpr::FPCategories(rcat & ~FPExpr::fcMaybeNaN);
+  // if the condition holds for the least and greatest categories then
+  // the remainder of categories follow
+  FPExpr::FPCategories lcatLe = leastCategory(lcatOrd);
+  FPExpr::FPCategories rcatGr = greatestCategory(rcatOrd);
+  if (lcatLe > rcatGr || (lcatLe == rcatGr && CAT_CLOSED_UNDER_OEQ(lcatLe)))
     return IConstantExpr::create(0, Expr::Bool);
+
+  // if both sets are ordered and every category c1 in the lhs set contains
+  // lower values than every category c2 in the rhs set,
+  // then l < r holds
+  if ((lcatOrd & rcatOrd) == 0 && lcat == lcatOrd && rcat == rcatOrd) {
+    int lcatGr = greatestCategory(lcatOrd);
+    int rcatLe = leastCategory(rcatOrd);
+    if (lcatGr < rcatLe)
+      return IConstantExpr::create(1, Expr::Bool);
+  }
 
   return FOltExpr::alloc(l, r);
 }
