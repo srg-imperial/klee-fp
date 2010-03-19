@@ -1319,11 +1319,11 @@ FPExpr::FPCategories FPTruncExpr::getCategories() const {
  * to determine which categories the result falls into */
 
 FPExpr::FPCategories UIToFPExpr::getCategories() const {
-  return (FPCategories) (fcMaybeNNorm | fcMaybeZero | fcMaybePNorm);
+  return (FPCategories) (fcMaybeZero | fcMaybePNorm);
 }
 
 FPExpr::FPCategories SIToFPExpr::getCategories() const {
-  return (FPCategories) (fcMaybeZero | fcMaybePNorm);
+  return (FPCategories) (fcMaybeNNorm | fcMaybeZero | fcMaybePNorm);
 }
 
 #define CMPCREATE(_e_op, _op) \
