@@ -1165,11 +1165,15 @@ FPExpr::FPCategories FAddExpr::getCategories() const {
     cat |= fcMaybeZero;
   if ((lcat & fcMaybePNorm && rcat & fcMaybePNorm)
    || (lcat & fcMaybeZero && rcat & fcMaybePNorm)
-   || (lcat & fcMaybePNorm && rcat & fcMaybeZero))
+   || (lcat & fcMaybePNorm && rcat & fcMaybeZero)
+   || (lcat & fcMaybePNorm && rcat & fcMaybeNNorm)
+   || (lcat & fcMaybeNNorm && rcat & fcMaybePNorm))
     cat |= fcMaybePNorm;
   if ((lcat & fcMaybeNNorm && rcat & fcMaybeNNorm)
    || (lcat & fcMaybeZero && rcat & fcMaybeNNorm)
-   || (lcat & fcMaybeNNorm && rcat & fcMaybeZero))
+   || (lcat & fcMaybeNNorm && rcat & fcMaybeZero)
+   || (lcat & fcMaybePNorm && rcat & fcMaybeNNorm)
+   || (lcat & fcMaybeNNorm && rcat & fcMaybePNorm))
     cat |= fcMaybeNNorm;
   if ((lcat & fcMaybePNorm && rcat & fcMaybePNorm)
    || (lcat & fcMaybePInf && rcat & fcMaybeZero)
@@ -1209,11 +1213,15 @@ FPExpr::FPCategories FSubExpr::getCategories() const {
     cat |= fcMaybeZero;
   if ((lcat & fcMaybePNorm && rcat & fcMaybeNNorm)
    || (lcat & fcMaybeZero && rcat & fcMaybeNNorm)
-   || (lcat & fcMaybePNorm && rcat & fcMaybeZero))
+   || (lcat & fcMaybePNorm && rcat & fcMaybeZero)
+   || (lcat & fcMaybePNorm && rcat & fcMaybePNorm)
+   || (lcat & fcMaybeNNorm && rcat & fcMaybeNNorm))
     cat |= fcMaybePNorm;
   if ((lcat & fcMaybeNNorm && rcat & fcMaybePNorm)
    || (lcat & fcMaybeZero && rcat & fcMaybePNorm)
-   || (lcat & fcMaybeNNorm && rcat & fcMaybeZero))
+   || (lcat & fcMaybeNNorm && rcat & fcMaybeZero)
+   || (lcat & fcMaybePNorm && rcat & fcMaybePNorm)
+   || (lcat & fcMaybeNNorm && rcat & fcMaybeNNorm))
     cat |= fcMaybeNNorm;
   if ((lcat & fcMaybePNorm && rcat & fcMaybeNNorm)
    || (lcat & fcMaybePInf && rcat & fcMaybeZero)
