@@ -35,9 +35,12 @@ public:
 
   ref<Expr> constrainEquality(ref<Expr> lhs, ref<Expr> rhs);
 
+  ref<Expr> fuseConstraints(const ref<Expr> &e1, const ref<Expr> &e2);
+
   ref<Expr> rewriteConstraint(const ref<Expr> &e);
-  ref<Expr> _rewriteConstraint(const ref<Expr> &e);
-  const ConstraintManager *rewriteConstraints(const ConstraintManager &cm, bool &changed);
+  ref<Expr> _rewriteConstraint(const ref<Expr> &e, bool isNeg);
+
+  Query rewriteConstraints(const Query &q);
 
   bool computeTruth(const Query&, bool &isValid);
   bool computeValidity(const Query&, Solver::Validity &result);
@@ -47,6 +50,21 @@ public:
                             std::vector< std::vector<unsigned char> > &values,
                             bool &hasSolution);
 };
+
+static bool IsNotExpr(ref<Expr> e, ref<Expr> &neg) {
+  if (e->getKind() != Expr::Eq)
+    return false;
+  ref<Expr> kid0 = e->getKid(0), kid1 = e->getKid(1);
+  if (kid0->getWidth() != Expr::Bool)
+    return false;
+  if (kid0->isFalse())
+    neg = kid1;
+  else if (kid1->isFalse())
+    neg = kid0;
+  else
+    return false;
+  return true;
+}
 
 /* Given a pair of floating point expressions lhs and rhs, return an expression
  * which is a sufficient condition for either of:
@@ -70,6 +88,7 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
     }
     case Expr::FAdd:
     case Expr::FMul:
+    case Expr::FOeq:
       return OrExpr::create(
                AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0)),
                                constrainEquality(lhs->getKid(1), rhs->getKid(1))),
@@ -78,6 +97,7 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
     case Expr::FSub:
     case Expr::FDiv:
     case Expr::FRem:
+    case Expr::FOlt:
       return AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0)),
                              constrainEquality(lhs->getKid(1), rhs->getKid(1)));
     case Expr::FPExt:
@@ -97,69 +117,112 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
       }
       return EqExpr::create(lhsKid, rhsKid);
     }
+    case Expr::Eq: {
+      ref<Expr> lhsNeg, rhsNeg;
+      if (IsNotExpr(lhs, lhsNeg) && IsNotExpr(rhs, rhsNeg))
+        return constrainEquality(lhsNeg, rhsNeg);
+      else
+        return IConstantExpr::alloc(0, Expr::Bool);
+    }
     default:
-      assert(0 && "Floating point value expected");
+      return IConstantExpr::alloc(0, Expr::Bool);
+      // assert(0 && "Floating point value expected");
   }
 }
 
-ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e) {
+bool HasFPExpr(ref<Expr> e) {
+  if (e->asFPExpr()) return true;
+  unsigned int numKids = e->getNumKids();
+  for (unsigned int k = 0; k < numKids; k++) {
+    if (HasFPExpr(e->getKid(k)))
+      return true;
+  }
+  return false;
+}
+
+ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e, bool isNeg) {
   switch (e->getKind()) {
     case Expr::FOeq:
       return constrainEquality(e->getKid(0), e->getKid(1)); /* I don't think this is right */
     case Expr::FOne:
       return Expr::createIsZero(constrainEquality(e->getKid(0), e->getKid(1)));
+    case Expr::Eq: {
+      ref<Expr> neg;
+      if (IsNotExpr(e, neg))
+        return Expr::createIsZero(_rewriteConstraint(neg, !isNeg));
+    }
     default:
-      return e;
+      if (HasFPExpr(e))
+        return IConstantExpr::create(isNeg ? 0 : 1, Expr::Bool);
+      else
+        return e;
   }
 }
 
 ref<Expr> FPRewritingSolver::rewriteConstraint(const ref<Expr> &e) {
-  std::cerr << "Input constraint: ";
+#ifdef DEBUG_FPRS
+  std::cerr << "C+ Input constraint: ";
   e->dump();
-  ref<Expr> ep = _rewriteConstraint(e);
-  std::cerr << "Output constraint: ";
+#endif
+  ref<Expr> ep = _rewriteConstraint(e, false);
+#ifdef DEBUG_FPRS
+  std::cerr << "C+ Output constraint: ";
   ep->dump();
+#endif
   return ep;
 }
 
-const ConstraintManager *FPRewritingSolver::rewriteConstraints(const ConstraintManager &cm, bool &changed) {
-  std::vector< ref<Expr> > constraints;
-  for (ConstraintManager::constraint_iterator i  = cm.begin();
-                                              i != cm.end();
-                                            ++i) {
-    ref<Expr> newConstraint = rewriteConstraint(*i);
-    constraints.push_back(newConstraint);
-    if (newConstraint != *i)
-      changed = true;
+ref<Expr> FPRewritingSolver::fuseConstraints(const ref<Expr> &e1, const ref<Expr> &e2) {
+  return Expr::createIsZero(constrainEquality(Expr::createIsZero(e1), e2));
+}
+
+Query FPRewritingSolver::rewriteConstraints(const Query &q) {
+  std::vector< ref<Expr> > constraints(q.constraints.begin(), q.constraints.end()), newConstraints;
+  constraints.push_back(Expr::createIsZero(q.expr));
+  for (std::vector< ref<Expr> >::iterator i  = constraints.begin();
+                                          i != constraints.end();
+                                        ++i) {
+    ref<Expr> oldConstraint = rewriteConstraint(*i), newConstraint = oldConstraint;
+    std::vector< ref<Expr> >::iterator j = i; ++j;
+    for (;j != constraints.end();
+        ++j) {
+      newConstraint = AndExpr::create(newConstraint, fuseConstraints(*i, *j));
+    }
+#ifdef DEBUG_FPRS
+    std::cerr << "C+ FINAL constraint: ";
+    newConstraint->dump();
+#else
+    if (oldConstraint != newConstraint) {
+      std::cerr << "Fused a constraint!";
+      newConstraint->dump();
+    }
+#endif
+    newConstraints.push_back(newConstraint);
   }
-  return changed ? new ConstraintManager(constraints) : &cm;
+  ref<Expr> query = Expr::createIsZero(newConstraints.back());
+  newConstraints.pop_back();
+  return Query(*new ConstraintManager(newConstraints), query);
 }
 
 
 bool FPRewritingSolver::computeTruth(const Query &q, bool &isValid) {
-  bool changed = false;
-  const ConstraintManager *cm = rewriteConstraints(q.constraints, changed);
-  bool rv = solver->impl->computeTruth(Query(*cm, rewriteConstraint(q.expr)), isValid);
-  if (changed)
-    delete cm;
+  Query qp = rewriteConstraints(q);
+  bool rv = solver->impl->computeTruth(qp, isValid);
+  delete &qp.constraints;
   return rv;
 }
 
 bool FPRewritingSolver::computeValidity(const Query &q, Solver::Validity &result) {
-  bool changed = false;
-  const ConstraintManager *cm = rewriteConstraints(q.constraints, changed);
-  bool rv = solver->impl->computeValidity(Query(*cm, rewriteConstraint(q.expr)), result);
-  if (changed)
-    delete cm;
+  Query qp = rewriteConstraints(q);
+  bool rv = solver->impl->computeValidity(qp, result);
+  delete &qp.constraints;
   return rv;
 }
 
 bool FPRewritingSolver::computeValue(const Query &q, ref<Expr> &result) {
-  bool changed = false;
-  const ConstraintManager *cm = rewriteConstraints(q.constraints, changed);
-  bool rv = solver->impl->computeValue(Query(*cm, rewriteConstraint(q.expr)), result);
-  if (changed)
-    delete cm;
+  Query qp = rewriteConstraints(q);
+  bool rv = solver->impl->computeValue(qp, result);
+  delete &qp.constraints;
   return rv;
 }
 
@@ -167,12 +230,10 @@ bool FPRewritingSolver::computeInitialValues(const Query& query,
                           const std::vector<const Array*> &objects,
                           std::vector< std::vector<unsigned char> > &values,
                           bool &hasSolution) {
-  bool changed = false;
-  const ConstraintManager *cm = rewriteConstraints(query.constraints, changed);
-  bool rv = solver->impl->computeInitialValues(Query(*cm, rewriteConstraint(query.expr)), objects, values,
+  Query qp = rewriteConstraints(query);
+  bool rv = solver->impl->computeInitialValues(qp, objects, values,
                                                hasSolution);
-  if (changed)
-    delete cm;
+  delete &qp.constraints;
   return rv;
 }
 
