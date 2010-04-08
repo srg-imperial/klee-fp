@@ -58,6 +58,15 @@ targets.<p>
     KLEE runs very slowly in Debug mode).
   </li>
   
+  <li><a href="http://sites.google.com/site/stpfastprover/">Download and build
+      the STP constraint solver</a>.
+    <div class="instr">
+      $ svn co https://stp-fast-prover.svn.sourceforge.net/svnroot/stp-fast-prover/trunk/stp stp <br>
+      $ cd stp <br>
+      $ ./clean-install.sh --with-prefix=<i>path/to/stp/inst</i>
+    </div>
+  </li>
+
   <li>Checkout KLEE (to any path you like):
     <div class="instr">
       $ svn co http://llvm.org/svn/llvm-project/klee/trunk klee
@@ -66,13 +75,13 @@ targets.<p>
   
   <li>Configure KLEE (from the KLEE source directory): 
     <div class="instr">
-      $ ./configure --with-llvm=<i>path/to/llvm</i>
+      $ ./configure --with-llvm=<i>path/to/llvm</i> --with-stp=<i>path/to/stp/inst</i>
     </div>
     
     <p>This assumes that you compiled LLVM in-place.  If you used a
       different directory for the object files then use:
       <div class="instr">
-	$ ./configure --with-llvmsrc=<i>path/to/llvm/src</i> --with-llvmobj=<i>path/to/llvm/obj</i>
+	$ ./configure --with-llvmsrc=<i>path/to/llvm/src</i> --with-llvmobj=<i>path/to/llvm/obj</i> --with-stp=<i>path/to/stp/inst</i>
       </div>
   </li>
 
