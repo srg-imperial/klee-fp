@@ -48,6 +48,9 @@
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
+#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#include "llvm/LLVMContext.h"
+#endif
 #include "llvm/Module.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CallSite.h"
@@ -73,9 +76,6 @@
 
 using namespace llvm;
 using namespace klee;
-
-// omg really hard to share cl opts across files ...
-bool WriteTraces = false;
 
 namespace {
   cl::opt<bool>
@@ -244,13 +244,6 @@ namespace {
   MaxMemoryInhibit("max-memory-inhibit",
             cl::desc("Inhibit forking at memory cap (vs. random terminate)"),
             cl::init(true));
-
-  // use 'external storage' because also needed by tools/klee/main.cpp
-  cl::opt<bool, true>
-  WriteTracesProxy("write-traces", 
-           cl::desc("Write .trace file for each terminated state"),
-           cl::location(WriteTraces),
-           cl::init(false));
 
   cl::opt<bool>
   UseForkedSTP("use-forked-stp", 
@@ -1099,10 +1092,6 @@ void Executor::executeCall(ExecutionState &state,
                            KInstruction *ki,
                            Function *f,
                            std::vector< ref<Expr> > &arguments) {
-  if (WriteTraces)
-    state.exeTraceMgr.addEvent(new FunctionCallTraceEvent(state, ki,
-                                                          f->getName()));
-
   Instruction *i = ki->inst;
   if (f && f->isDeclaration()) {
     switch(f->getIntrinsicID()) {
@@ -1296,6 +1285,7 @@ Function* Executor::getCalledFunction(CallSite &cs, ExecutionState &state) {
 }
 
 static bool isDebugIntrinsic(const Function *f, KModule *KM) {
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
   // Fast path, getIntrinsicID is slow.
   if (f == KM->dbgStopPointFn)
     return true;
@@ -1310,6 +1300,22 @@ static bool isDebugIntrinsic(const Function *f, KModule *KM) {
 
   default:
     return false;
+  }
+#else
+  return false;
+#endif
+}
+
+static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
+  switch(width) {
+  case Expr::Int32:
+    return &llvm::APFloat::IEEEsingle;
+  case Expr::Int64:
+    return &llvm::APFloat::IEEEdouble;
+  case Expr::Fl80:
+    return &llvm::APFloat::x87DoubleExtended;
+  default:
+    return 0;
   }
 }
 
@@ -1338,10 +1344,6 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     bool isVoidReturn = (ri->getNumOperands() == 0);
     ref<Expr> result = IConstantExpr::alloc(0, Expr::Bool);
 
-    if (WriteTraces) {
-      state.exeTraceMgr.addEvent(new FunctionReturnTraceEvent(state, ki));
-    }
-    
     if (!isVoidReturn) {
       result = eval(ki, 0, state).value;
     }
@@ -1425,20 +1427,6 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
              "Wrong operand index!");
       ref<Expr> cond = eval(ki, 0, state).value;
       Executor::StatePair branches = fork(state, cond, false);
-
-      if (WriteTraces) {
-        bool isTwoWay = (branches.first && branches.second);
-
-        if (branches.first) {
-          branches.first->exeTraceMgr.addEvent(
-            new BranchTraceEvent(state, ki, true, isTwoWay));
-        }
-
-        if (branches.second) {
-          branches.second->exeTraceMgr.addEvent(
-            new BranchTraceEvent(state, ki, false, isTwoWay));
-        }
-      }
 
       // NOTE: There is a hidden dependency here, markBranchVisited
       // requires that we still be in the context of the branch
@@ -1866,9 +1854,14 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   }
  
     // Memory instructions...
-  case Instruction::Alloca:
-  case Instruction::Malloc: {
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+  case Instruction::Malloc:
+  case Instruction::Alloca: {
     AllocationInst *ai = cast<AllocationInst>(i);
+#else
+  case Instruction::Alloca: {
+    AllocaInst *ai = cast<AllocaInst>(i);
+#endif
     unsigned elementSize = 
       kmodule->targetData->getTypeStoreSize(ai->getAllocatedType());
     ref<Expr> size = Expr::createPointer(elementSize);
@@ -1881,10 +1874,12 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     executeAlloc(state, size, isLocal, ki);
     break;
   }
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
   case Instruction::Free: {
     executeFree(state, eval(ki, 0, state).value);
     break;
   }
+#endif
 
   case Instruction::Load: {
     ref<Expr> base = eval(ki, 0, state).value;
@@ -2501,23 +2496,27 @@ void Executor::callExternalFunction(ExecutionState &state,
   }
 
   // normal external function handling path
-  uint64_t *args = (uint64_t*) alloca(sizeof(*args) * (arguments.size() + 1));
-  memset(args, 0, sizeof(*args) * (arguments.size() + 1));
-
-  unsigned i = 1;
+  // allocate 128 bits for each argument (+return value) to support fp80's;
+  // we could iterate through all the arguments first and determine the exact
+  // size we need, but this is faster, and the memory usage isn't significant.
+  uint64_t *args = (uint64_t*) alloca(2*sizeof(*args) * (arguments.size() + 1));
+  memset(args, 0, 2 * sizeof(*args) * (arguments.size() + 1));
+  unsigned wordIndex = 2;
   for (std::vector<ref<Expr> >::iterator ai = arguments.begin(), 
-         ae = arguments.end(); ai!=ae; ++ai, ++i) {
+       ae = arguments.end(); ai!=ae; ++ai) {
     if (AllowExternalSymCalls) { // don't bother checking uniqueness
       ref<IConstantExpr> ce;
       bool success = solver->getValue(state, *ai, ce);
       assert(success && "FIXME: Unhandled solver failure");
       (void) success;
-      static_cast<IConstantExpr*>(ce.get())->toMemory((void*) &args[i]);
+      ce->toMemory(&args[wordIndex]);
+      wordIndex += (ce->getWidth()+63)/64;
     } else {
       ref<Expr> arg = toUnique(state, *ai);
-      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(arg)) {
+      if (ConstantExpr *ce = dyn_cast<ConstantExpr>(arg)) {
         // XXX kick toMemory functions from here
-        CE->toMemory((void*) &args[i]);
+        ce->toMemory(&args[wordIndex]);
+        wordIndex += (ce->getWidth()+63)/64;
       } else {
         terminateStateOnExecError(state, 
                                   "external call with symbolic argument: " + 

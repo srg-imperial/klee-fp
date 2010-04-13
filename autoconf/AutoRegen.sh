@@ -15,10 +15,10 @@ die () {
 }
 test -d autoconf && test -f autoconf/configure.ac && cd autoconf
 test -f configure.ac || die "Can't find 'autoconf' dir; please cd into it first"
-autoconf --version | egrep '2\.60' > /dev/null
-if test $? -ne 0 ; then
-  die "Your autoconf was not detected as being 2.60"
-fi
+# autoconf --version | egrep '2\.60' > /dev/null
+# if test $? -ne 0 ; then
+#   die "Your autoconf was not detected as being 2.60"
+# fi
 # Patch LLVM_SRC_ROOT in configure.ac
 sed -e "s#^LLVM_SRC_ROOT=.*#LLVM_SRC_ROOT=\"$llvm_src_root\"#" \
     configure.ac > configure.tmp.ac
