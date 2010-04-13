@@ -525,13 +525,8 @@ unsigned FPExpr::getWidth() const {
 }
 
 void FConstantExpr::toMemory(void *address) {
-  const fltSemantics *s = &value.getSemantics();
-       if (s == &APFloat::IEEEsingle) 
-    *((float  *) address) = value.convertToFloat();
-  else if (s == &APFloat::IEEEdouble) 
-    *((double *) address) = value.convertToDouble();
-  else
-    assert(0 && "unknown format");
+  APInt ai = value.bitcastToAPInt();
+  memcpy(address, ai.getRawData(), ai.getBitWidth()/8);
 }
 
 FPExpr::FPCategories FConstantExpr::getCategories() const {

@@ -119,7 +119,11 @@ namespace klee {
     /// satisying assignment.
     ///
     /// \return True on success.
-    bool getValue(const Query&, ref<IConstantExpr> &result);
+    bool getValue(const Query&, ref<ConstantExpr> &result);
+
+    /// getIValue - Compute one possible integer value for the given expression.
+    /// The value MUST be an integer or an assertion failure will result!
+    bool getIValue(const Query&, ref<IConstantExpr> &result);
 
     /// getInitialValues - Compute the initial values for a list of objects.
     ///

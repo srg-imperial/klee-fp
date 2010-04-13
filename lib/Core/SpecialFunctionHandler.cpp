@@ -460,7 +460,7 @@ void SpecialFunctionHandler::handlePrintRange(ExecutionState &state,
   if (!isa<IConstantExpr>(arguments[1])) {
     // FIXME: Pull into a unique value method?
     ref<IConstantExpr> value;
-    bool success = executor.solver->getValue(state, arguments[1], value);
+    bool success = executor.solver->getIValue(state, arguments[1], value);
     assert(success && "FIXME: Unhandled solver failure");
     bool res;
     success = executor.solver->mustBeTrue(state, 

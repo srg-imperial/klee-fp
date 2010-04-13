@@ -56,6 +56,9 @@ namespace klee {
     bool mayBeFalse(const ExecutionState&, ref<Expr>, bool &result);
 
     bool getValue(const ExecutionState &, ref<Expr> expr, 
+                  ref<ConstantExpr> &result);
+
+    bool getIValue(const ExecutionState &, ref<Expr> expr, 
                   ref<IConstantExpr> &result);
 
     bool getInitialValues(const ExecutionState&, 

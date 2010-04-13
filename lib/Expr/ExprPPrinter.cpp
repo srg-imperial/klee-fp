@@ -405,6 +405,7 @@ public:
     switch (w) {
       case 32: PC << e->getFloatValue(); break;
       case 64: PC << e->getDoubleValue(); break;
+      case 80: PC << "[unprintable]"; break;
       default: assert(0 && "unrecognised width");
     }
 
