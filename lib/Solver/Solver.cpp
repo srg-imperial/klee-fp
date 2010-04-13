@@ -119,9 +119,9 @@ bool Solver::mayBeFalse(const Query& query, bool &result) {
   return true;
 }
 
-bool Solver::getValue(const Query& query, ref<IConstantExpr> &result) {
+bool Solver::getValue(const Query& query, ref<ConstantExpr> &result) {
   // Maintain invariants implementation expect.
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(query.expr)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(query.expr)) {
     result = CE;
     return true;
   }
@@ -131,7 +131,18 @@ bool Solver::getValue(const Query& query, ref<IConstantExpr> &result) {
   if (!impl->computeValue(query, tmp))
     return false;
   
-  result = cast<IConstantExpr>(tmp);
+  result = cast<ConstantExpr>(tmp);
+  return true;
+}
+
+bool Solver::getIValue(const Query& query, ref<IConstantExpr> &result) {
+  ref<ConstantExpr> CE = result;
+  if (!getValue(query, CE))
+    return false;
+
+  result = dyn_cast<IConstantExpr>(CE);
+  assert(!result.isNull() && "getIValue expected integer result");
+
   return true;
 }
 
