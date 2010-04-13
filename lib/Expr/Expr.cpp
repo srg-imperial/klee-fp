@@ -310,6 +310,7 @@ void Expr::printWidth(std::ostream &os, Width width) {
   case Expr::Int16: os << "Expr::Int16"; break;
   case Expr::Int32: os << "Expr::Int32"; break;
   case Expr::Int64: os << "Expr::Int64"; break;
+  case Expr::Fl80: os << "Expr::Fl80"; break;
   default: os << "<invalid type: " << (unsigned) width << ">";
   }
 }
@@ -341,7 +342,11 @@ ref<Expr> IConstantExpr::fromMemory(void *address, Width width) {
   case Expr::Int16: return IConstantExpr::create(*((uint16_t*) address), width);
   case Expr::Int32: return IConstantExpr::create(*((uint32_t*) address), width);
   case Expr::Int64: return IConstantExpr::create(*((uint64_t*) address), width);
-    // FIXME: Should support long double, at least.
+  // FIXME: what about machines without x87 support?
+  case Expr::Fl80:
+    return IConstantExpr::alloc(llvm::APInt(width,
+      (width+llvm::integerPartWidth-1)/llvm::integerPartWidth,
+      (const uint64_t*)address));
   }
 }
 
@@ -353,7 +358,10 @@ void IConstantExpr::toMemory(void *address) {
   case Expr::Int16: *((uint16_t*) address) = getZExtValue(16); break;
   case Expr::Int32: *((uint32_t*) address) = getZExtValue(32); break;
   case Expr::Int64: *((uint64_t*) address) = getZExtValue(64); break;
-    // FIXME: Should support long double, at least.
+  // FIXME: what about machines without x87 support?
+  case Expr::Fl80:
+    *((long double*) address) = *(long double*) value.getRawData();
+    break;
   }
 }
 

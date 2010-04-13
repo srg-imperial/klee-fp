@@ -14,9 +14,5 @@ LINK_COMPONENTS = jit bitreader bitwriter ipo linker engine
 
 include $(LEVEL)/Makefile.common
 
-ifeq ($(ENABLE_STPLOG), 1)
-	LIBS += -lstplog
-endif
-
 LIBS += -lstp 
 #-ltcmalloc

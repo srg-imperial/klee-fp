@@ -461,6 +461,7 @@ STPSolverImpl::STPSolverImpl(STPSolver *_solver, bool _useForkedSTP)
   assert(vc && "unable to create validity checker");
   assert(builder && "unable to create STPBuilder");
 
+  vc_setInterfaceFlags(vc, EXPRDELETE, 0);
   vc_registerErrorHandler(::stp_error_handler);
 
   if (useForkedSTP) {
