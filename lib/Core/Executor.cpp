@@ -248,6 +248,11 @@ namespace {
   cl::opt<bool>
   UseForkedSTP("use-forked-stp", 
                  cl::desc("Run STP in forked process"));
+
+  cl::opt<bool>
+  STPOptimizeDivides("stp-optimize-divides", 
+                 cl::desc("Optimize constant divides into add/shift/multiplies before passing to STP"),
+                 cl::init(true));
 }
 
 
@@ -312,8 +317,10 @@ Executor::Executor(const InterpreterOptions &opts,
     inhibitForking(false),
     haltExecution(false),
     ivcEnabled(false),
-    stpTimeout(std::min(MaxSTPTime,MaxInstructionTime)) {
-  STPSolver *stpSolver = new STPSolver(UseForkedSTP);
+    stpTimeout(MaxSTPTime != 0 && MaxInstructionTime != 0
+      ? std::min(MaxSTPTime,MaxInstructionTime)
+      : std::max(MaxSTPTime,MaxInstructionTime)) {
+  STPSolver *stpSolver = new STPSolver(UseForkedSTP, STPOptimizeDivides);
   Solver *solver = 
     constructSolverChain(stpSolver,
                          interpreterHandler->getOutputFilename("queries.qlog"),
