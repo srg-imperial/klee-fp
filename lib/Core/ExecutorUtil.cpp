@@ -98,14 +98,14 @@ namespace klee {
                                                             ci->getZExtValue()),
                                        Context::get().getPointerWidth());
         } else {
-          const SequentialType *st = cast<SequentialType>(*ii);
+          const SequentialType *set = cast<SequentialType>(*ii);
           ref<ConstantExpr> index = 
             evalConstant(cast<Constant>(ii.getOperand()));
           assert(isa<IConstantExpr>(index) && "array index not an integer?");
           ref<IConstantExpr> iIndex (cast<IConstantExpr>(index));
 
           unsigned elementSize = 
-            kmodule->targetData->getTypeStoreSize(st->getElementType());
+            kmodule->targetData->getTypeStoreSize(set->getElementType());
 
           iIndex = iIndex->ZExt(Context::get().getPointerWidth());
           addend = iIndex->Mul(IConstantExpr::alloc(elementSize, 
