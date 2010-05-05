@@ -186,6 +186,14 @@ unsigned Expr::computeHash() {
   return hashValue;
 }
 
+Expr::FPCategories Expr::getCategories() const {
+  const FPExpr *fpe = asFPExpr();
+  if (fpe)
+    return fpe->getCategories();
+  else
+    return fcAll;
+}
+
 unsigned IConstantExpr::computeHash() {
   hashValue = value.getHashValue() ^ (getWidth() * MAGIC_HASH_CONSTANT);
   return hashValue;
@@ -529,7 +537,7 @@ void FConstantExpr::toMemory(void *address) {
   memcpy(address, ai.getRawData(), ai.getBitWidth()/8);
 }
 
-FPExpr::FPCategories FConstantExpr::getCategories() const {
+Expr::FPCategories FConstantExpr::getCategories() const {
   if (value.isZero())
     return fcMaybeZero;
   if (value.isInfinity()) {
@@ -1156,9 +1164,9 @@ FBCREATE(FRemExpr, FRem)
 //   (section 9.2)
 // and confirmed using real calculations.
 
-FPExpr::FPCategories FAddExpr::getCategories() const {
-  FPCategories lcat = left->asFPExpr()->getCategories();
-  FPCategories rcat = right->asFPExpr()->getCategories();
+Expr::FPCategories FAddExpr::getCategories() const {
+  FPCategories lcat = left->getCategories();
+  FPCategories rcat = right->getCategories();
   int cat = 0;
   if (lcat == fcAll || rcat == fcAll)
     return fcAll;
@@ -1204,9 +1212,9 @@ FPExpr::FPCategories FAddExpr::getCategories() const {
   return (FPCategories) cat;
 }
 
-FPExpr::FPCategories FSubExpr::getCategories() const {
-  FPCategories lcat = left->asFPExpr()->getCategories();
-  FPCategories rcat = right->asFPExpr()->getCategories();
+Expr::FPCategories FSubExpr::getCategories() const {
+  FPCategories lcat = left->getCategories();
+  FPCategories rcat = right->getCategories();
   int cat = 0;
   if (lcat == fcAll || rcat == fcAll)
     return fcAll;
@@ -1252,9 +1260,9 @@ FPExpr::FPCategories FSubExpr::getCategories() const {
   return (FPCategories) cat;
 }
 
-FPExpr::FPCategories FMulExpr::getCategories() const {
-  FPCategories lcat = left->asFPExpr()->getCategories();
-  FPCategories rcat = right->asFPExpr()->getCategories();
+Expr::FPCategories FMulExpr::getCategories() const {
+  FPCategories lcat = left->getCategories();
+  FPCategories rcat = right->getCategories();
   int cat = 0;
   if (lcat == fcAll || rcat == fcAll)
     return fcAll;
@@ -1281,9 +1289,9 @@ FPExpr::FPCategories FMulExpr::getCategories() const {
   return (FPCategories) cat;
 }
 
-FPExpr::FPCategories FDivExpr::getCategories() const {
-  FPCategories lcat = left->asFPExpr()->getCategories();
-  FPCategories rcat = right->asFPExpr()->getCategories();
+Expr::FPCategories FDivExpr::getCategories() const {
+  FPCategories lcat = left->getCategories();
+  FPCategories rcat = right->getCategories();
   int cat = 0;
   if (lcat == fcAll || rcat == fcAll)
     return fcAll;
@@ -1309,16 +1317,16 @@ FPExpr::FPCategories FDivExpr::getCategories() const {
   return (FPCategories) cat;
 }
 
-FPExpr::FPCategories FRemExpr::getCategories() const {
+Expr::FPCategories FRemExpr::getCategories() const {
   return fcAll; // TODO
 }
 
-FPExpr::FPCategories FPExtExpr::getCategories() const {
-  return src->asFPExpr()->getCategories();
+Expr::FPCategories FPExtExpr::getCategories() const {
+  return src->getCategories();
 }
 
-FPExpr::FPCategories FPTruncExpr::getCategories() const {
-  int cat = src->asFPExpr()->getCategories();
+Expr::FPCategories FPTruncExpr::getCategories() const {
+  int cat = src->getCategories();
   if (cat & fcMaybePNorm)
     cat |= fcMaybePInf;
   if (cat & fcMaybeNNorm)
@@ -1329,11 +1337,11 @@ FPExpr::FPCategories FPTruncExpr::getCategories() const {
 /* An interesting addition for the I->F cases would be to use STP
  * to determine which categories the result falls into */
 
-FPExpr::FPCategories UIToFPExpr::getCategories() const {
+Expr::FPCategories UIToFPExpr::getCategories() const {
   return (FPCategories) (fcMaybeZero | fcMaybePNorm);
 }
 
-FPExpr::FPCategories SIToFPExpr::getCategories() const {
+Expr::FPCategories SIToFPExpr::getCategories() const {
   return (FPCategories) (fcMaybeNNorm | fcMaybeZero | fcMaybePNorm);
 }
 
@@ -1544,29 +1552,29 @@ CMPCREATE(SleExpr, Sle)
 // that category, v1 == v2 (ordered equality comparison) holds.  The zero
 // category is closed under ordered equality because +0 == -0.
 #define CAT_CLOSED_UNDER_OEQ(cat) ( \
-        (cat) == FPExpr::fcMaybeNInf || \
-        (cat) == FPExpr::fcMaybeZero || \
-        (cat) == FPExpr::fcMaybePInf)
+        (cat) == Expr::fcMaybeNInf || \
+        (cat) == Expr::fcMaybeZero || \
+        (cat) == Expr::fcMaybePInf)
 
 ref<Expr> FOeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
   if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l))
     if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r))
       return cl->FOeq(cr);
 
-  FPExpr::FPCategories lcat = l->asFPExpr()->getCategories(),
-                       rcat = r->asFPExpr()->getCategories();
+  Expr::FPCategories lcat = l->getCategories(),
+                       rcat = r->getCategories();
 
   // NaN == X is always false
-  if (lcat == FPExpr::fcMaybeNaN)
+  if (lcat == Expr::fcMaybeNaN)
     return IConstantExpr::create(0, Expr::Bool);
 
   // likewise X == NaN
-  if (rcat == FPExpr::fcMaybeNaN)
+  if (rcat == Expr::fcMaybeNaN)
     return IConstantExpr::create(0, Expr::Bool);
 
   // likewise if the ordered portions of the category sets are disjoint
-  int lcatOrd = lcat & ~FPExpr::fcMaybeNaN;
-  int rcatOrd = rcat & ~FPExpr::fcMaybeNaN;
+  int lcatOrd = lcat & ~Expr::fcMaybeNaN;
+  int rcatOrd = rcat & ~Expr::fcMaybeNaN;
   if ((lcatOrd & rcatOrd) == 0)
     return IConstantExpr::create(0, Expr::Bool);
 
@@ -1578,11 +1586,11 @@ ref<Expr> FOeqExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
   return FOeqExpr::alloc(l, r);
 }
 
-inline FPExpr::FPCategories leastCategory(FPExpr::FPCategories cats) {
-  return FPExpr::FPCategories(cats & -cats);
+inline Expr::FPCategories leastCategory(Expr::FPCategories cats) {
+  return Expr::FPCategories(cats & -cats);
 }
 
-inline FPExpr::FPCategories greatestCategory(FPExpr::FPCategories cats) {
+inline Expr::FPCategories greatestCategory(Expr::FPCategories cats) {
   int grCat = cats;
   // N.B. This supports a maximum of 8 categories, we currently have 6
   grCat |= grCat >> 1;
@@ -1590,7 +1598,7 @@ inline FPExpr::FPCategories greatestCategory(FPExpr::FPCategories cats) {
   grCat |= grCat >> 4;
   grCat++;
   grCat >>= 1;
-  return FPExpr::FPCategories(grCat);
+  return Expr::FPCategories(grCat);
 }
 
 ref<Expr> FOltExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
@@ -1598,27 +1606,27 @@ ref<Expr> FOltExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
     if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r))
       return cl->FOlt(cr);
 
-  FPExpr::FPCategories lcat = l->asFPExpr()->getCategories(),
-                       rcat = r->asFPExpr()->getCategories();
+  Expr::FPCategories lcat = l->getCategories(),
+                       rcat = r->getCategories();
 
   // inf < X and NaN < X are always false
-  if ((lcat & ~(FPExpr::fcMaybePInf | FPExpr::fcMaybeNaN)) == 0)
+  if ((lcat & ~(Expr::fcMaybePInf | Expr::fcMaybeNaN)) == 0)
     return IConstantExpr::create(0, Expr::Bool);
 
   // likewise X < -inf and X < NaN
-  if ((rcat & ~(FPExpr::fcMaybeNInf | FPExpr::fcMaybeNaN)) == 0)
+  if ((rcat & ~(Expr::fcMaybeNInf | Expr::fcMaybeNaN)) == 0)
     return IConstantExpr::create(0, Expr::Bool);
 
   // likewise if every category c1 in the ordered subset of the lhs set
   // either contains greater values than every category c2 in the ordered
   // subset of the rhs set, or c1 and c2 are the same category and are
   // closed under ordered equality
-  FPExpr::FPCategories lcatOrd = FPExpr::FPCategories(lcat & ~FPExpr::fcMaybeNaN);
-  FPExpr::FPCategories rcatOrd = FPExpr::FPCategories(rcat & ~FPExpr::fcMaybeNaN);
+  Expr::FPCategories lcatOrd = Expr::FPCategories(lcat & ~Expr::fcMaybeNaN);
+  Expr::FPCategories rcatOrd = Expr::FPCategories(rcat & ~Expr::fcMaybeNaN);
   // if the condition holds for the least and greatest categories then
   // the remainder of categories follow
-  FPExpr::FPCategories lcatLe = leastCategory(lcatOrd);
-  FPExpr::FPCategories rcatGr = greatestCategory(rcatOrd);
+  Expr::FPCategories lcatLe = leastCategory(lcatOrd);
+  Expr::FPCategories rcatGr = greatestCategory(rcatOrd);
   if (lcatLe > rcatGr || (lcatLe == rcatGr && CAT_CLOSED_UNDER_OEQ(lcatLe)))
     return IConstantExpr::create(0, Expr::Bool);
 
@@ -1652,14 +1660,12 @@ ref<Expr> FOneExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
 }
 
 ref<Expr> FOrd1Expr::create(const ref<Expr> &e) {
-  FPExpr *fe = e->asFPExpr();
-  assert(fe && "FPExpr expected");
-  FPExpr::FPCategories cat = fe->getCategories();
+  Expr::FPCategories cat = e->getCategories();
 
-  if (cat == FPExpr::fcMaybeNaN) // Definitely a NaN
+  if (cat == Expr::fcMaybeNaN) // Definitely a NaN
     return IConstantExpr::create(0, Expr::Bool);
 
-  if ((cat & FPExpr::fcMaybeNaN) == 0) // Definitely not a NaN
+  if ((cat & Expr::fcMaybeNaN) == 0) // Definitely not a NaN
     return IConstantExpr::create(1, Expr::Bool);
 
   return FOrd1Expr::alloc(e);
