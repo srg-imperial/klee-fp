@@ -208,6 +208,16 @@ public:
     CmpKindLast=FUne
   };
 
+  enum FPCategories {
+    fcMaybeNInf = 1<<0,
+    fcMaybeNNorm = 1<<1,
+    fcMaybeZero = 1<<2,
+    fcMaybePNorm = 1<<3,
+    fcMaybePInf = 1<<4,
+    fcMaybeNaN = 1<<5,
+    fcAll = (1<<6)-1
+  };
+
   unsigned refCount;
 
 protected:  
@@ -222,6 +232,8 @@ public:
   virtual FPExpr *asFPExpr() { return 0; }
   const FPExpr *asFPExpr() const { return const_cast<Expr *>(this)->asFPExpr(); }
 
+  FPCategories getCategories() const;
+  
   virtual unsigned getNumKids() const = 0;
   virtual ref<Expr> getKid(unsigned i) const = 0;
     
@@ -312,17 +324,7 @@ public:
 
   unsigned getWidth() const;
 
-  enum FPCategories {
-    fcMaybeNInf = 1<<0,
-    fcMaybeNNorm = 1<<1,
-    fcMaybeZero = 1<<2,
-    fcMaybePNorm = 1<<3,
-    fcMaybePInf = 1<<4,
-    fcMaybeNaN = 1<<5,
-    fcAll = (1<<6)-1
-  };
-
-  virtual FPCategories getCategories() const = 0;
+  virtual Expr::FPCategories getCategories() const = 0;
 };
 
 // Comparison operators
