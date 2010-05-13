@@ -125,7 +125,7 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
         return IConstantExpr::alloc(0, Expr::Bool);
     }
     default:
-      return IConstantExpr::alloc(0, Expr::Bool);
+      return IConstantExpr::alloc(lhs->compare(*rhs) == 0 ? 1 : 0, Expr::Bool);
       // assert(0 && "Floating point value expected");
   }
 }
