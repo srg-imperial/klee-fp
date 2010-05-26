@@ -401,15 +401,19 @@ void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os,
   } else {
     unsigned StoreBits = targetData->getTypeStoreSizeInBits(c->getType());
     ref<ConstantExpr> C = evalConstant(c);
-    assert(isa<IConstantExpr>(C) && "C not an integer");
-    ref<IConstantExpr> CI = cast<IConstantExpr>(C);
+    ref<IConstantExpr> CI = dyn_cast<IConstantExpr>(C);
+    if (!CI.isNull()) {
+      // Extend the constant if necessary;
+      assert(StoreBits >= CI->getWidth() && "Invalid store size!");
+      if (StoreBits > CI->getWidth())
+        CI = CI->ZExt(StoreBits);
 
-    // Extend the constant if necessary;
-    assert(StoreBits >= CI->getWidth() && "Invalid store size!");
-    if (StoreBits > CI->getWidth())
-      CI = CI->ZExt(StoreBits);
-
-    os->write(offset, CI);
+      os->write(offset, CI);
+    } else if (FConstantExpr *CF = dyn_cast<FConstantExpr>(C.get())) {
+      os->write(offset, CF);
+    } else {
+      assert(0 && "C not an constant");
+    }
   }
 }
 
