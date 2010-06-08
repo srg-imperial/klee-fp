@@ -2567,7 +2567,11 @@ void Executor::callExternalFunction(ExecutionState &state,
 
   const Type *resultType = target->inst->getType();
   if (resultType != Type::getVoidTy(getGlobalContext())) {
-    ref<Expr> e = IConstantExpr::fromMemory((void*) args, 
+    ref<Expr> e;
+    if (resultType->isFloatingPointTy())
+      e = FConstantExpr::fromMemory((void*) args, TypeToFloatSemantics(resultType));
+    else
+      e = IConstantExpr::fromMemory((void*) args, 
                                            Expr::getWidthForLLVMType(resultType));
     bindLocal(target, state, e);
   }
