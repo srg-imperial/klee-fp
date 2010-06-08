@@ -558,6 +558,7 @@ public:
     return (Expr*) this;
   }
 
+  static ref<Expr> fromMemory(void *address, const llvm::fltSemantics *sem);
   void toMemory(void *address);
 
   const llvm::APFloat &getAPValue() const { return value; }

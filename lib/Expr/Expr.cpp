@@ -532,6 +532,16 @@ unsigned FPExpr::getWidth() const {
   return 0;
 }
 
+ref<Expr> FConstantExpr::fromMemory(void *address, const fltSemantics *sem) {
+  if (sem == &APFloat::IEEEsingle) 
+    return FConstantExpr::create(APFloat(*(float *)address));
+  if (sem == &APFloat::IEEEdouble) 
+    return FConstantExpr::create(APFloat(*(double *)address));
+
+  assert(0 && "unknown format");
+  return ref<Expr>();
+}
+
 void FConstantExpr::toMemory(void *address) {
   APInt ai = value.bitcastToAPInt();
   memcpy(address, ai.getRawData(), ai.getBitWidth()/8);
