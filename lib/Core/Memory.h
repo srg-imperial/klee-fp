@@ -184,8 +184,8 @@ public:
   // make contents all concrete and random
   void initializeToRandom();
 
-  ref<Expr> read(ref<Expr> offset, Expr::Width width) const;
-  ref<Expr> read(unsigned offset, Expr::Width width) const;
+  ref<Expr> read(ref<Expr> offset, Expr::Width width, bool isFloat = false) const;
+  ref<Expr> read(unsigned offset, Expr::Width width, bool isFloat = false) const;
   ref<Expr> read8(unsigned offset) const;
 
   // return bytes written.
