@@ -351,3 +351,7 @@ void ExecutionState::dumpStack(std::ostream &out) const {
     target = sf.caller;
   }
 }
+
+void DumpStackFor(const ExecutionState *state) {
+	state->dumpStack(std::cout);
+}
