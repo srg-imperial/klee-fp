@@ -429,13 +429,13 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
 
 /***/
 
-ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width) const {
+ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width, bool isFloat) const {
   // Truncate offset to 32-bits.
   offset = ZExtExpr::create(offset, Expr::Int32);
 
   // Check for reads at constant offsets.
   if (IConstantExpr *CE = dyn_cast<IConstantExpr>(offset))
-    return read(CE->getZExtValue(32), width);
+    return read(CE->getZExtValue(32), width, isFloat);
 
   // Treat bool specially, it is the only non-byte sized write we allow.
   if (width == Expr::Bool)
@@ -453,10 +453,14 @@ ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width) const {
     Res = idx ? ConcatExpr::create(Byte, Res) : Byte;
   }
 
+  if (isFloat)
+    if (IConstantExpr *ResConst = dyn_cast<IConstantExpr>(Res))
+      Res = FConstantExpr::create(APFloat(ResConst->getAPValue(), false));
+
   return Res;
 }
 
-ref<Expr> ObjectState::read(unsigned offset, Expr::Width width) const {
+ref<Expr> ObjectState::read(unsigned offset, Expr::Width width, bool isFloat) const {
   // Treat bool specially, it is the only non-byte sized write we allow.
   if (width == Expr::Bool)
     return ExtractExpr::create(read8(offset), 0, Expr::Bool);
@@ -470,6 +474,10 @@ ref<Expr> ObjectState::read(unsigned offset, Expr::Width width) const {
     ref<Expr> Byte = read8(offset + idx);
     Res = idx ? ConcatExpr::create(Byte, Res) : Byte;
   }
+
+  if (isFloat)
+    if (IConstantExpr *ResConst = dyn_cast<IConstantExpr>(Res))
+      Res = FConstantExpr::create(APFloat(ResConst->getAPValue(), false));
 
   return Res;
 }

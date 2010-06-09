@@ -2774,6 +2774,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                                       KInstruction *target /* undef if write */) {
   Expr::Width type = (isWrite ? value->getWidth() : 
                      Expr::getWidthForLLVMType(target->inst->getType()));
+  bool isFloat = isWrite ? value->asFPExpr() != NULL : target->inst->getType()->isFloatingPointTy();
   unsigned bytes = Expr::getMinBytesForWidth(type);
 
   if (SimplifySymIndices) {
@@ -2826,7 +2827,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           wos->write(offset, value);
         }          
       } else {
-        ref<Expr> result = os->read(offset, type);
+        ref<Expr> result = os->read(offset, type, isFloat);
         
         if (interpreterOpts.MakeConcreteSymbolic)
           result = replaceReadWithSymbolic(state, result);
@@ -2870,7 +2871,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           wos->write(mo->getOffsetExpr(address), value);
         }
       } else {
-        ref<Expr> result = os->read(mo->getOffsetExpr(address), type);
+        ref<Expr> result = os->read(mo->getOffsetExpr(address), type, isFloat);
         bindLocal(target, *bound, result);
       }
     }

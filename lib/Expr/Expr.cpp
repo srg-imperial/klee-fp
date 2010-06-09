@@ -1158,6 +1158,8 @@ ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r) { \
   if (FConstantExpr *cl = dyn_cast<FConstantExpr>(l))                 \
     if (FConstantExpr *cr = dyn_cast<FConstantExpr>(r))               \
       return cl->_op(cr);                                           \
+  if (dyn_cast<IConstantExpr>(l) || dyn_cast<IConstantExpr>(r))     \
+    assert(0 && "gotcha");                                          \
   return _e_op ## _create(l, r);                                    \
 }
 
