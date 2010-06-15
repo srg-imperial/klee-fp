@@ -181,7 +181,7 @@ bool CexCachingSolver::lookupAssignment(const Query &query,
                                         Assignment *&result) {
   key = KeyType(query.constraints.begin(), query.constraints.end());
   ref<Expr> neg = Expr::createIsZero(query.expr);
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(neg)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(neg)) {
     if (CE->isFalse()) {
       result = (Assignment*) 0;
       return true;
@@ -249,10 +249,10 @@ bool CexCachingSolver::computeValidity(const Query& query,
     return false;
   assert(a && "computeValidity() must have assignment");
   ref<Expr> q = a->evaluate(query.expr);
-  assert(isa<IConstantExpr>(q) && 
+  assert(isa<ConstantExpr>(q) && 
          "assignment evaluation did not result in constant");
 
-  if (cast<IConstantExpr>(q)->isTrue()) {
+  if (cast<ConstantExpr>(q)->isTrue()) {
     if (!getAssignment(query, a))
       return false;
     result = !a ? Solver::True : Solver::Unknown;

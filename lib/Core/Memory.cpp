@@ -174,17 +174,17 @@ const UpdateList &ObjectState::getUpdates() const {
 
     // Initialize to zeros.
     for (unsigned i = 0, e = size; i != e; ++i)
-      Contents[i] = IConstantExpr::create(0, Expr::Int8);
+      Contents[i] = ConstantExpr::create(0, Expr::Int8);
 
     // Pull off as many concrete writes as we can.
     unsigned Begin = 0, End = Writes.size();
     for (; Begin != End; ++Begin) {
       // Push concrete writes into the constant array.
-      IConstantExpr *Index = dyn_cast<IConstantExpr>(Writes[Begin].first);
+      ConstantExpr *Index = dyn_cast<ConstantExpr>(Writes[Begin].first);
       if (!Index)
         break;
 
-      IConstantExpr *Value = dyn_cast<IConstantExpr>(Writes[Begin].second);
+      ConstantExpr *Value = dyn_cast<ConstantExpr>(Writes[Begin].second);
       if (!Value)
         break;
 
@@ -266,11 +266,11 @@ void ObjectState::flushRangeForRead(unsigned rangeBase,
   for (unsigned offset=rangeBase; offset<rangeBase+rangeSize; offset++) {
     if (!isByteFlushed(offset)) {
       if (isByteConcrete(offset)) {
-        updates.extend(IConstantExpr::create(offset, Expr::Int32),
-                       IConstantExpr::create(concreteStore[offset], Expr::Int8));
+        updates.extend(ConstantExpr::create(offset, Expr::Int32),
+                       ConstantExpr::create(concreteStore[offset], Expr::Int8));
       } else {
         assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
-        updates.extend(IConstantExpr::create(offset, Expr::Int32),
+        updates.extend(ConstantExpr::create(offset, Expr::Int32),
                        knownSymbolics[offset]);
       }
 
@@ -286,12 +286,12 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase,
   for (unsigned offset=rangeBase; offset<rangeBase+rangeSize; offset++) {
     if (!isByteFlushed(offset)) {
       if (isByteConcrete(offset)) {
-        updates.extend(IConstantExpr::create(offset, Expr::Int32),
-                       IConstantExpr::create(concreteStore[offset], Expr::Int8));
+        updates.extend(ConstantExpr::create(offset, Expr::Int32),
+                       ConstantExpr::create(concreteStore[offset], Expr::Int8));
         markByteSymbolic(offset);
       } else {
         assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
-        updates.extend(IConstantExpr::create(offset, Expr::Int32),
+        updates.extend(ConstantExpr::create(offset, Expr::Int32),
                        knownSymbolics[offset]);
         setKnownSymbolic(offset, 0);
       }
@@ -361,19 +361,19 @@ void ObjectState::setKnownSymbolic(unsigned offset,
 
 ref<Expr> ObjectState::read8(unsigned offset) const {
   if (isByteConcrete(offset)) {
-    return IConstantExpr::create(concreteStore[offset], Expr::Int8);
+    return ConstantExpr::create(concreteStore[offset], Expr::Int8);
   } else if (isByteKnownSymbolic(offset)) {
     return knownSymbolics[offset];
   } else {
     assert(isByteFlushed(offset) && "unflushed byte without cache value");
     
     return ReadExpr::create(getUpdates(), 
-                            IConstantExpr::create(offset, Expr::Int32));
+                            ConstantExpr::create(offset, Expr::Int32));
   }    
 }
 
 ref<Expr> ObjectState::read8(ref<Expr> offset) const {
-  assert(!isa<IConstantExpr>(offset) && "constant offset passed to symbolic read8");
+  assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic read8");
   unsigned base, size;
   fastRangeCheckOffset(offset, &base, &size);
   flushRangeForRead(base, size);
@@ -400,7 +400,7 @@ void ObjectState::write8(unsigned offset, uint8_t value) {
 
 void ObjectState::write8(unsigned offset, ref<Expr> value) {
   // can happen when ExtractExpr special cases
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(value)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
     write8(offset, (uint8_t) CE->getZExtValue(8));
   } else {
     setKnownSymbolic(offset, value.get());
@@ -411,7 +411,7 @@ void ObjectState::write8(unsigned offset, ref<Expr> value) {
 }
 
 void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
-  assert(!isa<IConstantExpr>(offset) && "constant offset passed to symbolic write8");
+  assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic write8");
   unsigned base, size;
   fastRangeCheckOffset(offset, &base, &size);
   flushRangeForWrite(base, size);
@@ -429,13 +429,13 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
 
 /***/
 
-ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width, bool isFloat) const {
+ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width) const {
   // Truncate offset to 32-bits.
   offset = ZExtExpr::create(offset, Expr::Int32);
 
   // Check for reads at constant offsets.
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(offset))
-    return read(CE->getZExtValue(32), width, isFloat);
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(offset))
+    return read(CE->getZExtValue(32), width);
 
   // Treat bool specially, it is the only non-byte sized write we allow.
   if (width == Expr::Bool)
@@ -448,19 +448,15 @@ ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width, bool isFloat) c
   for (unsigned i = 0; i != NumBytes; ++i) {
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
     ref<Expr> Byte = read8(AddExpr::create(offset, 
-                                           IConstantExpr::create(idx, 
+                                           ConstantExpr::create(idx, 
                                                                 Expr::Int32)));
     Res = idx ? ConcatExpr::create(Byte, Res) : Byte;
   }
 
-  if (isFloat)
-    if (IConstantExpr *ResConst = dyn_cast<IConstantExpr>(Res))
-      Res = FConstantExpr::create(APFloat(ResConst->getAPValue(), false));
-
   return Res;
 }
 
-ref<Expr> ObjectState::read(unsigned offset, Expr::Width width, bool isFloat) const {
+ref<Expr> ObjectState::read(unsigned offset, Expr::Width width) const {
   // Treat bool specially, it is the only non-byte sized write we allow.
   if (width == Expr::Bool)
     return ExtractExpr::create(read8(offset), 0, Expr::Bool);
@@ -475,10 +471,6 @@ ref<Expr> ObjectState::read(unsigned offset, Expr::Width width, bool isFloat) co
     Res = idx ? ConcatExpr::create(Byte, Res) : Byte;
   }
 
-  if (isFloat)
-    if (IConstantExpr *ResConst = dyn_cast<IConstantExpr>(Res))
-      Res = FConstantExpr::create(APFloat(ResConst->getAPValue(), false));
-
   return Res;
 }
 
@@ -487,7 +479,7 @@ void ObjectState::write(ref<Expr> offset, ref<Expr> value) {
   offset = ZExtExpr::create(offset, Expr::Int32);
 
   // Check for writes at constant offsets.
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(offset)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(offset)) {
     write(CE->getZExtValue(32), value);
     return;
   }
@@ -504,14 +496,14 @@ void ObjectState::write(ref<Expr> offset, ref<Expr> value) {
   assert(w == NumBytes * 8 && "Invalid write size!");
   for (unsigned i = 0; i != NumBytes; ++i) {
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
-    write8(AddExpr::create(offset, IConstantExpr::create(idx, Expr::Int32)),
+    write8(AddExpr::create(offset, ConstantExpr::create(idx, Expr::Int32)),
            ExtractExpr::create(value, 8 * i, Expr::Int8));
   }
 }
 
 void ObjectState::write(unsigned offset, ref<Expr> value) {
   // Check for writes of constant values.
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(value)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
     Expr::Width w = CE->getWidth();
     if (w <= 64) {
       uint64_t val = CE->getZExtValue();

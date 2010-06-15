@@ -100,11 +100,11 @@ public:
     this->name = name;
   }
 
-  ref<IConstantExpr> getBaseExpr() const { 
-    return IConstantExpr::create(address, Context::get().getPointerWidth());
+  ref<ConstantExpr> getBaseExpr() const { 
+    return ConstantExpr::create(address, Context::get().getPointerWidth());
   }
-  ref<IConstantExpr> getSizeExpr() const { 
-    return IConstantExpr::create(size, Context::get().getPointerWidth());
+  ref<ConstantExpr> getSizeExpr() const { 
+    return ConstantExpr::create(size, Context::get().getPointerWidth());
   }
   ref<Expr> getOffsetExpr(ref<Expr> pointer) const {
     return SubExpr::create(pointer, getBaseExpr());
@@ -119,7 +119,7 @@ public:
   ref<Expr> getBoundsCheckOffset(ref<Expr> offset) const {
     if (size==0) {
       return EqExpr::create(offset, 
-                            IConstantExpr::alloc(0, Context::get().getPointerWidth()));
+                            ConstantExpr::alloc(0, Context::get().getPointerWidth()));
     } else {
       return UltExpr::create(offset, getSizeExpr());
     }
@@ -127,10 +127,10 @@ public:
   ref<Expr> getBoundsCheckOffset(ref<Expr> offset, unsigned bytes) const {
     if (bytes<=size) {
       return UltExpr::create(offset, 
-                             IConstantExpr::alloc(size - bytes + 1, 
+                             ConstantExpr::alloc(size - bytes + 1, 
                                                  Context::get().getPointerWidth()));
     } else {
-      return IConstantExpr::alloc(0, Expr::Bool);
+      return ConstantExpr::alloc(0, Expr::Bool);
     }
   }
 };
@@ -184,8 +184,8 @@ public:
   // make contents all concrete and random
   void initializeToRandom();
 
-  ref<Expr> read(ref<Expr> offset, Expr::Width width, bool isFloat = false) const;
-  ref<Expr> read(unsigned offset, Expr::Width width, bool isFloat = false) const;
+  ref<Expr> read(ref<Expr> offset, Expr::Width width) const;
+  ref<Expr> read(unsigned offset, Expr::Width width) const;
   ref<Expr> read8(unsigned offset) const;
 
   // return bytes written.

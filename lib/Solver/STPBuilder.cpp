@@ -402,7 +402,7 @@ ExprHandle STPBuilder::constructSDivByConstant(ExprHandle expr_n, unsigned width
         ::VCExpr prev = root->stpInitialArray;
         root->stpInitialArray = 
           vc_writeExpr(vc, prev,
-                       construct(IConstantExpr::alloc(i, root->getDomain()), 0),
+                       construct(ConstantExpr::alloc(i, root->getDomain()), 0),
                        construct(root->constantValues[i], 0));
         vc_DeleteExpr(prev);
       }
@@ -435,7 +435,7 @@ ExprHandle STPBuilder::getInitialRead(const Array *root, unsigned index) {
 /** if *width_out!=1 then result is a bitvector,
     otherwise it is a bool */
 ExprHandle STPBuilder::construct(ref<Expr> e, int *width_out) {
-  if (!UseConstructHash || isa<IConstantExpr>(e)) {
+  if (!UseConstructHash || isa<ConstantExpr>(e)) {
     return constructActual(e, width_out);
   } else {
     ExprHashMap< std::pair<ExprHandle, unsigned> >::iterator it = 
@@ -464,8 +464,8 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
   ++stats::queryConstructs;
 
   switch (e->getKind()) {
-  case Expr::IConstant: {
-    IConstantExpr *CE = cast<IConstantExpr>(e);
+  case Expr::Constant: {
+    ConstantExpr *CE = cast<ConstantExpr>(e);
     *width_out = CE->getWidth();
 
     // Coerce to bool if necessary.
@@ -479,10 +479,10 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
       return bvConst64(*width_out, CE->getZExtValue());
 
     // FIXME: Optimize?
-    ref<IConstantExpr> Tmp = CE;
+    ref<ConstantExpr> Tmp = CE;
     ExprHandle Res = bvConst64(64, Tmp->Extract(0, 64)->getZExtValue());
     for (unsigned i = (*width_out / 64) - 1; i; --i) {
-      Tmp = Tmp->LShr(IConstantExpr::alloc(64, Tmp->getWidth()));
+      Tmp = Tmp->LShr(ConstantExpr::alloc(64, Tmp->getWidth()));
       Res = vc_bvConcatExpr(vc, bvConst64(std::min(64U, Tmp->getWidth()),
                                           Tmp->Extract(0, 64)->getZExtValue()),
                             Res);
@@ -583,7 +583,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
     ExprHandle right = construct(me->right, width_out);
     assert(*width_out!=1 && "uncanonicalized mul");
 
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(me->left))
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(me->left))
       if (CE->getWidth() <= 64)
         return constructMulByConstant(right, *width_out, 
                                       CE->getZExtValue());
@@ -597,7 +597,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
     ExprHandle left = construct(de->left, width_out);
     assert(*width_out!=1 && "uncanonicalized udiv");
     
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(de->right)) {
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(de->right)) {
       if (CE->getWidth() <= 64) {
         uint64_t divisor = CE->getZExtValue();
       
@@ -622,7 +622,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
     ExprHandle left = construct(de->left, width_out);
     assert(*width_out!=1 && "uncanonicalized sdiv");
 
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(de->right))
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(de->right))
       if (optimizeDivides)
 	if (*width_out == 32) //only works for 32-bit division
 	  return constructSDivByConstant( left, *width_out, 
@@ -639,7 +639,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
     ExprHandle left = construct(de->left, width_out);
     assert(*width_out!=1 && "uncanonicalized urem");
     
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(de->right)) {
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(de->right)) {
       if (CE->getWidth() <= 64) {
         uint64_t divisor = CE->getZExtValue();
 
@@ -682,7 +682,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
 
 #if 0 //not faster per first benchmark
     if (optimizeDivides) {
-      if (IConstantExpr *cre = de->right->asConstant()) {
+      if (ConstantExpr *cre = de->right->asConstant()) {
 	uint64_t divisor = cre->asUInt64;
 
 	//use fast division to compute modulo without explicit division for constant divisor
@@ -753,7 +753,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
     ExprHandle left = construct(se->left, width_out);
     assert(*width_out!=1 && "uncanonicalized shl");
 
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(se->right)) {
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(se->right)) {
       return bvLeftShift(left, (unsigned) CE->getLimitedValue(), 
                          getShiftBits(*width_out));
     } else {
@@ -769,7 +769,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
     unsigned shiftBits = getShiftBits(*width_out);
     assert(*width_out!=1 && "uncanonicalized lshr");
 
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(lse->right)) {
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(lse->right)) {
       return bvRightShift(left, (unsigned) CE->getLimitedValue(), 
                           shiftBits);
     } else {
@@ -784,7 +784,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
     ExprHandle left = construct(ase->left, width_out);
     assert(*width_out!=1 && "uncanonicalized ashr");
     
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(ase->right)) {
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(ase->right)) {
       unsigned shift = (unsigned) CE->getLimitedValue();
       ExprHandle signedBool = bvBoolExtract(left, *width_out-1);
       return constructAShrByConstant(left, shift, signedBool, 
@@ -803,7 +803,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out) {
     ExprHandle left = construct(ee->left, width_out);
     ExprHandle right = construct(ee->right, width_out);
     if (*width_out==1) {
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(ee->left)) {
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(ee->left)) {
         if (CE->isTrue())
           return right;
         return vc_notExpr(vc, right);

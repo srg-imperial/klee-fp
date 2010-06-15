@@ -264,8 +264,8 @@ bool ExecutionState::merge(const ExecutionState &b) {
   
   // merge stack
 
-  ref<Expr> inA = IConstantExpr::alloc(1, Expr::Bool);
-  ref<Expr> inB = IConstantExpr::alloc(1, Expr::Bool);
+  ref<Expr> inA = ConstantExpr::alloc(1, Expr::Bool);
+  ref<Expr> inB = ConstantExpr::alloc(1, Expr::Bool);
   for (std::set< ref<Expr> >::iterator it = aSuffix.begin(), 
          ie = aSuffix.end(); it != ie; ++it)
     inA = AndExpr::create(inA, *it);
@@ -341,7 +341,7 @@ void ExecutionState::dumpStack(std::ostream &out) const {
       out << ai->getNameStr();
       // XXX should go through function
       ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value; 
-      if (isa<IConstantExpr>(value))
+      if (isa<ConstantExpr>(value))
         out << "=" << value;
     }
     out << ")";

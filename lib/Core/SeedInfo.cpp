@@ -77,7 +77,7 @@ void SeedInfo::patchSeed(const ExecutionState &state,
   for (std::vector< ref<ReadExpr> >::iterator it = reads.begin(), 
          ie = reads.end(); it != ie; ++it) {
     ReadExpr *re = it->get();
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(re->index)) {
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(re->index)) {
       directReads.insert(std::make_pair(re->updates.root, 
                                         (unsigned) CE->getZExtValue(32)));
     }
@@ -88,26 +88,26 @@ void SeedInfo::patchSeed(const ExecutionState &state,
     const Array *array = it->first;
     unsigned i = it->second;
     ref<Expr> read = ReadExpr::create(UpdateList(array, 0),
-                                      IConstantExpr::alloc(i, Expr::Int32));
+                                      ConstantExpr::alloc(i, Expr::Int32));
     
     // If not in bindings then this can't be a violation?
     Assignment::bindings_ty::iterator it2 = assignment.bindings.find(array);
     if (it2 != assignment.bindings.end()) {
       ref<Expr> isSeed = EqExpr::create(read, 
-                                        IConstantExpr::alloc(it2->second[i], 
+                                        ConstantExpr::alloc(it2->second[i], 
                                                             Expr::Int8));
       bool res;
       bool success = solver->mustBeFalse(tmp, isSeed, res);
       assert(success && "FIXME: Unhandled solver failure");
       (void) success;
       if (res) {
-        ref<IConstantExpr> value;
-        bool success = solver->getIValue(tmp, read, value);
+        ref<ConstantExpr> value;
+        bool success = solver->getValue(tmp, read, value);
         assert(success && "FIXME: Unhandled solver failure");            
         (void) success;
         it2->second[i] = value->getZExtValue(8);
         tmp.addConstraint(EqExpr::create(read, 
-                                         IConstantExpr::alloc(it2->second[i], 
+                                         ConstantExpr::alloc(it2->second[i], 
                                                              Expr::Int8)));
       } else {
         tmp.addConstraint(isSeed);
@@ -129,22 +129,22 @@ void SeedInfo::patchSeed(const ExecutionState &state,
     const Array *array = it->first;
     for (unsigned i=0; i<array->size; ++i) {
       ref<Expr> read = ReadExpr::create(UpdateList(array, 0),
-                                        IConstantExpr::alloc(i, Expr::Int32));
+                                        ConstantExpr::alloc(i, Expr::Int32));
       ref<Expr> isSeed = EqExpr::create(read, 
-                                        IConstantExpr::alloc(it->second[i], 
+                                        ConstantExpr::alloc(it->second[i], 
                                                             Expr::Int8));
       bool res;
       bool success = solver->mustBeFalse(tmp, isSeed, res);
       assert(success && "FIXME: Unhandled solver failure");
       (void) success;
       if (res) {
-        ref<IConstantExpr> value;
-        bool success = solver->getIValue(tmp, read, value);
+        ref<ConstantExpr> value;
+        bool success = solver->getValue(tmp, read, value);
         assert(success && "FIXME: Unhandled solver failure");            
         (void) success;
         it->second[i] = value->getZExtValue(8);
         tmp.addConstraint(EqExpr::create(read, 
-                                         IConstantExpr::alloc(it->second[i], 
+                                         ConstantExpr::alloc(it->second[i], 
                                                              Expr::Int8)));
       } else {
         tmp.addConstraint(isSeed);

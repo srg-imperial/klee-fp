@@ -103,7 +103,7 @@ private:
   }
 
   bool isVerySimple(const ref<Expr> &e) { 
-    return isa<IConstantExpr>(e) || bindings.find(e)!=bindings.end();
+    return isa<ConstantExpr>(e) || bindings.find(e)!=bindings.end();
   }
 
   bool isVerySimpleUpdate(const UpdateNode *un) {
@@ -147,7 +147,7 @@ private:
   }
 
   void scan1(const ref<Expr> &e) {
-    if (!isa<IConstantExpr>(e)) {
+    if (!isa<ConstantExpr>(e)) {
       if (couldPrint.insert(e).second) {
         Expr *ep = e.get();
         for (unsigned i=0; i<ep->getNumKids(); i++)
@@ -212,8 +212,8 @@ private:
       print(un->value, PC);
       //PC << ')';
       
-      nextShouldBreak = !(isa<IConstantExpr>(un->index) && 
-                          isa<IConstantExpr>(un->value));
+      nextShouldBreak = !(isa<ConstantExpr>(un->index) && 
+                          isa<ConstantExpr>(un->value));
     }
 
     if (openedList)
@@ -274,8 +274,8 @@ private:
     
     // Get stride expr in proper index width.
     Expr::Width idxWidth = base->index->getWidth();
-    ref<Expr> strideExpr = IConstantExpr::alloc(stride, idxWidth);
-    ref<Expr> offset = IConstantExpr::create(0, idxWidth);
+    ref<Expr> strideExpr = ConstantExpr::alloc(stride, idxWidth);
+    ref<Expr> offset = ConstantExpr::create(0, idxWidth);
     
     e = e->getKid(1);
     
@@ -371,7 +371,7 @@ public:
     print(e, PC);
   }
 
-  void printConst(const ref<IConstantExpr> &e, PrintContext &PC, 
+  void printConst(const ref<ConstantExpr> &e, PrintContext &PC, 
                   bool printWidth) {
     if (e->getWidth() == Expr::Bool)
       PC << (e->isTrue() ? "true" : "false");
@@ -382,42 +382,18 @@ public:
       if (printWidth)
 	PC << "(w" << e->getWidth() << " ";
 
-      if (e->getWidth() <= 64) {
-        PC << e->getZExtValue();
-      } else {
-        std::string S;
-        e->toString(S);
-        PC << S;
-      }
+      std::string S;
+      e->toString(S);
+      PC << S;
 
       if (printWidth)
 	PC << ")";
     }    
   }
 
-  void printConst(const ref<FConstantExpr> &e, PrintContext &PC, 
-                  bool printWidth) {
-    int w = e->getWidth();
-
-    if (printWidth)
-      PC << "(w" << w << " ";
- 
-    switch (w) {
-      case 32: PC << e->getFloatValue(); break;
-      case 64: PC << e->getDoubleValue(); break;
-      case 80: PC << "[unprintable]"; break;
-      default: assert(0 && "unrecognised width");
-    }
-
-    if (printWidth)
-      PC << ")";
-  }
-
   void print(const ref<Expr> &e, PrintContext &PC, bool printConstWidth=false) {
-    if (IConstantExpr *ICE = dyn_cast<IConstantExpr>(e))
-      printConst(ICE, PC, printConstWidth);
-    else if (FConstantExpr *FCE = dyn_cast<FConstantExpr>(e))
-      printConst(FCE, PC, printConstWidth);
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
+      printConst(CE, PC, printConstWidth);
     else {
       std::map<ref<Expr>, unsigned>::iterator it = bindings.find(e);
       if (it!=bindings.end()) {
@@ -511,7 +487,7 @@ void ExprPPrinter::printSingleExpr(std::ostream &os, const ref<Expr> &e) {
 
 void ExprPPrinter::printConstraints(std::ostream &os,
                                     const ConstraintManager &constraints) {
-  printQuery(os, constraints, IConstantExpr::alloc(false, Expr::Bool));
+  printQuery(os, constraints, ConstantExpr::alloc(false, Expr::Bool));
 }
 
 

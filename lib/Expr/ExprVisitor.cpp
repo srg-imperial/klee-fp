@@ -22,7 +22,7 @@ namespace {
 using namespace klee;
 
 ref<Expr> ExprVisitor::visit(const ref<Expr> &e) {
-  if (!UseVisitorHash || isa<IConstantExpr>(e)) {
+  if (!UseVisitorHash || isa<ConstantExpr>(e)) {
     return visitActual(e);
   } else {
     visited_ty::iterator it = visited.find(e);
@@ -109,8 +109,7 @@ ref<Expr> ExprVisitor::visitActual(const ref<Expr> &e) {
     case Expr::FUgt: res = visitFUgt(static_cast<FUgtExpr&>(ep)); break;
     case Expr::FUge: res = visitFUge(static_cast<FUgeExpr&>(ep)); break;
     case Expr::FUne: res = visitFUne(static_cast<FUneExpr&>(ep)); break;
-    case Expr::IConstant:
-    case Expr::FConstant:
+    case Expr::Constant:
     default:
       assert(0 && "invalid expression kind");
     }
@@ -133,7 +132,7 @@ ref<Expr> ExprVisitor::visitActual(const ref<Expr> &e) {
         if (recursive)
           e = visit(e);
       }
-      if (!isa<IConstantExpr>(e)) {
+      if (!isa<ConstantExpr>(e)) {
         res = visitExprPost(*e.get());
         if (res.kind==Action::ChangeTo)
           e = res.argument;

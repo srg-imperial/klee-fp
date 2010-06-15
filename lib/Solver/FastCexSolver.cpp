@@ -101,7 +101,7 @@ private:
 
 public:
   ValueRange() : m_min(1),m_max(0) {}
-  ValueRange(const ref<IConstantExpr> &ce) {
+  ValueRange(const ref<ConstantExpr> &ce) {
     // FIXME: Support large widths.
     m_min = m_max = ce->getLimitedValue();
   }
@@ -351,7 +351,7 @@ public:
         index.isFixed() && 
         index.min() < array.size) {
       ref<Expr> elem = array.constantValues[index.min()];
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(elem))
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(elem))
         return ValueRange(CE->getZExtValue(8));
     }
 
@@ -366,10 +366,10 @@ protected:
     // value cannot be part of the assignment.
     if (index >= array.size)
       return ReadExpr::create(UpdateList(&array, 0), 
-                              IConstantExpr::alloc(index, Expr::Int32));
+                              ConstantExpr::alloc(index, Expr::Int32));
       
     std::map<const Array*, CexObjectData*>::iterator it = objects.find(&array);
-    return IConstantExpr::alloc((it == objects.end() ? 127 : 
+    return ConstantExpr::alloc((it == objects.end() ? 127 : 
                                 it->second->getPossibleValue(index)),
                                Expr::Int8);
   }
@@ -387,19 +387,19 @@ protected:
     // value cannot be part of the assignment.
     if (index >= array.size)
       return ReadExpr::create(UpdateList(&array, 0), 
-                              IConstantExpr::alloc(index, Expr::Int32));
+                              ConstantExpr::alloc(index, Expr::Int32));
       
     std::map<const Array*, CexObjectData*>::iterator it = objects.find(&array);
     if (it == objects.end())
       return ReadExpr::create(UpdateList(&array, 0), 
-                              IConstantExpr::alloc(index, Expr::Int32));
+                              ConstantExpr::alloc(index, Expr::Int32));
 
     CexValueData cvd = it->second->getExactValues(index);
     if (!cvd.isFixed())
       return ReadExpr::create(UpdateList(&array, 0), 
-                              IConstantExpr::alloc(index, Expr::Int32));
+                              ConstantExpr::alloc(index, Expr::Int32));
 
-    return IConstantExpr::alloc(cvd.min(), Expr::Int8);
+    return ConstantExpr::alloc(cvd.min(), Expr::Int8);
   }
 
 public:
@@ -450,7 +450,7 @@ public:
     #endif
 
     switch (e->getKind()) {
-    case Expr::IConstant:
+    case Expr::Constant:
       // rather a pity if the constant isn't in the range, but how can
       // we use this?
       break;
@@ -466,7 +466,7 @@ public:
 
       // FIXME: This is imprecise, we need to look through the existing writes
       // to see if this is an initial read or not.
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(re->index)) {
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(re->index)) {
         uint64_t index = CE->getZExtValue();
 
         if (index < array->size) {
@@ -585,7 +585,7 @@ public:
 
     case Expr::Add: {
       BinaryExpr *be = cast<BinaryExpr>(e);
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(be->left)) {
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(be->left)) {
         // FIXME: Don't depend on width.
         if (CE->getWidth() <= 64) {
           // FIXME: Why do we ever propogate empty ranges? It doesn't make
@@ -595,8 +595,8 @@ public:
 
           // C_0 + X \in [MIN, MAX) ==> X \in [MIN - C_0, MAX - C_0)
           Expr::Width W = CE->getWidth();
-          CexValueData nrange(IConstantExpr::alloc(range.min(), W)->Sub(CE)->getZExtValue(),
-                              IConstantExpr::alloc(range.max(), W)->Sub(CE)->getZExtValue());
+          CexValueData nrange(ConstantExpr::alloc(range.min(), W)->Sub(CE)->getZExtValue(),
+                              ConstantExpr::alloc(range.max(), W)->Sub(CE)->getZExtValue());
           if (!nrange.isEmpty())
             propogatePossibleValues(be->right, nrange);
         }
@@ -674,7 +674,7 @@ public:
     case Expr::Eq: {
       BinaryExpr *be = cast<BinaryExpr>(e);
       if (range.isFixed()) {
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(be->left)) {
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(be->left)) {
           // FIXME: Handle large widths?
           if (CE->getWidth() <= 64) {
             uint64_t value = CE->getZExtValue();
@@ -787,7 +787,7 @@ public:
 
   void propogateExactValues(ref<Expr> e, CexValueData range) {
     switch (e->getKind()) {
-    case Expr::IConstant: {
+    case Expr::Constant: {
       // FIXME: Assert that range contains this constant.
       break;
     }
@@ -878,7 +878,7 @@ public:
     case Expr::Eq: {
       BinaryExpr *be = cast<BinaryExpr>(e);
       if (range.isFixed()) {
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(be->left)) {
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(be->left)) {
           // FIXME: Handle large widths?
           if (CE->getWidth() <= 64) {
             uint64_t value = CE->getZExtValue();
@@ -1080,7 +1080,7 @@ bool FastCexSolver::computeValue(const Query& query, ref<Expr> &result) {
   // Propogation found a satisfying assignment, evaluate the expression.
   ref<Expr> value = cd.evaluatePossible(query.expr);
   
-  if (isa<IConstantExpr>(value)) {
+  if (isa<ConstantExpr>(value)) {
     // FIXME: We should be able to make sure this never fails?
     result = value;
     return true;
@@ -1118,10 +1118,10 @@ FastCexSolver::computeInitialValues(const Query& query,
     for (unsigned i=0; i < array->size; i++) {
       ref<Expr> read = 
         ReadExpr::create(UpdateList(array, 0),
-                         IConstantExpr::create(i, Expr::Int32));
+                         ConstantExpr::create(i, Expr::Int32));
       ref<Expr> value = cd.evaluatePossible(read);
       
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(value)) {
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
         data.push_back((unsigned char) CE->getZExtValue(8));
       } else {
         // FIXME: When does this happen?

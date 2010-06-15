@@ -178,7 +178,7 @@ SpecialFunctionHandler::readStringAtAddress(ExecutionState &state,
                                             ref<Expr> addressExpr) {
   ObjectPair op;
   addressExpr = executor.toUnique(state, addressExpr);
-  ref<IConstantExpr> address = cast<IConstantExpr>(addressExpr);
+  ref<ConstantExpr> address = cast<ConstantExpr>(addressExpr);
   if (!state.addressSpace.resolveOne(address, op))
     assert(0 && "XXX out of bounds / multiple resolution unhandled");
   bool res;
@@ -197,9 +197,9 @@ SpecialFunctionHandler::readStringAtAddress(ExecutionState &state,
   for (i = 0; i < mo->size - 1; i++) {
     ref<Expr> cur = os->read8(i);
     cur = executor.toUnique(state, cur);
-    assert(isa<IConstantExpr>(cur) && 
+    assert(isa<ConstantExpr>(cur) && 
            "hit symbolic char while reading concrete string");
-    buf[i] = cast<IConstantExpr>(cur)->getZExtValue(8);
+    buf[i] = cast<ConstantExpr>(cur)->getZExtValue(8);
   }
   buf[i] = 0;
   
@@ -360,7 +360,7 @@ void SpecialFunctionHandler::handleAssume(ExecutionState &state,
   ref<Expr> e = arguments[0];
   
   if (e->getWidth() != Expr::Bool)
-    e = NeExpr::create(e, IConstantExpr::create(0, e->getWidth()));
+    e = NeExpr::create(e, ConstantExpr::create(0, e->getWidth()));
   
   bool res;
   bool success = executor.solver->mustBeFalse(state, e, res);
@@ -380,7 +380,7 @@ void SpecialFunctionHandler::handleIsSymbolic(ExecutionState &state,
   assert(arguments.size()==1 && "invalid number of arguments to klee_is_symbolic");
 
   executor.bindLocal(target, state, 
-                     IConstantExpr::create(!isa<IConstantExpr>(arguments[0]),
+                     ConstantExpr::create(!isa<ConstantExpr>(arguments[0]),
                                           Expr::Int32));
 }
 
@@ -392,7 +392,7 @@ void SpecialFunctionHandler::handlePreferCex(ExecutionState &state,
 
   ref<Expr> cond = arguments[1];
   if (cond->getWidth() != Expr::Bool)
-    cond = NeExpr::create(cond, IConstantExpr::alloc(0, cond->getWidth()));
+    cond = NeExpr::create(cond, ConstantExpr::alloc(0, cond->getWidth()));
 
   Executor::ExactResolutionList rl;
   executor.resolveExact(state, arguments[0], rl, "prefex_cex");
@@ -420,7 +420,7 @@ void SpecialFunctionHandler::handleSetForking(ExecutionState &state,
          "invalid number of arguments to klee_set_forking");
   ref<Expr> value = executor.toUnique(state, arguments[0]);
   
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(value)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
     state.forkDisabled = CE->isZero();
   } else {
     executor.terminateStateOnError(state, 
@@ -464,10 +464,10 @@ void SpecialFunctionHandler::handlePrintRange(ExecutionState &state,
 
   std::string msg_str = readStringAtAddress(state, arguments[0]);
   std::cerr << msg_str << ":" << arguments[1];
-  if (!isa<IConstantExpr>(arguments[1])) {
+  if (!isa<ConstantExpr>(arguments[1])) {
     // FIXME: Pull into a unique value method?
-    ref<IConstantExpr> value;
-    bool success = executor.solver->getIValue(state, arguments[1], value);
+    ref<ConstantExpr> value;
+    bool success = executor.solver->getValue(state, arguments[1], value);
     assert(success && "FIXME: Unhandled solver failure");
     bool res;
     success = executor.solver->mustBeTrue(state, 
@@ -497,7 +497,7 @@ void SpecialFunctionHandler::handleGetObjSize(ExecutionState &state,
   for (Executor::ExactResolutionList::iterator it = rl.begin(), 
          ie = rl.end(); it != ie; ++it) {
     executor.bindLocal(target, *it->second, 
-                       IConstantExpr::create(it->first.first->size, Expr::Int32));
+                       ConstantExpr::create(it->first.first->size, Expr::Int32));
   }
 }
 
@@ -508,7 +508,7 @@ void SpecialFunctionHandler::handleGetErrno(ExecutionState &state,
   assert(arguments.size()==0 &&
          "invalid number of arguments to klee_get_obj_size");
   executor.bindLocal(target, state,
-                     IConstantExpr::create(errno, Expr::Int32));
+                     ConstantExpr::create(errno, Expr::Int32));
 }
 
 void SpecialFunctionHandler::handleCalloc(ExecutionState &state,
@@ -578,14 +578,14 @@ void SpecialFunctionHandler::handleCheckMemoryAccess(ExecutionState &state,
 
   ref<Expr> address = executor.toUnique(state, arguments[0]);
   ref<Expr> size = executor.toUnique(state, arguments[1]);
-  if (!isa<IConstantExpr>(address) || !isa<IConstantExpr>(size)) {
+  if (!isa<ConstantExpr>(address) || !isa<ConstantExpr>(size)) {
     executor.terminateStateOnError(state, 
                                    "check_memory_access requires constant args",
                                    "user.err");
   } else {
     ObjectPair op;
 
-    if (!state.addressSpace.resolveOne(cast<IConstantExpr>(address), op)) {
+    if (!state.addressSpace.resolveOne(cast<ConstantExpr>(address), op)) {
       executor.terminateStateOnError(state,
                                      "check_memory_access: memory error",
                                      "ptr.err",
@@ -593,7 +593,7 @@ void SpecialFunctionHandler::handleCheckMemoryAccess(ExecutionState &state,
     } else {
       ref<Expr> chk = 
         op.first->getBoundsCheckPointer(address, 
-                                        cast<IConstantExpr>(size)->getZExtValue());
+                                        cast<ConstantExpr>(size)->getZExtValue());
       if (!chk->isTrue()) {
         executor.terminateStateOnError(state,
                                        "check_memory_access: memory error",
@@ -618,13 +618,13 @@ void SpecialFunctionHandler::handleDefineFixedObject(ExecutionState &state,
                                                      std::vector<ref<Expr> > &arguments) {
   assert(arguments.size()==2 &&
          "invalid number of arguments to klee_define_fixed_object");
-  assert(isa<IConstantExpr>(arguments[0]) &&
+  assert(isa<ConstantExpr>(arguments[0]) &&
          "expect constant address argument to klee_define_fixed_object");
-  assert(isa<IConstantExpr>(arguments[1]) &&
+  assert(isa<ConstantExpr>(arguments[1]) &&
          "expect constant size argument to klee_define_fixed_object");
   
-  uint64_t address = cast<IConstantExpr>(arguments[0])->getZExtValue();
-  uint64_t size = cast<IConstantExpr>(arguments[1])->getZExtValue();
+  uint64_t address = cast<ConstantExpr>(arguments[0])->getZExtValue();
+  uint64_t size = cast<ConstantExpr>(arguments[1])->getZExtValue();
   MemoryObject *mo = executor.memory->allocateFixed(address, size, state.prevPC->inst);
   executor.bindObjectInState(state, mo, false);
   mo->isUserSpecified = true; // XXX hack;

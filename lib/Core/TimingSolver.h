@@ -58,9 +58,6 @@ namespace klee {
     bool getValue(const ExecutionState &, ref<Expr> expr, 
                   ref<ConstantExpr> &result);
 
-    bool getIValue(const ExecutionState &, ref<Expr> expr, 
-                  ref<IConstantExpr> &result);
-
     bool getInitialValues(const ExecutionState&, 
                           const std::vector<const Array*> &objects,
                           std::vector< std::vector<unsigned char> > &result);

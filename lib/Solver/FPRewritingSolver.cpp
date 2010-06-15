@@ -78,14 +78,9 @@ static bool IsNotExpr(ref<Expr> e, ref<Expr> &neg) {
 ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
   Expr::Kind kind = lhs->getKind();
   if (kind != rhs->getKind())
-    return IConstantExpr::alloc(0, Expr::Bool);
+    return ConstantExpr::alloc(0, Expr::Bool);
 
   switch (kind) {
-    case Expr::FConstant: {
-      const APFloat &flhs = cast<FConstantExpr>(lhs)->getAPValue(), &frhs = cast<FConstantExpr>(rhs)->getAPValue();
-      bool cond = flhs.bitwiseIsEqual(frhs) || flhs.isZero() && frhs.isZero();
-      return IConstantExpr::alloc(cond, Expr::Bool);
-    }
     case Expr::FAdd:
     case Expr::FMul:
     case Expr::FOeq:
@@ -102,13 +97,18 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
                              constrainEquality(lhs->getKid(1), rhs->getKid(1)));
     case Expr::FPExt:
     case Expr::FPTrunc: {
+      F2FConvertExpr *fclhs = cast<F2FConvertExpr>(lhs), *fcrhs = cast<F2FConvertExpr>(rhs);
+      if (fclhs->fromIsIEEE() != fcrhs->fromIsIEEE()
+       || fclhs->getSemantics() != fcrhs->getSemantics())
+        return ConstantExpr::alloc(0, Expr::Bool);
       ref<Expr> lhsKid = lhs->getKid(0), rhsKid = rhs->getKid(0);
-      if (lhsKid->asFPExpr()->getSemantics() != rhsKid->asFPExpr()->getSemantics())
-        return IConstantExpr::alloc(0, Expr::Bool);
       return constrainEquality(lhsKid, rhsKid);
     }
     case Expr::UIToFP:
     case Expr::SIToFP: {
+      FConvertExpr *fclhs = cast<FConvertExpr>(lhs), *fcrhs = cast<FConvertExpr>(rhs);
+      if (fclhs->getSemantics() != fcrhs->getSemantics())
+        return ConstantExpr::alloc(0, Expr::Bool);
       ref<Expr> lhsKid = lhs->getKid(0), rhsKid = rhs->getKid(0);
       if (lhsKid->getWidth() < rhsKid->getWidth()) {
         lhsKid = (kind == Expr::SIToFP ? SExtExpr::create : ZExtExpr::create)(lhsKid, rhsKid->getWidth());
@@ -122,16 +122,19 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
       if (IsNotExpr(lhs, lhsNeg) && IsNotExpr(rhs, rhsNeg))
         return constrainEquality(lhsNeg, rhsNeg);
       else
-        return IConstantExpr::alloc(0, Expr::Bool);
+        return ConstantExpr::alloc(0, Expr::Bool);
     }
     default:
-      return IConstantExpr::alloc(lhs->compare(*rhs) == 0 ? 1 : 0, Expr::Bool);
+      return ConstantExpr::alloc(lhs->compare(*rhs) == 0 ? 1 : 0, Expr::Bool);
       // assert(0 && "Floating point value expected");
   }
 }
 
 bool HasFPExpr(ref<Expr> e) {
-  if (e->asFPExpr()) return true;
+  if (isa<FConvertExpr>(e)
+   || isa<FOrd1Expr>(e)
+   || isa<FBinaryExpr>(e)
+   || isa<FCmpExpr>(e)) return true;
   unsigned int numKids = e->getNumKids();
   for (unsigned int k = 0; k < numKids; k++) {
     if (HasFPExpr(e->getKid(k)))
@@ -153,7 +156,7 @@ ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e, bool isNeg) 
     }
     default:
       if (HasFPExpr(e))
-        return IConstantExpr::create(isNeg ? 0 : 1, Expr::Bool);
+        return ConstantExpr::create(isNeg ? 0 : 1, Expr::Bool);
       else
         return e;
   }

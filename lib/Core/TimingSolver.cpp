@@ -25,7 +25,7 @@ using namespace llvm;
 bool TimingSolver::evaluate(const ExecutionState& state, ref<Expr> expr,
                             Solver::Validity &result) {
   // Fast path, to avoid timer and OS overhead.
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(expr)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
     result = CE->isTrue() ? Solver::True : Solver::False;
     return true;
   }
@@ -49,7 +49,7 @@ bool TimingSolver::evaluate(const ExecutionState& state, ref<Expr> expr,
 bool TimingSolver::mustBeTrue(const ExecutionState& state, ref<Expr> expr, 
                               bool &result) {
   // Fast path, to avoid timer and OS overhead.
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(expr)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
     result = CE->isTrue() ? true : false;
     return true;
   }
@@ -117,30 +117,6 @@ bool TimingSolver::getValue(const ExecutionState& state, ref<Expr> expr,
   return success;
 }
 
-bool TimingSolver::getIValue(const ExecutionState& state, ref<Expr> expr, 
-                            ref<IConstantExpr> &result) {
-  // Fast path, to avoid timer and OS overhead.
-  if (IConstantExpr *ICE = dyn_cast<IConstantExpr>(expr)) {
-    result = ICE;
-    return true;
-  }
-  
-  sys::TimeValue now(0,0),user(0,0),delta(0,0),sys(0,0);
-  sys::Process::GetTimeUsage(now,user,sys);
-
-  if (simplifyExprs)
-    expr = state.constraints.simplifyExpr(expr);
-
-  bool success = solver->getIValue(Query(state.constraints, expr), result);
-
-  sys::Process::GetTimeUsage(delta,user,sys);
-  delta -= now;
-  stats::solverTime += delta.usec();
-  state.queryCost += delta.usec()/1000000.;
-
-  return success;
-}
-
 bool 
 TimingSolver::getInitialValues(const ExecutionState& state, 
                                const std::vector<const Array*>
@@ -154,7 +130,7 @@ TimingSolver::getInitialValues(const ExecutionState& state,
   sys::Process::GetTimeUsage(now,user,sys);
 
   bool success = solver->getInitialValues(Query(state.constraints,
-                                                IConstantExpr::alloc(0, Expr::Bool)), 
+                                                ConstantExpr::alloc(0, Expr::Bool)), 
                                           objects, result);
   
   sys::Process::GetTimeUsage(delta,user,sys);
