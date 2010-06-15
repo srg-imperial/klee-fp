@@ -27,11 +27,11 @@ using namespace klee;
 // XXX we really want to do some sort of canonicalization of exprs
 // globally so that cases below become simpler
 void ImpliedValue::getImpliedValues(ref<Expr> e,
-                                    ref<IConstantExpr> value,
+                                    ref<ConstantExpr> value,
                                     ImpliedValueList &results) {
   switch (e->getKind()) {
-  case Expr::IConstant: {
-    assert(value == cast<IConstantExpr>(e) && 
+  case Expr::Constant: {
+    assert(value == cast<ConstantExpr>(e) && 
            "error in implied value calculation");
     break;
   }
@@ -54,16 +54,16 @@ void ImpliedValue::getImpliedValues(ref<Expr> e,
     // not much to do, could improve with range analysis
     SelectExpr *se = cast<SelectExpr>(e);
     
-    if (IConstantExpr *TrueCE = dyn_cast<IConstantExpr>(se->trueExpr)) {
-      if (IConstantExpr *FalseCE = dyn_cast<IConstantExpr>(se->falseExpr)) {
+    if (ConstantExpr *TrueCE = dyn_cast<ConstantExpr>(se->trueExpr)) {
+      if (ConstantExpr *FalseCE = dyn_cast<ConstantExpr>(se->falseExpr)) {
         if (TrueCE != FalseCE) {
           if (value == TrueCE) {
-            getImpliedValues(se->cond, IConstantExpr::alloc(1, Expr::Bool), 
+            getImpliedValues(se->cond, ConstantExpr::alloc(1, Expr::Bool), 
                              results);
           } else {
             assert(value == FalseCE &&
                    "err in implied value calculation");
-            getImpliedValues(se->cond, IConstantExpr::alloc(0, Expr::Bool), 
+            getImpliedValues(se->cond, ConstantExpr::alloc(0, Expr::Bool), 
                              results);
           }
         }
@@ -103,14 +103,14 @@ void ImpliedValue::getImpliedValues(ref<Expr> e,
   case Expr::Add: { // constants on left
     BinaryExpr *be = cast<BinaryExpr>(e);
     // C_0 + A = C  =>  A = C - C_0
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(be->left))
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(be->left))
       getImpliedValues(be->right, value->Sub(CE), results);
     break;
   }
   case Expr::Sub: { // constants on left
     BinaryExpr *be = cast<BinaryExpr>(e);
     // C_0 - A = C  =>  A = C_0 - C
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(be->left))
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(be->left))
       getImpliedValues(be->right, CE->Sub(value), results);
     break;
   }
@@ -153,7 +153,7 @@ void ImpliedValue::getImpliedValues(ref<Expr> e,
   }
   case Expr::Xor: {
     BinaryExpr *be = cast<BinaryExpr>(e);
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(be->left))
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(be->left))
       getImpliedValues(be->right, value->Xor(CE), results);
     break;
   }
@@ -165,7 +165,7 @@ void ImpliedValue::getImpliedValues(ref<Expr> e,
   case Expr::Eq: {
     EqExpr *ee = cast<EqExpr>(e);
     if (value->isTrue()) {
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(ee->left))
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(ee->left))
         getImpliedValues(ee->right, CE, results);
     } else {
       // Look for limited value range.
@@ -175,7 +175,7 @@ void ImpliedValue::getImpliedValues(ref<Expr> e,
       // booleans, is as the result of a select expression where the true and
       // false branches are single valued and distinct.
       
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(ee->left))
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(ee->left))
         if (CE->getWidth() == Expr::Bool)
           getImpliedValues(ee->right, CE->Not(), results);
     }
@@ -188,16 +188,16 @@ void ImpliedValue::getImpliedValues(ref<Expr> e,
 }
     
 void ImpliedValue::checkForImpliedValues(Solver *S, ref<Expr> e, 
-                                         ref<IConstantExpr> value) {
+                                         ref<ConstantExpr> value) {
   std::vector<ref<ReadExpr> > reads;
-  std::map<ref<ReadExpr>, ref<IConstantExpr> > found;
+  std::map<ref<ReadExpr>, ref<ConstantExpr> > found;
   ImpliedValueList results;
 
   getImpliedValues(e, value, results);
 
   for (ImpliedValueList::iterator i = results.begin(), ie = results.end();
        i != ie; ++i) {
-    std::map<ref<ReadExpr>, ref<IConstantExpr> >::iterator it = 
+    std::map<ref<ReadExpr>, ref<ConstantExpr> >::iterator it = 
       found.find(i->first);
     if (it != found.end()) {
       assert(it->second == i->second && "Invalid ImpliedValue!");
@@ -223,7 +223,7 @@ void ImpliedValue::checkForImpliedValues(Solver *S, ref<Expr> e,
          ie = reads.end(); i != ie; ++i) {
     ReadExpr *re = i->get();
     assumption.push_back(UltExpr::create(re->index, 
-                                         IConstantExpr::alloc(re->updates.root->size, 
+                                         ConstantExpr::alloc(re->updates.root->size, 
                                                              Context::get().getPointerWidth())));
   }
 
@@ -231,10 +231,10 @@ void ImpliedValue::checkForImpliedValues(Solver *S, ref<Expr> e,
   for (std::vector< ref<ReadExpr> >::iterator i = reads.begin(), 
          ie = reads.end(); i != ie; ++i) {
     ref<ReadExpr> var = *i;
-    ref<IConstantExpr> possible;
-    bool success = S->getIValue(Query(assume, var), possible);
+    ref<ConstantExpr> possible;
+    bool success = S->getValue(Query(assume, var), possible);
     assert(success && "FIXME: Unhandled solver failure");    
-    std::map<ref<ReadExpr>, ref<IConstantExpr> >::iterator it = found.find(var);
+    std::map<ref<ReadExpr>, ref<ConstantExpr> >::iterator it = found.find(var);
     bool res;
     success = S->mustBeTrue(Query(assume, EqExpr::create(var, possible)), res);
     assert(success && "FIXME: Unhandled solver failure");    

@@ -16,7 +16,7 @@ ExprVisitor::Action ExprEvaluator::evalRead(const UpdateList &ul,
   for (const UpdateNode *un=ul.head; un; un=un->next) {
     ref<Expr> ui = visit(un->index);
     
-    if (IConstantExpr *CE = dyn_cast<IConstantExpr>(ui)) {
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(ui)) {
       if (CE->getZExtValue() == index)
         return Action::changeTo(visit(un->value));
     } else {
@@ -25,7 +25,7 @@ ExprVisitor::Action ExprEvaluator::evalRead(const UpdateList &ul,
       // version though (mostly for debugging).
       
       return Action::changeTo(ReadExpr::create(UpdateList(ul.root, un), 
-                                               IConstantExpr::alloc(index, 
+                                               ConstantExpr::alloc(index, 
                                                                    ul.root->getDomain())));
     }
   }
@@ -45,7 +45,7 @@ ExprVisitor::Action ExprEvaluator::visitExpr(const Expr &e) {
     return Action::doChildren();
 
   for (unsigned i = 0; i != N; ++i)
-    if (!isa<IConstantExpr>(e.getKid(i)))
+    if (!isa<ConstantExpr>(e.getKid(i)))
       return Action::doChildren();
 
   ref<Expr> Kids[3];
@@ -60,7 +60,7 @@ ExprVisitor::Action ExprEvaluator::visitExpr(const Expr &e) {
 ExprVisitor::Action ExprEvaluator::visitRead(const ReadExpr &re) {
   ref<Expr> v = visit(re.index);
   
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(v)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(v)) {
     return evalRead(re.updates, CE->getZExtValue());
   } else {
     return Action::doChildren();
@@ -74,7 +74,7 @@ ExprVisitor::Action ExprEvaluator::protectedDivOperation(const BinaryExpr &e) {
   ref<Expr> kids[2] = { visit(e.left),
                         visit(e.right) };
 
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(kids[1]))
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(kids[1]))
     if (CE->isZero())
       kids[1] = e.right;
 

@@ -66,7 +66,7 @@ bool Solver::evaluate(const Query& query, Validity &result) {
   assert(query.expr->getWidth() == Expr::Bool && "Invalid expression type!");
 
   // Maintain invariants implementations expect.
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(query.expr)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(query.expr)) {
     result = CE->isTrue() ? True : False;
     return true;
   }
@@ -92,7 +92,7 @@ bool Solver::mustBeTrue(const Query& query, bool &result) {
   assert(query.expr->getWidth() == Expr::Bool && "Invalid expression type!");
 
   // Maintain invariants implementations expect.
-  if (IConstantExpr *CE = dyn_cast<IConstantExpr>(query.expr)) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(query.expr)) {
     result = CE->isTrue() ? true : false;
     return true;
   }
@@ -127,23 +127,12 @@ bool Solver::getValue(const Query& query, ref<ConstantExpr> &result) {
     return true;
   }
 
-  // FIXME: Push IConstantExpr requirement down.
+  // FIXME: Push ConstantExpr requirement down.
   ref<Expr> tmp;
   if (!impl->computeValue(query, tmp))
     return false;
   
   result = cast<ConstantExpr>(tmp);
-  return true;
-}
-
-bool Solver::getIValue(const Query& query, ref<IConstantExpr> &result) {
-  ref<ConstantExpr> CE = result;
-  if (!getValue(query, CE))
-    return false;
-
-  result = dyn_cast<IConstantExpr>(CE);
-  assert(!result.isNull() && "getIValue expected integer result");
-
   return true;
 }
 
@@ -178,7 +167,7 @@ std::pair< ref<Expr>, ref<Expr> > Solver::getRange(const Query& query) {
     default:
       min = 0, max = 1; break;
     }
-  } else if (IConstantExpr *CE = dyn_cast<IConstantExpr>(e)) {
+  } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
     min = max = CE->getZExtValue();
   } else {
     // binary search for # of useful bits
@@ -189,9 +178,9 @@ std::pair< ref<Expr>, ref<Expr> > Solver::getRange(const Query& query) {
       bool success = 
         mustBeTrue(query.withExpr(
                      EqExpr::create(LShrExpr::create(e,
-                                                     IConstantExpr::create(mid, 
+                                                     ConstantExpr::create(mid, 
                                                                           width)),
-                                    IConstantExpr::create(0, width))),
+                                    ConstantExpr::create(0, width))),
                    res);
 
       assert(success && "FIXME: Unhandled solver failure");
@@ -212,7 +201,7 @@ std::pair< ref<Expr>, ref<Expr> > Solver::getRange(const Query& query) {
     // check common case
     bool res = false;
     bool success = 
-      mayBeTrue(query.withExpr(EqExpr::create(e, IConstantExpr::create(0, 
+      mayBeTrue(query.withExpr(EqExpr::create(e, ConstantExpr::create(0, 
                                                                       width))), 
                 res);
 
@@ -229,7 +218,7 @@ std::pair< ref<Expr>, ref<Expr> > Solver::getRange(const Query& query) {
         bool res = false;
         bool success = 
           mayBeTrue(query.withExpr(UleExpr::create(e, 
-                                                   IConstantExpr::create(mid, 
+                                                   ConstantExpr::create(mid, 
                                                                         width))),
                     res);
 
@@ -253,7 +242,7 @@ std::pair< ref<Expr>, ref<Expr> > Solver::getRange(const Query& query) {
       bool res;
       bool success = 
         mustBeTrue(query.withExpr(UleExpr::create(e, 
-                                                  IConstantExpr::create(mid, 
+                                                  ConstantExpr::create(mid, 
                                                                        width))),
                    res);
 
@@ -270,8 +259,8 @@ std::pair< ref<Expr>, ref<Expr> > Solver::getRange(const Query& query) {
     max = lo;
   }
 
-  return std::make_pair(IConstantExpr::create(min, width),
-                        IConstantExpr::create(max, width));
+  return std::make_pair(ConstantExpr::create(min, width),
+                        ConstantExpr::create(max, width));
 }
 
 /***/
@@ -365,8 +354,8 @@ ValidatingSolver::computeInitialValues(const Query& query,
       for (unsigned j=0; j<array->size; j++) {
         unsigned char value = values[i][j];
         bindings.push_back(EqExpr::create(ReadExpr::create(UpdateList(array, 0),
-                                                           IConstantExpr::alloc(j, Expr::Int32)),
-                                          IConstantExpr::alloc(value, Expr::Int8)));
+                                                           ConstantExpr::alloc(j, Expr::Int32)),
+                                          ConstantExpr::alloc(value, Expr::Int8)));
       }
     }
     ConstraintManager tmp(bindings);
@@ -513,7 +502,7 @@ char *STPSolverImpl::getConstraintLog(const Query &query) {
   for (std::vector< ref<Expr> >::const_iterator it = query.constraints.begin(), 
          ie = query.constraints.end(); it != ie; ++it)
     vc_assertFormula(vc, builder->construct(*it));
-  assert(query.expr == IConstantExpr::alloc(0, Expr::Bool) &&
+  assert(query.expr == ConstantExpr::alloc(0, Expr::Bool) &&
          "Unexpected expression in query!");
 
   char *buffer;

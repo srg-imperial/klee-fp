@@ -100,11 +100,11 @@ ref<Expr> ConstraintManager::simplifyExpr(ref<Expr> e) const {
                                          ee->left));
       } else {
         equalities.insert(std::make_pair(*it,
-                                         IConstantExpr::alloc(1, Expr::Bool)));
+                                         ConstantExpr::alloc(1, Expr::Bool)));
       }
     } else {
       equalities.insert(std::make_pair(*it,
-                                       IConstantExpr::alloc(1, Expr::Bool)));
+                                       ConstantExpr::alloc(1, Expr::Bool)));
     }
   }
 
@@ -121,8 +121,8 @@ void ConstraintManager::addConstraintInternal(ref<Expr> e) {
   // (byte-constant comparison).
 
   switch (e->getKind()) {
-  case Expr::IConstant:
-    assert(cast<IConstantExpr>(e)->isTrue() && 
+  case Expr::Constant:
+    assert(cast<ConstantExpr>(e)->isTrue() && 
            "attempt to add invalid (false) constraint");
     break;
     

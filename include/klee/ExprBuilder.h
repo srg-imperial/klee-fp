@@ -23,7 +23,7 @@ namespace klee {
 
     // Expressions
 
-    virtual ref<Expr> IConstant(const llvm::APInt &Value) = 0;
+    virtual ref<Expr> Constant(const llvm::APInt &Value) = 0;
     virtual ref<Expr> NotOptimized(const ref<Expr> &Index) = 0;
     virtual ref<Expr> Read(const UpdateList &Updates, 
                            const ref<Expr> &Index) = 0;
@@ -61,12 +61,12 @@ namespace klee {
 
     // Utility functions
 
-    ref<Expr> False() { return IConstantExpr::alloc(0, Expr::Bool); }
+    ref<Expr> False() { return ConstantExpr::alloc(0, Expr::Bool); }
 
-    ref<Expr> True() { return IConstantExpr::alloc(0, Expr::Bool); }
+    ref<Expr> True() { return ConstantExpr::alloc(0, Expr::Bool); }
 
-    ref<Expr> IConstant(uint64_t Value, Expr::Width W) {
-      return IConstant(llvm::APInt(W, Value));
+    ref<Expr> Constant(uint64_t Value, Expr::Width W) {
+      return Constant(llvm::APInt(W, Value));
     }
   };
 

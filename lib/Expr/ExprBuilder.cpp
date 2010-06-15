@@ -19,8 +19,8 @@ ExprBuilder::~ExprBuilder() {
 
 namespace {
   class DefaultExprBuilder : public ExprBuilder {
-    virtual ref<Expr> IConstant(const llvm::APInt &Value) {
-      return IConstantExpr::alloc(Value);
+    virtual ref<Expr> Constant(const llvm::APInt &Value) {
+      return ConstantExpr::alloc(Value);
     }
 
     virtual ref<Expr> NotOptimized(const ref<Expr> &Index) {
@@ -168,8 +168,8 @@ namespace {
       : Builder(_Builder), Base(_Base) {}
     ~ChainedBuilder() { delete Base; }
 
-    ref<Expr> IConstant(const llvm::APInt &Value) {
-      return Base->IConstant(Value);
+    ref<Expr> Constant(const llvm::APInt &Value) {
+      return Base->Constant(Value);
     }
 
     ref<Expr> NotOptimized(const ref<Expr> &Index) {
@@ -315,8 +315,8 @@ namespace {
     ConstantSpecializedExprBuilder(ExprBuilder *Base) : Builder(this, Base) {}
     ~ConstantSpecializedExprBuilder() {}
 
-    virtual ref<Expr> IConstant(const llvm::APInt &Value) {
-      return Builder.IConstant(Value);
+    virtual ref<Expr> Constant(const llvm::APInt &Value) {
+      return Builder.Constant(Value);
     }
 
     virtual ref<Expr> NotOptimized(const ref<Expr> &Index) {
@@ -330,7 +330,7 @@ namespace {
       while (UN && Eq(Index, UN->index)->isFalse())
         UN = UN->next;
 
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(Index))
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Index))
         return Builder.Read(UpdateList(Updates.root, UN), CE);
 
       return Builder.Read(UpdateList(Updates.root, UN), Index);
@@ -338,18 +338,18 @@ namespace {
 
     virtual ref<Expr> Select(const ref<Expr> &Cond,
                              const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(Cond))
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Cond))
         return CE->isTrue() ? LHS : RHS;
 
       return Builder.Select(cast<NonConstantExpr>(Cond), LHS, RHS);
     }
 
     virtual ref<Expr> Concat(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Concat(RCE);
         return Builder.Concat(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Concat(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -359,32 +359,32 @@ namespace {
 
     virtual ref<Expr> Extract(const ref<Expr> &LHS,
                               unsigned Offset, Expr::Width W) {
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(LHS))
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(LHS))
         return CE->Extract(Offset, W);
 
       return Builder.Extract(cast<NonConstantExpr>(LHS), Offset, W);
     }
 
     virtual ref<Expr> ZExt(const ref<Expr> &LHS, Expr::Width W) {
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(LHS))
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(LHS))
         return CE->ZExt(W);
 
       return Builder.ZExt(cast<NonConstantExpr>(LHS), W);
     }
 
     virtual ref<Expr> SExt(const ref<Expr> &LHS, Expr::Width W) {
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(LHS))
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(LHS))
         return CE->SExt(W);
 
       return Builder.SExt(cast<NonConstantExpr>(LHS), W);
     }
 
     virtual ref<Expr> Add(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Add(RCE);
         return Builder.Add(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Add(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -393,11 +393,11 @@ namespace {
     }
 
     virtual ref<Expr> Sub(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Sub(RCE);
         return Builder.Sub(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Sub(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -406,11 +406,11 @@ namespace {
     }
 
     virtual ref<Expr> Mul(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Mul(RCE);
         return Builder.Mul(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Mul(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -419,11 +419,11 @@ namespace {
     }
 
     virtual ref<Expr> UDiv(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->UDiv(RCE);
         return Builder.UDiv(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.UDiv(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -432,11 +432,11 @@ namespace {
     }
 
     virtual ref<Expr> SDiv(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->SDiv(RCE);
         return Builder.SDiv(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.SDiv(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -445,11 +445,11 @@ namespace {
     }
 
     virtual ref<Expr> URem(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->URem(RCE);
         return Builder.URem(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.URem(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -458,11 +458,11 @@ namespace {
     }
 
     virtual ref<Expr> SRem(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->SRem(RCE);
         return Builder.SRem(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.SRem(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -475,18 +475,18 @@ namespace {
       if (NotExpr *DblNot = dyn_cast<NotExpr>(LHS))
         return DblNot->getKid(0);
 
-      if (IConstantExpr *CE = dyn_cast<IConstantExpr>(LHS))
+      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(LHS))
         return CE->Not();
 
       return Builder.Not(cast<NonConstantExpr>(LHS));
     }
 
     virtual ref<Expr> And(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->And(RCE);
         return Builder.And(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.And(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -495,11 +495,11 @@ namespace {
     }
 
     virtual ref<Expr> Or(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Or(RCE);
         return Builder.Or(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Or(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -508,11 +508,11 @@ namespace {
     }
 
     virtual ref<Expr> Xor(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Xor(RCE);
         return Builder.Xor(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Xor(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -521,11 +521,11 @@ namespace {
     }
 
     virtual ref<Expr> Shl(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Shl(RCE);
         return Builder.Shl(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Shl(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -534,11 +534,11 @@ namespace {
     }
 
     virtual ref<Expr> LShr(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->LShr(RCE);
         return Builder.LShr(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.LShr(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -547,11 +547,11 @@ namespace {
     }
 
     virtual ref<Expr> AShr(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->AShr(RCE);
         return Builder.AShr(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.AShr(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -560,11 +560,11 @@ namespace {
     }
 
     virtual ref<Expr> Eq(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Eq(RCE);
         return Builder.Eq(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Eq(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -573,11 +573,11 @@ namespace {
     }
 
     virtual ref<Expr> Ne(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Ne(RCE);
         return Builder.Ne(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Ne(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -586,11 +586,11 @@ namespace {
     }
 
     virtual ref<Expr> Ult(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Ult(RCE);
         return Builder.Ult(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Ult(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -599,11 +599,11 @@ namespace {
     }
 
     virtual ref<Expr> Ule(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Ule(RCE);
         return Builder.Ule(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Ule(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -612,11 +612,11 @@ namespace {
     }
 
     virtual ref<Expr> Ugt(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Ugt(RCE);
         return Builder.Ugt(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Ugt(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -625,11 +625,11 @@ namespace {
     }
 
     virtual ref<Expr> Uge(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Uge(RCE);
         return Builder.Uge(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Uge(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -638,11 +638,11 @@ namespace {
     }
 
     virtual ref<Expr> Slt(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Slt(RCE);
         return Builder.Slt(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Slt(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -651,11 +651,11 @@ namespace {
     }
 
     virtual ref<Expr> Sle(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Sle(RCE);
         return Builder.Sle(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Sle(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -664,11 +664,11 @@ namespace {
     }
 
     virtual ref<Expr> Sgt(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Sgt(RCE);
         return Builder.Sgt(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Sgt(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -677,11 +677,11 @@ namespace {
     }
 
     virtual ref<Expr> Sge(const ref<Expr> &LHS, const ref<Expr> &RHS) {
-      if (IConstantExpr *LCE = dyn_cast<IConstantExpr>(LHS)) {
-        if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS))
+      if (ConstantExpr *LCE = dyn_cast<ConstantExpr>(LHS)) {
+        if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS))
           return LCE->Sge(RCE);
         return Builder.Sge(LCE, cast<NonConstantExpr>(RHS));
-      } else if (IConstantExpr *RCE = dyn_cast<IConstantExpr>(RHS)) {
+      } else if (ConstantExpr *RCE = dyn_cast<ConstantExpr>(RHS)) {
         return Builder.Sge(cast<NonConstantExpr>(LHS), RCE);
       }
 
@@ -696,7 +696,7 @@ namespace {
     ConstantFoldingBuilder(ExprBuilder *Builder, ExprBuilder *Base)
       : ChainedBuilder(Builder, Base) {}
 
-    ref<Expr> Add(const ref<IConstantExpr> &LHS,
+    ref<Expr> Add(const ref<ConstantExpr> &LHS,
                   const ref<NonConstantExpr> &RHS) {
       // 0 + X ==> X
       if (LHS->isZero())
@@ -708,10 +708,10 @@ namespace {
       case Expr::Add: {
         BinaryExpr *BE = cast<BinaryExpr>(RHS);
         // C_0 + (C_1 + X) ==> (C_0 + C1) + X
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->left))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->left))
           return Builder->Add(LHS->Add(CE), BE->right);
         // C_0 + (X + C_1) ==> (C_0 + C1) + X
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->right))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->right))
           return Builder->Add(LHS->Add(CE), BE->left);
         break;
       }
@@ -719,10 +719,10 @@ namespace {
       case Expr::Sub: {
         BinaryExpr *BE = cast<BinaryExpr>(RHS);
         // C_0 + (C_1 - X) ==> (C_0 + C1) - X
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->left))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->left))
           return Builder->Sub(LHS->Add(CE), BE->right);
         // C_0 + (X - C_1) ==> (C_0 - C1) + X
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->right))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->right))
           return Builder->Add(LHS->Sub(CE), BE->left);
         break;
       }
@@ -732,7 +732,7 @@ namespace {
     }
 
     ref<Expr> Add(const ref<NonConstantExpr> &LHS,
-                  const ref<IConstantExpr> &RHS) {
+                  const ref<ConstantExpr> &RHS) {
       return Add(RHS, LHS);
     }
 
@@ -762,10 +762,10 @@ namespace {
       case Expr::Add: {
         BinaryExpr *BE = cast<BinaryExpr>(RHS);
         // X + (C_0 + Y) ==> C_0 + (X + Y)
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->left))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->left))
           return Builder->Add(CE, Builder->Add(LHS, BE->right));
         // X + (Y + C_0) ==> C_0 + (X + Y)
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->right))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->right))
           return Builder->Add(CE, Builder->Add(LHS, BE->left));
         break;
       }
@@ -773,10 +773,10 @@ namespace {
       case Expr::Sub: {
         BinaryExpr *BE = cast<BinaryExpr>(RHS);
         // X + (C_0 - Y) ==> C_0 + (X - Y)
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->left))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->left))
           return Builder->Add(CE, Builder->Sub(LHS, BE->right));
         // X + (Y - C_0) ==> -C_0 + (X + Y)
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->right))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->right))
           return Builder->Add(CE->Neg(), Builder->Add(LHS, BE->left));
         break;
       }
@@ -785,7 +785,7 @@ namespace {
       return Base->Add(LHS, RHS);
     }
 
-    ref<Expr> Sub(const ref<IConstantExpr> &LHS,
+    ref<Expr> Sub(const ref<ConstantExpr> &LHS,
                   const ref<NonConstantExpr> &RHS) {
       switch (RHS->getKind()) {
       default: break;
@@ -793,10 +793,10 @@ namespace {
       case Expr::Add: {
         BinaryExpr *BE = cast<BinaryExpr>(RHS);
         // C_0 - (C_1 + X) ==> (C_0 - C1) - X
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->left))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->left))
           return Builder->Sub(LHS->Sub(CE), BE->right);
         // C_0 - (X + C_1) ==> (C_0 + C1) + X
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->right))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->right))
           return Builder->Sub(LHS->Sub(CE), BE->left);
         break;
       }
@@ -804,10 +804,10 @@ namespace {
       case Expr::Sub: {
         BinaryExpr *BE = cast<BinaryExpr>(RHS);
         // C_0 - (C_1 - X) ==> (C_0 - C1) + X
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->left))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->left))
           return Builder->Add(LHS->Sub(CE), BE->right);
         // C_0 - (X - C_1) ==> (C_0 + C1) - X
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->right))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->right))
           return Builder->Sub(LHS->Add(CE), BE->left);
         break;
       }
@@ -817,7 +817,7 @@ namespace {
     }
 
     ref<Expr> Sub(const ref<NonConstantExpr> &LHS,
-                  const ref<IConstantExpr> &RHS) {
+                  const ref<ConstantExpr> &RHS) {
         // X - C_0 ==> -C_0 + X
       return Add(RHS->Neg(), LHS);
     }
@@ -846,10 +846,10 @@ namespace {
       case Expr::Add: {
         BinaryExpr *BE = cast<BinaryExpr>(RHS);
         // X - (C + Y) ==> -C + (X - Y)
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->left))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->left))
           return Builder->Add(CE->Neg(), Builder->Sub(LHS, BE->right));
         // X - (Y + C) ==> -C + (X + Y)
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->right))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->right))
           return Builder->Add(CE->Neg(), Builder->Sub(LHS, BE->left));
         break;
       }
@@ -857,10 +857,10 @@ namespace {
       case Expr::Sub: {
         BinaryExpr *BE = cast<BinaryExpr>(RHS);
         // X - (C - Y) ==> -C + (X + Y)
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->left))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->left))
           return Builder->Add(CE->Neg(), Builder->Add(LHS, BE->right));
         // X - (Y - C) ==> C + (X - Y)
-        if (IConstantExpr *CE = dyn_cast<IConstantExpr>(BE->right))
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(BE->right))
           return Builder->Add(CE, Builder->Sub(LHS, BE->left));
         break;
       }
@@ -869,7 +869,7 @@ namespace {
       return Base->Sub(LHS, RHS);
     }
 
-    ref<Expr> Mul(const ref<IConstantExpr> &LHS,
+    ref<Expr> Mul(const ref<ConstantExpr> &LHS,
                   const ref<NonConstantExpr> &RHS) {
       if (LHS->isZero())
         return LHS;
@@ -881,7 +881,7 @@ namespace {
     }
 
     ref<Expr> Mul(const ref<NonConstantExpr> &LHS,
-                  const ref<IConstantExpr> &RHS) {
+                  const ref<ConstantExpr> &RHS) {
       return Mul(RHS, LHS);
     }
 
@@ -890,7 +890,7 @@ namespace {
       return Base->Mul(LHS, RHS);
     }
 
-    ref<Expr> And(const ref<IConstantExpr> &LHS,
+    ref<Expr> And(const ref<ConstantExpr> &LHS,
                   const ref<NonConstantExpr> &RHS) {
       if (LHS->isZero())
         return LHS;
@@ -902,7 +902,7 @@ namespace {
     }
 
     ref<Expr> And(const ref<NonConstantExpr> &LHS,
-                  const ref<IConstantExpr> &RHS) {
+                  const ref<ConstantExpr> &RHS) {
       return And(RHS, LHS);
     }
 
@@ -911,7 +911,7 @@ namespace {
       return Base->And(LHS, RHS);
     }
 
-    ref<Expr> Or(const ref<IConstantExpr> &LHS,
+    ref<Expr> Or(const ref<ConstantExpr> &LHS,
                   const ref<NonConstantExpr> &RHS) {
       if (LHS->isZero())
         return RHS;
@@ -923,7 +923,7 @@ namespace {
     }
 
     ref<Expr> Or(const ref<NonConstantExpr> &LHS,
-                 const ref<IConstantExpr> &RHS) {
+                 const ref<ConstantExpr> &RHS) {
       return Or(RHS, LHS);
     }
 
@@ -932,7 +932,7 @@ namespace {
       return Base->Or(LHS, RHS);
     }
 
-    ref<Expr> Xor(const ref<IConstantExpr> &LHS,
+    ref<Expr> Xor(const ref<ConstantExpr> &LHS,
                   const ref<NonConstantExpr> &RHS) {
       if (LHS->isZero())
         return RHS;
@@ -942,7 +942,7 @@ namespace {
     }
 
     ref<Expr> Xor(const ref<NonConstantExpr> &LHS,
-                  const ref<IConstantExpr> &RHS) {
+                  const ref<ConstantExpr> &RHS) {
       return Xor(RHS, LHS);
     }
 
@@ -951,7 +951,7 @@ namespace {
       return Base->Xor(LHS, RHS);
     }
 
-    ref<Expr> Eq(const ref<IConstantExpr> &LHS, 
+    ref<Expr> Eq(const ref<ConstantExpr> &LHS, 
                  const ref<NonConstantExpr> &RHS) {
       Expr::Width Width = LHS->getWidth();
       
@@ -968,7 +968,7 @@ namespace {
     }
 
     ref<Expr> Eq(const ref<NonConstantExpr> &LHS, 
-                 const ref<IConstantExpr> &RHS) {
+                 const ref<ConstantExpr> &RHS) {
       return Eq(RHS, LHS);
     }
 
@@ -986,7 +986,7 @@ namespace {
     SimplifyingBuilder(ExprBuilder *Builder, ExprBuilder *Base)
       : ChainedBuilder(Builder, Base) {}
 
-    ref<Expr> Eq(const ref<IConstantExpr> &LHS, 
+    ref<Expr> Eq(const ref<ConstantExpr> &LHS, 
                  const ref<NonConstantExpr> &RHS) {
       Expr::Width Width = LHS->getWidth();
       
@@ -1003,7 +1003,7 @@ namespace {
     }
 
     ref<Expr> Eq(const ref<NonConstantExpr> &LHS, 
-                 const ref<IConstantExpr> &RHS) {
+                 const ref<ConstantExpr> &RHS) {
       return Eq(RHS, LHS);
     }
 
