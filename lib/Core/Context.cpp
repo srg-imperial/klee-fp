@@ -40,6 +40,7 @@ Expr::Width Expr::getWidthForLLVMType(const llvm::Type *t) {
   default:
     assert(0 && "non-primitive type argument to Expr::getTypeForLLVMType()\n");
   case llvm::Type::IntegerTyID: return cast<llvm::IntegerType>(t)->getBitWidth();
+  case llvm::Type::VectorTyID: return cast<llvm::VectorType>(t)->getBitWidth();
   case llvm::Type::FloatTyID: return Expr::Int32;
   case llvm::Type::DoubleTyID: return Expr::Int64;
   case llvm::Type::X86_FP80TyID: return 80;
