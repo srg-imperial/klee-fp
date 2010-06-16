@@ -2096,7 +2096,11 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
  
     // Other instructions...
     // Unhandled
-  case Instruction::ExtractElement:
+  case Instruction::ExtractElement: {
+    ExtractElementInst *eei = cast<ExtractElementInst>(i);
+    ref<Expr> vec = eval(ki, 0, state).value;
+    ref<Expr> idx = eval(ki, 1, state).value;
+  }
   case Instruction::InsertElement:
   case Instruction::ShuffleVector:
     terminateStateOnError(state, "XXX vector instructions unhandled",
