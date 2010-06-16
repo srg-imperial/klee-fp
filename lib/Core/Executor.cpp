@@ -936,6 +936,16 @@ ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
       return ConstantExpr::alloc(ci->getValue());
     } else if (const ConstantFP *cf = dyn_cast<ConstantFP>(c)) {      
       return ConstantExpr::create(cf->getValueAPF());
+    } else if (const ConstantVector *cv = dyn_cast<ConstantVector>(c)) {
+      SmallVector<Constant *, 4> elts;
+      cv->getVectorElements(elts);
+      ref<Expr> *kids = new ref<Expr>[elts.size()];
+      for (int i = 0, e = elts.size(); i < e; ++i)
+        kids[i] = evalConstant(elts[i]);
+      ref<Expr> res = ConcatExpr::createN(elts.size(), kids);
+      delete[] kids;
+      assert(isa<ConstantExpr>(res) && "result of constant vector build not a constant");
+      return cast<ConstantExpr>(res);
     } else if (const GlobalValue *gv = dyn_cast<GlobalValue>(c)) {
       return globalAddresses.find(gv)->second;
     } else if (isa<ConstantPointerNull>(c)) {
@@ -943,7 +953,7 @@ ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
     } else if (isa<UndefValue>(c)) {
       return ConstantExpr::create(0, Expr::getWidthForLLVMType(c->getType()));
     } else {
-      // Constant{AggregateZero,Array,Struct,Vector}
+      // Constant{AggregateZero,Array,Struct}
       assert(0 && "invalid argument to evalConstant()");
     }
   }
