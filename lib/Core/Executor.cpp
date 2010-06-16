@@ -2100,8 +2100,45 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ExtractElementInst *eei = cast<ExtractElementInst>(i);
     ref<Expr> vec = eval(ki, 0, state).value;
     ref<Expr> idx = eval(ki, 1, state).value;
+
+    assert(isa<ConstantExpr>(idx) && "symbolic index unsupported");
+    ConstantExpr *cIdx = cast<ConstantExpr>(idx);
+    uint64_t iIdx = cIdx->getZExtValue();
+
+    const llvm::VectorType *vt = eei->getVectorOperandType();
+    unsigned EltBits = Expr::getWidthForLLVMType(vt->getElementType());
+
+    ref<Expr> Result = ExtractExpr::create(vec, EltBits*iIdx, EltBits);
+
+    bindLocal(ki, state, Result);
+    break;
   }
-  case Instruction::InsertElement:
+  case Instruction::InsertElement: {
+    InsertElementInst *iei = cast<InsertElementInst>(i);
+    ref<Expr> vec = eval(ki, 0, state).value;
+    ref<Expr> newElt = eval(ki, 1, state).value;
+    ref<Expr> idx = eval(ki, 2, state).value;
+
+    assert(isa<ConstantExpr>(idx) && "symbolic index unsupported");
+    ConstantExpr *cIdx = cast<ConstantExpr>(idx);
+    uint64_t iIdx = cIdx->getZExtValue();
+
+    const llvm::VectorType *vt = iei->getType();
+    unsigned EltBits = Expr::getWidthForLLVMType(vt->getElementType());
+
+    unsigned ElemCount = vt->getNumElements();
+    ref<Expr> *elems = new ref<Expr>[vt->getNumElements()];
+    for (unsigned i = 0; i < ElemCount; ++i)
+      elems[ElemCount-i-1] = i == iIdx
+                             ? newElt
+                             : ExtractExpr::create(vec, EltBits*i, EltBits);
+
+    ref<Expr> Result = ConcatExpr::createN(ElemCount, elems);
+    delete[] elems;
+
+    bindLocal(ki, state, Result);
+    break;
+  }
   case Instruction::ShuffleVector:
     terminateStateOnError(state, "XXX vector instructions unhandled",
                           "xxx.err");
