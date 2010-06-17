@@ -1344,6 +1344,42 @@ static const fltSemantics *TypeToFloatSemantics(const Type *Ty) {
   return &APFloat::PPCDoubleDouble;
 }
 
+class SIMDOperation {
+public:
+  virtual ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) = 0;
+
+  ref<Expr> eval(const Type *t, ref<Expr> l, ref<Expr> r) {
+    if (const VectorType *vt = dyn_cast<VectorType>(t)) {
+      const Type *ElTy = vt->getElementType();
+      unsigned EltBits = Expr::getWidthForLLVMType(ElTy);
+   
+      unsigned ElemCount = vt->getNumElements();
+      ref<Expr> *elems = new ref<Expr>[vt->getNumElements()];
+      for (unsigned i = 0; i < ElemCount; ++i)
+        elems[i] = evalOne(ElTy,
+                           ExtractExpr::create(l, EltBits*(ElemCount-i-1), EltBits),
+                           ExtractExpr::create(r, EltBits*(ElemCount-i-1), EltBits));
+   
+      ref<Expr> Result = ConcatExpr::createN(ElemCount, elems);
+      delete[] elems;
+      return Result;
+    } else
+      return evalOne(t, l, r);
+  }
+};
+
+class FSIMDOperation : public SIMDOperation {
+public:
+  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE);
+  FExprCtor Ctor;
+
+  FSIMDOperation(FExprCtor Ctor) : Ctor(Ctor) {}
+
+  ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
+    return Ctor(l, r, t->isFP128Ty());
+  }
+};
+
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
   switch (i->getOpcode()) {
@@ -1974,35 +2010,35 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::FAdd: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FAddExpr::create(left, right, i->getType()->isFP128Ty()));
+    bindLocal(ki, state, FSIMDOperation(FAddExpr::create).eval(i->getType(), left, right));
     break;
   }
 
   case Instruction::FSub: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FSubExpr::create(left, right, i->getType()->isFP128Ty()));
+    bindLocal(ki, state, FSIMDOperation(FSubExpr::create).eval(i->getType(), left, right));
     break;
   }
 
   case Instruction::FMul: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FMulExpr::create(left, right, i->getType()->isFP128Ty()));
+    bindLocal(ki, state, FSIMDOperation(FMulExpr::create).eval(i->getType(), left, right));
     break;
   }
 
   case Instruction::FDiv: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FDivExpr::create(left, right, i->getType()->isFP128Ty()));
+    bindLocal(ki, state, FSIMDOperation(FDivExpr::create).eval(i->getType(), left, right));
     break;
   }
 
   case Instruction::FRem: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FRemExpr::create(left, right, i->getType()->isFP128Ty()));
+    bindLocal(ki, state, FSIMDOperation(FRemExpr::create).eval(i->getType(), left, right));
     break;
   }
 
