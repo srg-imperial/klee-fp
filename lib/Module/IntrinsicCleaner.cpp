@@ -89,6 +89,38 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
+      case Intrinsic::x86_sse_loadu_ps: {
+        Value *src = ii->getOperand(1);
+
+        PointerType *floatPtrTy = PointerType::get(Type::getFloatTy(getGlobalContext()), 0);
+        VectorType* floatVec4Ty = VectorType::get(Type::getFloatTy(getGlobalContext()), 4);
+
+        ConstantInt* ci0 = ConstantInt::get(getGlobalContext(), APInt(32, StringRef("0"), 10));
+        ConstantInt* ci1 = ConstantInt::get(getGlobalContext(), APInt(32, StringRef("1"), 10));
+        ConstantInt* ci2 = ConstantInt::get(getGlobalContext(), APInt(32, StringRef("2"), 10));
+        ConstantInt* ci3 = ConstantInt::get(getGlobalContext(), APInt(32, StringRef("3"), 10));
+        UndefValue* undefFloatVec = UndefValue::get(floatVec4Ty);
+
+        CastInst* p0 = new BitCastInst(src, floatPtrTy, "", ii);
+        LoadInst* f0 = new LoadInst(p0, "", false, ii);
+        GetElementPtrInst* p1 = GetElementPtrInst::Create(p0, ci1, "", ii);
+        LoadInst* f1 = new LoadInst(p1, "", false, ii);
+        GetElementPtrInst* p2 = GetElementPtrInst::Create(p0, ci2, "", ii);
+        LoadInst* f2 = new LoadInst(p2, "", false, ii);
+        GetElementPtrInst* p3 = GetElementPtrInst::Create(p0, ci3, "", ii);
+        LoadInst* f3 = new LoadInst(p3, "", false, ii);
+        InsertElementInst* v0 = InsertElementInst::Create(undefFloatVec, f0, ci0, "", ii);
+        InsertElementInst* v1 = InsertElementInst::Create(v0, f1, ci1, "", ii);
+        InsertElementInst* v2 = InsertElementInst::Create(v1, f2, ci2, "", ii);
+        InsertElementInst* v3 = InsertElementInst::Create(v2, f3, ci3, "", ii);
+
+        ii->replaceAllUsesWith(v3);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
       case Intrinsic::dbg_stoppoint: {
         // We can remove this stoppoint if the next instruction is
