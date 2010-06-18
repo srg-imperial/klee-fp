@@ -92,29 +92,28 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse_loadu_ps: {
         Value *src = ii->getOperand(1);
 
-        PointerType *floatPtrTy = PointerType::get(Type::getFloatTy(getGlobalContext()), 0);
         VectorType* floatVec4Ty = VectorType::get(Type::getFloatTy(getGlobalContext()), 4);
+        PointerType *floatVec4PtrTy = PointerType::get(floatVec4Ty, 0);
 
-        ConstantInt* ci0 = ConstantInt::get(getGlobalContext(), APInt(32, StringRef("0"), 10));
-        ConstantInt* ci1 = ConstantInt::get(getGlobalContext(), APInt(32, StringRef("1"), 10));
-        ConstantInt* ci2 = ConstantInt::get(getGlobalContext(), APInt(32, StringRef("2"), 10));
-        ConstantInt* ci3 = ConstantInt::get(getGlobalContext(), APInt(32, StringRef("3"), 10));
-        UndefValue* undefFloatVec = UndefValue::get(floatVec4Ty);
+        CastInst* pv = new BitCastInst(src, floatVec4PtrTy, "", ii);
+        LoadInst* v = new LoadInst(pv, "", false, ii);
 
-        CastInst* p0 = new BitCastInst(src, floatPtrTy, "", ii);
-        LoadInst* f0 = new LoadInst(p0, "", false, ii);
-        GetElementPtrInst* p1 = GetElementPtrInst::Create(p0, ci1, "", ii);
-        LoadInst* f1 = new LoadInst(p1, "", false, ii);
-        GetElementPtrInst* p2 = GetElementPtrInst::Create(p0, ci2, "", ii);
-        LoadInst* f2 = new LoadInst(p2, "", false, ii);
-        GetElementPtrInst* p3 = GetElementPtrInst::Create(p0, ci3, "", ii);
-        LoadInst* f3 = new LoadInst(p3, "", false, ii);
-        InsertElementInst* v0 = InsertElementInst::Create(undefFloatVec, f0, ci0, "", ii);
-        InsertElementInst* v1 = InsertElementInst::Create(v0, f1, ci1, "", ii);
-        InsertElementInst* v2 = InsertElementInst::Create(v1, f2, ci2, "", ii);
-        InsertElementInst* v3 = InsertElementInst::Create(v2, f3, ci3, "", ii);
+        ii->replaceAllUsesWith(v);
 
-        ii->replaceAllUsesWith(v3);
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
+      case Intrinsic::x86_sse_storeu_ps: {
+        Value *dst = ii->getOperand(1);
+        Value *src = ii->getOperand(2);
+
+        VectorType* floatVec4Ty = VectorType::get(Type::getFloatTy(getGlobalContext()), 4);
+        PointerType *floatVec4PtrTy = PointerType::get(floatVec4Ty, 0);
+
+        CastInst* pv = new BitCastInst(dst, floatVec4PtrTy, "", ii);
+        new StoreInst(src, pv, false, ii);
 
         ii->removeFromParent();
         delete ii;
