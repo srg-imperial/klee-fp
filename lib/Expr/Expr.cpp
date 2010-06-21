@@ -1121,10 +1121,19 @@ BCREATE(LShrExpr, LShr)
 BCREATE(AShrExpr, AShr)
 
 static ref<Expr> FAddExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
+  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l))
+    if (cl->getAPFloatValue(isIEEE).isZero())
+      return r;
+  if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))
+    if (cr->getAPFloatValue(isIEEE).isZero())
+      return l;
   return FAddExpr::alloc(l, r, isIEEE);
 }
 
 static ref<Expr> FSubExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
+  if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))
+    if (cr->getAPFloatValue(isIEEE).isZero())
+      return l;
   return FSubExpr::alloc(l, r, isIEEE);
 }
 
