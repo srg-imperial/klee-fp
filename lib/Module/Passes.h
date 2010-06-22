@@ -63,7 +63,7 @@ public:
                        bool LI=true)
     : llvm::ModulePass((intptr_t) &ID),
       TargetData(TD),
-      IL(new llvm::IntrinsicLowering(TD)),
+      IL(new llvm::IntrinsicLowering(TD, true)),
       LowerIntrinsics(LI) {}
   ~IntrinsicCleanerPass() { delete IL; } 
   
