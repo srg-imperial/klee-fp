@@ -120,6 +120,23 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
+      case Intrinsic::x86_sse2_cvtsd2si: {
+        const Type *i32 = Type::getInt32Ty(getGlobalContext());
+
+        Value *zero32 = ConstantInt::get(i32, 0);
+
+        Value *src = ii->getOperand(1);
+
+        ExtractElementInst *lowElem = ExtractElementInst::Create(src, zero32, "", ii);
+        FPToSIInst *conv = new FPToSIInst(lowElem, i32, "", ii);
+
+        ii->replaceAllUsesWith(conv);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
       case Intrinsic::dbg_stoppoint: {
         // We can remove this stoppoint if the next instruction is
