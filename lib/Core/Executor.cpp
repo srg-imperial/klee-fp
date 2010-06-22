@@ -951,7 +951,7 @@ ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
     } else if (isa<ConstantPointerNull>(c)) {
       return Expr::createPointer(0);
     } else if (isa<UndefValue>(c) || isa<ConstantAggregateZero>(c)) {
-      return ConstantExpr::create(0, Expr::getWidthForLLVMType(c->getType()));
+      return ConstantExpr::create(0, getWidthForLLVMType(c->getType()));
     } else {
       // Constant{Array,Struct}
       assert(0 && "invalid argument to evalConstant()");
@@ -1346,12 +1346,15 @@ static const fltSemantics *TypeToFloatSemantics(const Type *Ty) {
 
 class SIMDOperation {
 public:
+  const Executor *Exec;
+  SIMDOperation(const Executor *Exec) : Exec(Exec) {}
+
   virtual ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) = 0;
 
   ref<Expr> eval(const Type *t, ref<Expr> l, ref<Expr> r) {
     if (const VectorType *vt = dyn_cast<VectorType>(t)) {
       const Type *ElTy = vt->getElementType();
-      unsigned EltBits = Expr::getWidthForLLVMType(ElTy);
+      unsigned EltBits = Exec->getWidthForLLVMType(ElTy);
    
       unsigned ElemCount = vt->getNumElements();
       ref<Expr> *elems = new ref<Expr>[vt->getNumElements()];
@@ -1373,7 +1376,7 @@ public:
   typedef ref<Expr> (*FExprCtor)(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE);
   FExprCtor Ctor;
 
-  FSIMDOperation(FExprCtor Ctor) : Ctor(Ctor) {}
+  FSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
 
   ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, r, t->isFP128Ty());
@@ -1416,7 +1419,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         if (t != Type::getVoidTy(getGlobalContext())) {
           // may need to do coercion due to bitcasts
           Expr::Width from = result->getWidth();
-          Expr::Width to = Expr::getWidthForLLVMType(t);
+          Expr::Width to = getWidthForLLVMType(t);
             
           if (from != to) {
             CallSite cs = (isa<InvokeInst>(caller) ? CallSite(cast<InvokeInst>(caller)) : 
@@ -1608,7 +1611,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
           Expr::Width to, from = (*ai)->getWidth();
             
           if (i<fType->getNumParams()) {
-            to = Expr::getWidthForLLVMType(fType->getParamType(i));
+            to = getWidthForLLVMType(fType->getParamType(i));
 
             if (from != to) {
               // XXX need to check other param attrs ?
@@ -1965,35 +1968,35 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     CastInst *ci = cast<CastInst>(i);
     ref<Expr> result = ExtractExpr::create(eval(ki, 0, state).value,
                                            0,
-                                           Expr::getWidthForLLVMType(ci->getType()));
+                                           getWidthForLLVMType(ci->getType()));
     bindLocal(ki, state, result);
     break;
   }
   case Instruction::ZExt: {
     CastInst *ci = cast<CastInst>(i);
     ref<Expr> result = ZExtExpr::create(eval(ki, 0, state).value,
-                                        Expr::getWidthForLLVMType(ci->getType()));
+                                        getWidthForLLVMType(ci->getType()));
     bindLocal(ki, state, result);
     break;
   }
   case Instruction::SExt: {
     CastInst *ci = cast<CastInst>(i);
     ref<Expr> result = SExtExpr::create(eval(ki, 0, state).value,
-                                        Expr::getWidthForLLVMType(ci->getType()));
+                                        getWidthForLLVMType(ci->getType()));
     bindLocal(ki, state, result);
     break;
   }
 
   case Instruction::IntToPtr: {
     CastInst *ci = cast<CastInst>(i);
-    Expr::Width pType = Expr::getWidthForLLVMType(ci->getType());
+    Expr::Width pType = getWidthForLLVMType(ci->getType());
     ref<Expr> arg = eval(ki, 0, state).value;
     bindLocal(ki, state, ZExtExpr::create(arg, pType));
     break;
   } 
   case Instruction::PtrToInt: {
     CastInst *ci = cast<CastInst>(i);
-    Expr::Width iType = Expr::getWidthForLLVMType(ci->getType());
+    Expr::Width iType = getWidthForLLVMType(ci->getType());
     ref<Expr> arg = eval(ki, 0, state).value;
     bindLocal(ki, state, ZExtExpr::create(arg, iType));
     break;
@@ -2010,35 +2013,35 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::FAdd: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FSIMDOperation(FAddExpr::create).eval(i->getType(), left, right));
+    bindLocal(ki, state, FSIMDOperation(this, FAddExpr::create).eval(i->getType(), left, right));
     break;
   }
 
   case Instruction::FSub: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FSIMDOperation(FSubExpr::create).eval(i->getType(), left, right));
+    bindLocal(ki, state, FSIMDOperation(this, FSubExpr::create).eval(i->getType(), left, right));
     break;
   }
 
   case Instruction::FMul: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FSIMDOperation(FMulExpr::create).eval(i->getType(), left, right));
+    bindLocal(ki, state, FSIMDOperation(this, FMulExpr::create).eval(i->getType(), left, right));
     break;
   }
 
   case Instruction::FDiv: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FSIMDOperation(FDivExpr::create).eval(i->getType(), left, right));
+    bindLocal(ki, state, FSIMDOperation(this, FDivExpr::create).eval(i->getType(), left, right));
     break;
   }
 
   case Instruction::FRem: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FSIMDOperation(FRemExpr::create).eval(i->getType(), left, right));
+    bindLocal(ki, state, FSIMDOperation(this, FRemExpr::create).eval(i->getType(), left, right));
     break;
   }
 
@@ -2057,7 +2060,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::FPToUI:
   case Instruction::FPToSI: {
-    Expr::Width resultType = Expr::getWidthForLLVMType(i->getType());
+    Expr::Width resultType = getWidthForLLVMType(i->getType());
     ref<ConstantExpr> arg (cast<ConstantExpr>(eval(ki, 0, state).value));
     uint64_t bits[2];
     bool isExact;
@@ -2142,7 +2145,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     uint64_t iIdx = cIdx->getZExtValue();
 
     const llvm::VectorType *vt = eei->getVectorOperandType();
-    unsigned EltBits = Expr::getWidthForLLVMType(vt->getElementType());
+    unsigned EltBits = getWidthForLLVMType(vt->getElementType());
 
     ref<Expr> Result = ExtractExpr::create(vec, EltBits*iIdx, EltBits);
 
@@ -2160,7 +2163,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     uint64_t iIdx = cIdx->getZExtValue();
 
     const llvm::VectorType *vt = iei->getType();
-    unsigned EltBits = Expr::getWidthForLLVMType(vt->getElementType());
+    unsigned EltBits = getWidthForLLVMType(vt->getElementType());
 
     unsigned ElemCount = vt->getNumElements();
     ref<Expr> *elems = new ref<Expr>[vt->getNumElements()];
@@ -2181,7 +2184,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> vec1 = eval(ki, 0, state).value;
     ref<Expr> vec2 = eval(ki, 1, state).value;
     const llvm::VectorType *vt = svi->getType();
-    unsigned EltBits = Expr::getWidthForLLVMType(vt->getElementType());
+    unsigned EltBits = getWidthForLLVMType(vt->getElementType());
 
     unsigned ElemCount = vt->getNumElements();
     ref<Expr> *elems = new ref<Expr>[vt->getNumElements()];
@@ -2648,7 +2651,7 @@ void Executor::callExternalFunction(ExecutionState &state,
   const Type *resultType = target->inst->getType();
   if (resultType != Type::getVoidTy(getGlobalContext())) {
     ref<Expr> e = ConstantExpr::fromMemory((void*) args, 
-                                           Expr::getWidthForLLVMType(resultType));
+                                           getWidthForLLVMType(resultType));
     bindLocal(target, state, e);
   }
 }
@@ -2877,7 +2880,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                                       ref<Expr> value /* undef if read */,
                                       KInstruction *target /* undef if write */) {
   Expr::Width type = (isWrite ? value->getWidth() : 
-                     Expr::getWidthForLLVMType(target->inst->getType()));
+                     getWidthForLLVMType(target->inst->getType()));
   unsigned bytes = Expr::getMinBytesForWidth(type);
 
   if (SimplifySymIndices) {
@@ -3284,6 +3287,10 @@ void Executor::doImpliedValueConcretization(ExecutionState &state,
       }
     }
   }
+}
+
+Expr::Width Executor::getWidthForLLVMType(const llvm::Type *type) const {
+  return kmodule->targetData->getTypeSizeInBits(type);
 }
 
 ///
