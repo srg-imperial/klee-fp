@@ -134,6 +134,9 @@ public:
     // Unary NaN check
     FOrd1,
 
+    // Square root
+    FSqrt,
+
     // All subsequent kinds are binary.
 
     // Arithmetic
@@ -523,6 +526,8 @@ public:
 
   typedef ref<ConstantExpr> F2FConvertOp(const llvm::fltSemantics *sem, bool isIEEE);
   F2FConvertOp FPExt, FPTrunc;
+
+  ref<ConstantExpr> FSqrt(bool isIEEE);
 private:
   ref<ConstantExpr> IToFP(const llvm::fltSemantics *sem, bool isUnsigned);
 };
@@ -1205,6 +1210,40 @@ public:
     return E->getKind() == Expr::FOrd1;
   }
   static bool classof(const FOrd1Expr *) { return true; }
+};
+
+class FSqrtExpr : public NonConstantExpr {
+public:
+  ref<Expr> src;
+  bool IsIEEE:1;
+
+public:
+  FSqrtExpr(const ref<Expr> &src, bool IsIEEE) : src(src), IsIEEE(IsIEEE) {}
+
+  bool isIEEE() const { return IsIEEE; }
+
+  unsigned getWidth() const { return src->getWidth(); }
+  FPCategories getCategories(bool isIEEE) const;
+
+  Kind getKind() const { return FSqrt; }
+  static ref<Expr> create(const ref<Expr> &e, bool isIEEE);
+  static ref<Expr> alloc(const ref<Expr> &e, bool isIEEE) {
+    ref<Expr> r(new FSqrtExpr(e, isIEEE));
+    r->computeHash();
+    return r;
+  }
+
+  unsigned getNumKids() const { return 1; }
+  ref<Expr> getKid(unsigned i) const { return (i==0) ? src : 0; }
+  
+  virtual ref<Expr> rebuild(ref<Expr> kids[]) const {
+    return create(kids[0], IsIEEE);
+  }
+
+  static bool classof(const Expr *E) {
+    return E->getKind() == Expr::FSqrt;
+  }
+  static bool classof(const FSqrtExpr *) { return true; }
 };
 
 // Arithmetic/Bit Exprs
