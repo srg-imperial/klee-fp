@@ -611,6 +611,18 @@ ref<ConstantExpr> ConstantExpr::FOrd(bool isIEEE) {
   return ConstantExpr::create(!getAPFloatValue(isIEEE).isNaN(), Expr::Bool);
 }
 
+ref<ConstantExpr> ConstantExpr::FSqrt(bool isIEEE) {
+  if (getWidth() == 32) {
+    float f = getAPFloatValue(isIEEE).convertToFloat();
+    return ConstantExpr::create(APFloat(sqrtf(f)));
+  } else if (getWidth() == 64) {
+    double d = getAPFloatValue(isIEEE).convertToDouble();
+    return ConstantExpr::create(APFloat(sqrt(d)));
+  } else {
+    assert(0 && "Unknown bitwidth for sqrt");
+  }
+}
+
 /***/
 
 ref<Expr>  NotOptimizedExpr::create(ref<Expr> src) {
@@ -1686,6 +1698,22 @@ ref<Expr> FOrd1Expr::create(const ref<Expr> &e, bool isIEEE) {
     return ConstantExpr::create(1, Expr::Bool);
 
   return FOrd1Expr::alloc(e, isIEEE);
+}
+
+ref<Expr> FSqrtExpr::create(const ref<Expr> &e, bool isIEEE) {
+  if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
+    return ce->FSqrt(isIEEE);
+
+  return FSqrtExpr::alloc(e, isIEEE);
+}
+
+Expr::FPCategories FSqrtExpr::getCategories(bool isIEEE) const {
+  FPCategories cat = src->getCategories(isIEEE);
+
+  if (cat & ~(fcMaybeZero | fcMaybePNorm))
+    return fcAll;
+  else
+    return cat;
 }
 
 ref<Expr> FOrdExpr::create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
