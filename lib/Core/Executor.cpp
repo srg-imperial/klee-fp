@@ -294,6 +294,66 @@ Solver *constructSolverChain(STPSolver *stpSolver,
   return solver;
 }
 
+namespace {
+
+class SIMDOperation {
+public:
+  const Executor *Exec;
+  SIMDOperation(const Executor *Exec) : Exec(Exec) {}
+
+  virtual ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) = 0;
+
+  ref<Expr> eval(const Type *t, ref<Expr> src) {
+    unsigned Bits = Exec->getWidthForLLVMType(t);
+    return eval(t, src, klee::ConstantExpr::create(0, Bits));
+  }
+
+  ref<Expr> eval(const Type *t, ref<Expr> l, ref<Expr> r) {
+    if (const VectorType *vt = dyn_cast<VectorType>(t)) {
+      const Type *ElTy = vt->getElementType();
+      unsigned EltBits = Exec->getWidthForLLVMType(ElTy);
+   
+      unsigned ElemCount = vt->getNumElements();
+      ref<Expr> *elems = new ref<Expr>[vt->getNumElements()];
+      for (unsigned i = 0; i < ElemCount; ++i)
+        elems[i] = evalOne(ElTy,
+                           ExtractExpr::create(l, EltBits*(ElemCount-i-1), EltBits),
+                           ExtractExpr::create(r, EltBits*(ElemCount-i-1), EltBits));
+   
+      ref<Expr> Result = ConcatExpr::createN(ElemCount, elems);
+      delete[] elems;
+      return Result;
+    } else
+      return evalOne(t, l, r);
+  }
+};
+
+class FSIMDOperation : public SIMDOperation {
+public:
+  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE);
+  FExprCtor Ctor;
+
+  FSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+
+  ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
+    return Ctor(l, r, t->isFP128Ty());
+  }
+};
+
+class FUnSIMDOperation : public SIMDOperation {
+public:
+  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &src, bool isIEEE);
+  FExprCtor Ctor;
+
+  FUnSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+
+  ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
+    return Ctor(l, t->isFP128Ty());
+  }
+};
+
+}
+
 Executor::Executor(const InterpreterOptions &opts,
                    InterpreterHandler *ih) 
   : Interpreter(opts),
@@ -1111,6 +1171,11 @@ void Executor::executeCall(ExecutionState &state,
       callExternalFunction(state, ki, f, arguments);
       break;
         
+    case Intrinsic::x86_sse_sqrt_ps:
+    case Intrinsic::sqrt: {
+      bindLocal(ki, state, FUnSIMDOperation(this, FSqrtExpr::create).eval(i->getType(), arguments[0]));
+      break;
+    }
       // va_arg is handled by caller and intrinsic lowering, see comment for
       // ExecutionState::varargs
     case Intrinsic::vastart:  {
@@ -1343,45 +1408,6 @@ static const fltSemantics *TypeToFloatSemantics(const Type *Ty) {
   assert(Ty == Type::getPPC_FP128Ty(Ty->getContext()) && "Unknown FP format");
   return &APFloat::PPCDoubleDouble;
 }
-
-class SIMDOperation {
-public:
-  const Executor *Exec;
-  SIMDOperation(const Executor *Exec) : Exec(Exec) {}
-
-  virtual ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) = 0;
-
-  ref<Expr> eval(const Type *t, ref<Expr> l, ref<Expr> r) {
-    if (const VectorType *vt = dyn_cast<VectorType>(t)) {
-      const Type *ElTy = vt->getElementType();
-      unsigned EltBits = Exec->getWidthForLLVMType(ElTy);
-   
-      unsigned ElemCount = vt->getNumElements();
-      ref<Expr> *elems = new ref<Expr>[vt->getNumElements()];
-      for (unsigned i = 0; i < ElemCount; ++i)
-        elems[i] = evalOne(ElTy,
-                           ExtractExpr::create(l, EltBits*(ElemCount-i-1), EltBits),
-                           ExtractExpr::create(r, EltBits*(ElemCount-i-1), EltBits));
-   
-      ref<Expr> Result = ConcatExpr::createN(ElemCount, elems);
-      delete[] elems;
-      return Result;
-    } else
-      return evalOne(t, l, r);
-  }
-};
-
-class FSIMDOperation : public SIMDOperation {
-public:
-  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE);
-  FExprCtor Ctor;
-
-  FSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
-
-  ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
-    return Ctor(l, r, t->isFP128Ty());
-  }
-};
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
