@@ -181,7 +181,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
                     
       default:
         if (LowerIntrinsics)
-          IL->LowerIntrinsicCall(ii, true);
+          IL->LowerIntrinsicCall(ii);
         dirty = true;
         break;
       }
