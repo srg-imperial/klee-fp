@@ -1,0 +1,5 @@
+LLVM Patches
+============
+
+This version of KLEE may require patches to be applied to LLVM.  Please
+see the patches/ directory.
