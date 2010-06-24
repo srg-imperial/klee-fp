@@ -118,6 +118,7 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(UIToFP);
     X(SIToFP);
     X(FOrd1);
+    X(FSqrt);
     X(Add);
     X(Sub);
     X(Mul);
