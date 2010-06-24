@@ -1,0 +1,77 @@
+--- llvm-2.7.orig/lib/CodeGen/IntrinsicLowering.cpp	2010-02-15 16:12:20.000000000 +0000
++++ llvm-2.7/lib/CodeGen/IntrinsicLowering.cpp	2010-06-24 18:27:52.103199878 +0100
+@@ -73,14 +73,16 @@
+     ParamTys.push_back((*I)->getType());
+   Constant* FCache = M->getOrInsertFunction(NewFn,
+                                   FunctionType::get(RetTy, ParamTys, false));
+-
+-  IRBuilder<> Builder(CI->getParent(), CI);
+-  SmallVector<Value *, 8> Args(ArgBegin, ArgEnd);
+-  CallInst *NewCI = Builder.CreateCall(FCache, Args.begin(), Args.end());
+-  NewCI->setName(CI->getName());
+-  if (!CI->use_empty())
+-    CI->replaceAllUsesWith(NewCI);
+-  return NewCI;
++  if (FCache != CI->getParent()->getParent()) { // only if the function is not defined in terms of the intrinsic
++    IRBuilder<> Builder(CI->getParent(), CI);
++    SmallVector<Value *, 8> Args(ArgBegin, ArgEnd);
++    CallInst *NewCI = Builder.CreateCall(FCache, Args.begin(), Args.end());
++    NewCI->setName(CI->getName());
++    if (!CI->use_empty())
++      CI->replaceAllUsesWith(NewCI);
++    return NewCI;
++  } else
++    return CI;
+ }
+ 
+ void IntrinsicLowering::AddPrototypes(Module &M) {
+@@ -305,23 +307,23 @@
+   return LowerCTPOP(Context, V, IP);
+ }
+ 
+-static void ReplaceFPIntrinsicWithCall(CallInst *CI, const char *Fname,
++static CallInst *ReplaceFPIntrinsicWithCall(CallInst *CI, const char *Fname,
+                                        const char *Dname,
+                                        const char *LDname) {
+   switch (CI->getOperand(1)->getType()->getTypeID()) {
+   default: llvm_unreachable("Invalid type in intrinsic");
+   case Type::FloatTyID:
+-    ReplaceCallWith(Fname, CI, CI->op_begin() + 1, CI->op_end(),
++    return ReplaceCallWith(Fname, CI, CI->op_begin() + 1, CI->op_end(),
+                   Type::getFloatTy(CI->getContext()));
+     break;
+   case Type::DoubleTyID:
+-    ReplaceCallWith(Dname, CI, CI->op_begin() + 1, CI->op_end(),
++    return ReplaceCallWith(Dname, CI, CI->op_begin() + 1, CI->op_end(),
+                   Type::getDoubleTy(CI->getContext()));
+     break;
+   case Type::X86_FP80TyID:
+   case Type::FP128TyID:
+   case Type::PPC_FP128TyID:
+-    ReplaceCallWith(LDname, CI, CI->op_begin() + 1, CI->op_end(),
++    return ReplaceCallWith(LDname, CI, CI->op_begin() + 1, CI->op_end(),
+                   CI->getOperand(1)->getType());
+     break;
+   }
+@@ -339,8 +341,11 @@
+     llvm_report_error("Cannot lower a call to a non-intrinsic function '"+
+                       Callee->getName() + "'!");
+   default:
++    return;
++#if 0
+     llvm_report_error("Code generator does not support intrinsic function '"+
+                       Callee->getName()+"'!");
++#endif
+ 
+     // The setjmp/longjmp intrinsics should only exist in the code if it was
+     // never optimized (ie, right out of the CFE), or if it has been hacked on
+@@ -479,7 +484,8 @@
+     break;
+   }
+   case Intrinsic::sqrt: {
+-    ReplaceFPIntrinsicWithCall(CI, "sqrtf", "sqrt", "sqrtl");
++    if (CI == ReplaceFPIntrinsicWithCall(CI, "sqrtf", "sqrt", "sqrtl"))
++      return;
+     break;
+   }
+   case Intrinsic::log: {
