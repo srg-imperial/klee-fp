@@ -87,7 +87,6 @@ static void AddStandardCompilePasses(PassManager &PM) {
   PM.add(createVerifierPass());                  // Verify that input is correct
 
   addPass(PM, createLowerSetJmpPass());          // Lower llvm.setjmp/.longjmp
-  addPass(PM, createLowerAtomicPass());          // Lower llvm.atomic.*
 
   // If the -strip-debug command line option was specified, do it.
   if (StripDebug)
