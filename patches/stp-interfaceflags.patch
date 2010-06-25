@@ -1,0 +1,76 @@
+diff --git a/src/c_interface/c_interface.cpp b/src/c_interface/c_interface.cpp
+index 78f7d9d..38cb70b 100644
+--- a/src/c_interface/c_interface.cpp
++++ b/src/c_interface/c_interface.cpp
+@@ -31,7 +31,7 @@ BEEV::ASTVec *decls = NULL;
+ // persist holds a copy of ASTNodes so that the reference count of
+ // objects we have pointers to doesn't hit zero.
+ vector<BEEV::ASTNode*> persist;
+-bool cinterface_exprdelete_on_flag = false;
++bool cinterface_exprdelete_on_flag = true;
+ 
+ // GLOBAL FUNCTION: parser
+ extern int cvcparse(void*);
+@@ -148,6 +148,17 @@ void vc_setFlags(VC vc, char c, int param_value) {
+   }
+ }
+ 
++void vc_setInterfaceFlags(VC vc, enum ifaceflag_t f, int param_value) {
++  switch (f) {
++  case EXPRDELETE:
++    cinterface_exprdelete_on_flag = param_value != 0;
++    break;
++  default:
++    BEEV::FatalError("C_interface: vc_setInterfaceFlags: Unrecognized flag\n");
++    break;
++  }
++}
++
+ //Create a validity Checker. This is the global STPMgr
+ VC vc_createValidityChecker(void) {
+   CONSTANTBV::ErrCode c = CONSTANTBV::BitVector_Boot();
+@@ -402,8 +413,10 @@ void vc_printQuery(VC vc){
+ 
+ nodestar persistNode(node n)
+ {
+-  persist.push_back(new node(n));
+-  return  persist.back();
++  nodestar np = new node(n);
++  if (cinterface_exprdelete_on_flag)
++    persist.push_back(np);
++  return np;
+ }
+ 
+ 
+@@ -1887,9 +1900,11 @@ void vc_Destroy(VC vc) {
+   //     delete aaa;
+   //   }
+ 
+-  for (vector<nodestar>::iterator it = persist.begin(); it!= persist.end();it++)
+-    delete *it;
+-  persist.clear();
++  if (cinterface_exprdelete_on_flag) {
++    for (vector<nodestar>::iterator it = persist.begin(); it!= persist.end();it++)
++      delete *it;
++    persist.clear();
++  }
+ 
+   delete decls;
+   delete (stpstar)vc;
+diff --git a/src/c_interface/c_interface.h b/src/c_interface/c_interface.h
+index 8e280e5..1b2937d 100644
+--- a/src/c_interface/c_interface.h
++++ b/src/c_interface/c_interface.h
+@@ -50,6 +50,12 @@ extern "C" {
+   // v  : print nodes
+   void vc_setFlags(VC vc, char c, int num_absrefine _CVCL_DEFAULT_ARG(0));
+ 
++  //! Interface-only flags.
++  enum ifaceflag_t {
++    EXPRDELETE
++  };
++  void vc_setInterfaceFlags(VC vc, enum ifaceflag_t f, int param_value);
++
+   //! Flags can be NULL
+   VC vc_createValidityChecker(void);
+ 
