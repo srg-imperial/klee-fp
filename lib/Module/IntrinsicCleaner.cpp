@@ -89,13 +89,19 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
-      case Intrinsic::x86_sse_loadu_ps: {
+      case Intrinsic::x86_sse_loadu_ps:
+      case Intrinsic::x86_sse2_loadu_dq: {
         Value *src = ii->getOperand(1);
 
-        VectorType* floatVec4Ty = VectorType::get(Type::getFloatTy(getGlobalContext()), 4);
-        PointerType *floatVec4PtrTy = PointerType::get(floatVec4Ty, 0);
+        VectorType* vecTy = NULL;
+        switch (ii->getIntrinsicID()) {
+          case Intrinsic::x86_sse_loadu_ps: vecTy = VectorType::get(Type::getFloatTy(getGlobalContext()), 4); break;
+          case Intrinsic::x86_sse2_loadu_dq: vecTy = VectorType::get(Type::getInt8Ty(getGlobalContext()), 16); break;
+          default: assert(0 && "unrecognised vector load");
+        }
+        PointerType *vecPtrTy = PointerType::get(vecTy, 0);
 
-        CastInst* pv = new BitCastInst(src, floatVec4PtrTy, "", ii);
+        CastInst* pv = new BitCastInst(src, vecPtrTy, "", ii);
         LoadInst* v = new LoadInst(pv, "", false, ii);
 
         ii->replaceAllUsesWith(v);
