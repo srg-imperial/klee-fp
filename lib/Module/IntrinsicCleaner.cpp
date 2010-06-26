@@ -23,6 +23,7 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Type.h"
+#include "llvm/Support/IRBuilder.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Target/TargetData.h"
@@ -50,6 +51,8 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
     // increment now since LowerIntrinsic deletion makes iterator invalid.
     ++i;  
     if(ii) {
+      IRBuilder<> builder(ii->getParent(), ii);
+
       switch (ii->getIntrinsicID()) {
       case Intrinsic::vastart:
       case Intrinsic::vaend:
@@ -120,6 +123,38 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
 
         CastInst* pv = new BitCastInst(dst, floatVec4PtrTy, "", ii);
         new StoreInst(src, pv, false, ii);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
+      case Intrinsic::x86_sse2_psll_dq_bs:
+      case Intrinsic::x86_sse2_psrl_dq_bs: {
+        Value *src = ii->getOperand(1);
+        Value *count = ii->getOperand(2);
+
+        const Type *i128 = IntegerType::get(getGlobalContext(), 128);
+
+        Value *srci = builder.CreateBitCast(src, i128);
+        Value *count128 = builder.CreateZExt(count, i128);
+        Value *countbits = builder.CreateShl(count128, 3);
+        Value *resi = ii->getIntrinsicID() == Intrinsic::x86_sse2_psll_dq_bs ? builder.CreateShl(srci, countbits) : builder.CreateLShr(srci, countbits);
+        Value *res = builder.CreateBitCast(resi, src->getType());
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
+      case Intrinsic::x86_sse2_cvtdq2ps: {
+        Value *src = ii->getOperand(1);
+
+        Value *res = builder.CreateSIToFP(src, ii->getType());
+
+        ii->replaceAllUsesWith(res);
 
         ii->removeFromParent();
         delete ii;
