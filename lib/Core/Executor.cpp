@@ -294,6 +294,20 @@ Solver *constructSolverChain(STPSolver *stpSolver,
   return solver;
 }
 
+static const fltSemantics *TypeToFloatSemantics(const Type *Ty) {
+  if (Ty == Type::getFloatTy(Ty->getContext()))
+    return &APFloat::IEEEsingle;
+  if (Ty == Type::getDoubleTy(Ty->getContext()))
+    return &APFloat::IEEEdouble;
+  if (Ty == Type::getX86_FP80Ty(Ty->getContext()))
+    return &APFloat::x87DoubleExtended;
+  else if (Ty == Type::getFP128Ty(Ty->getContext()))
+    return &APFloat::IEEEquad;
+  
+  assert(Ty == Type::getPPC_FP128Ty(Ty->getContext()) && "Unknown FP format");
+  return &APFloat::PPCDoubleDouble;
+}
+
 namespace {
 
 class SIMDOperation {
@@ -349,6 +363,18 @@ public:
 
   ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, t->isFP128Ty());
+  }
+};
+
+class I2FSIMDOperation : public SIMDOperation {
+public:
+  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &src, const fltSemantics *sem);
+  FExprCtor Ctor;
+
+  I2FSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+
+  ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
+    return Ctor(l, TypeToFloatSemantics(t));
   }
 };
 
@@ -1395,20 +1421,6 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
   }
 }
 
-static const fltSemantics *TypeToFloatSemantics(const Type *Ty) {
-  if (Ty == Type::getFloatTy(Ty->getContext()))
-    return &APFloat::IEEEsingle;
-  if (Ty == Type::getDoubleTy(Ty->getContext()))
-    return &APFloat::IEEEdouble;
-  if (Ty == Type::getX86_FP80Ty(Ty->getContext()))
-    return &APFloat::x87DoubleExtended;
-  else if (Ty == Type::getFP128Ty(Ty->getContext()))
-    return &APFloat::IEEEquad;
-  
-  assert(Ty == Type::getPPC_FP128Ty(Ty->getContext()) && "Unknown FP format");
-  return &APFloat::PPCDoubleDouble;
-}
-
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
   switch (i->getOpcode()) {
@@ -2104,11 +2116,10 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::SIToFP: {
     ref<Expr> arg = eval(ki, 0, state).value;
     const llvm::Type *type = i->getType();
-    const fltSemantics *sem = TypeToFloatSemantics(type);
-    bindLocal(ki, state,
+    bindLocal(ki, state, I2FSIMDOperation(this,
        (i->getOpcode() == Instruction::UIToFP
       ? UIToFPExpr::create
-      : SIToFPExpr::create)(arg, sem));
+      : SIToFPExpr::create)).eval(type, arg));
     break;
   }
 
