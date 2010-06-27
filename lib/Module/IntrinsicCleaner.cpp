@@ -161,6 +161,18 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
+      case Intrinsic::x86_sse2_cvtps2dq: {
+        Value *src = ii->getOperand(1);
+
+        Value *res = builder.CreateFPToSI(src, ii->getType());
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
       case Intrinsic::x86_sse2_cvtsd2si: {
         const Type *i32 = Type::getInt32Ty(getGlobalContext());
 
