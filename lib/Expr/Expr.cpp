@@ -113,10 +113,12 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(Extract);
     X(ZExt);
     X(SExt);
-    X(FPExt);
-    X(FPTrunc);
     X(UIToFP);
     X(SIToFP);
+    X(FPExt);
+    X(FPTrunc);
+    X(FPToUI);
+    X(FPToSI);
     X(FOrd1);
     X(FSqrt);
     X(Add);
@@ -622,6 +624,26 @@ ref<ConstantExpr> ConstantExpr::FSqrt(bool isIEEE) {
   } else {
     assert(0 && "Unknown bitwidth for sqrt");
   }
+}
+
+ref<ConstantExpr> ConstantExpr::FPToUI(Width W, bool isIEEE) {
+  return FPToI(W, isIEEE, false);
+}
+
+ref<ConstantExpr> ConstantExpr::FPToSI(Width W, bool isIEEE) {
+  return FPToI(W, isIEEE, true);
+}
+
+ref<ConstantExpr> ConstantExpr::FPToI(Width W, bool isIEEE, bool isSigned) {
+    uint64_t bits[2];
+    bool isExact;
+    getAPFloatValue()
+        .convertToInteger(bits,
+	                  W,
+                          isSigned,
+                          APFloat::rmTowardZero, 
+                          &isExact);
+    return ConstantExpr::alloc(APInt(W, 2, bits));
 }
 
 /***/
@@ -1715,6 +1737,20 @@ Expr::FPCategories FSqrtExpr::getCategories(bool isIEEE) const {
     return fcAll;
   else
     return cat;
+}
+
+ref<Expr> FPToUIExpr::create(const ref<Expr> &e, Width W, bool isIEEE) {
+  if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
+    return ce->FPToUI(W, isIEEE);
+
+  return FPToUIExpr::alloc(e, W, isIEEE);
+}
+
+ref<Expr> FPToSIExpr::create(const ref<Expr> &e, Width W, bool isIEEE) {
+  if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
+    return ce->FPToSI(W, isIEEE);
+
+  return FPToSIExpr::alloc(e, W, isIEEE);
 }
 
 ref<Expr> FOrdExpr::create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {

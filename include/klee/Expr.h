@@ -131,6 +131,10 @@ public:
     FPExt,
     FPTrunc,
 
+    // F->I Conversion
+    FPToUI,
+    FPToSI,
+
     // Unary NaN check
     FOrd1,
 
@@ -200,6 +204,8 @@ public:
     FConvertKindLast=FPTrunc,
     F2FConvertKindFirst=FPExt,
     F2FConvertKindLast=FPTrunc,
+    F2IConvertKindFirst=FPToUI,
+    F2IConvertKindLast=FPToSI,
     BinaryKindFirst=Add,
     BinaryKindLast=Sge,
     FBinaryKindFirst=FAdd,
@@ -514,8 +520,11 @@ public:
   ref<ConstantExpr> Neg();
   ref<ConstantExpr> Not();
 
-  typedef ref<ConstantExpr> FConvertOp(const llvm::fltSemantics *sem);
-  FConvertOp UIToFP, SIToFP;
+  typedef ref<ConstantExpr> I2FConvertOp(const llvm::fltSemantics *sem);
+  I2FConvertOp UIToFP, SIToFP;
+
+  typedef ref<ConstantExpr> F2IConvertOp(Width W, bool isIEEE);
+  F2IConvertOp FPToUI, FPToSI;
 
   typedef ref<ConstantExpr> FConstBinOp(const ref<ConstantExpr> &RHS, bool isIEEE);
   FConstBinOp FAdd, FSub, FMul, FDiv, FRem;
@@ -530,6 +539,7 @@ public:
   ref<ConstantExpr> FSqrt(bool isIEEE);
 private:
   ref<ConstantExpr> IToFP(const llvm::fltSemantics *sem, bool isSigned);
+  ref<ConstantExpr> FPToI(Width W, bool isIEEE, bool isSigned);
 };
 
 // Utility classes
@@ -1138,6 +1148,36 @@ public:
   static bool classof(const F2FConvertExpr *) { return true; }
 };
 
+class F2IConvertExpr : public NonConstantExpr {
+public:
+  ref<Expr> src;
+  Width width;
+  bool FromIsIEEE:1;
+
+public:
+  F2IConvertExpr(const ref<Expr> &src, Width width, bool FromIsIEEE)
+    : src(src), width(width), FromIsIEEE(FromIsIEEE) {}
+
+  unsigned getWidth() const { return width; }
+  bool fromIsIEEE() const { return FromIsIEEE; }
+
+  unsigned getNumKids() const { return 1; }
+  ref<Expr> getKid(unsigned i) const { return (i==0) ? src : 0; }
+  
+  int compareContents(const Expr &b) const {
+    const F2IConvertExpr &eb = static_cast<const F2IConvertExpr&>(b);
+    if (width != eb.width) return width < eb.width ? -1 : 1;
+    if (FromIsIEEE != eb.FromIsIEEE) return FromIsIEEE < eb.FromIsIEEE ? -1 : 1;
+    return 0;
+  }
+
+  static bool classof(const Expr *E) {
+    Kind k = E->getKind();
+    return Expr::F2IConvertKindFirst <= k && k <= Expr::F2IConvertKindLast;
+  }
+  static bool classof(const F2IConvertExpr *) { return true; }
+};
+
 #define EXPR_CLASS(_class_kind, _base_class, _num_kids, _expr_decl, _expr_ref, _kid_ref)              \
 class _class_kind ## Expr : public _base_class {                     \
 public:                                                              \
@@ -1173,11 +1213,18 @@ public:                                                              \
     FPCategories getCategories(bool isIEEE) const; \
  };
 
+#define F2I_CONVERT_EXPR_CLASS(_class_kind) \
+    EXPR_CLASS(_class_kind, F2IConvertExpr, 1, (const ref<Expr> &src, Width width, bool fromIsIEEE), (src, width, fromIsIEEE), (kids[0], width, FromIsIEEE)) \
+ };
+
 FLOAT_CONVERT_EXPR_CLASS(UIToFP)
 FLOAT_CONVERT_EXPR_CLASS(SIToFP)
 
 F2F_CONVERT_EXPR_CLASS(FPExt)
 F2F_CONVERT_EXPR_CLASS(FPTrunc)
+
+F2I_CONVERT_EXPR_CLASS(FPToUI)
+F2I_CONVERT_EXPR_CLASS(FPToSI)
 
 class FOrd1Expr : public NonConstantExpr {
 public:
