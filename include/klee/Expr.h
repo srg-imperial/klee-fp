@@ -529,7 +529,7 @@ public:
 
   ref<ConstantExpr> FSqrt(bool isIEEE);
 private:
-  ref<ConstantExpr> IToFP(const llvm::fltSemantics *sem, bool isUnsigned);
+  ref<ConstantExpr> IToFP(const llvm::fltSemantics *sem, bool isSigned);
 };
 
 // Utility classes

@@ -536,10 +536,10 @@ ref<ConstantExpr> ConstantExpr::SIToFP(const fltSemantics *sem) {
   return IToFP(sem, true);
 }
 
-ref<ConstantExpr> ConstantExpr::IToFP(const fltSemantics *sem, bool isUnsigned) {
+ref<ConstantExpr> ConstantExpr::IToFP(const fltSemantics *sem, bool isSigned) {
   APFloat res(*sem, 0);
   res.convertFromAPInt(value,
-                       isUnsigned,
+                       isSigned,
                        APFloat::rmTowardZero);
   return ConstantExpr::create(res);
 }
