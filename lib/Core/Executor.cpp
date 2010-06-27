@@ -355,6 +355,18 @@ public:
   }
 };
 
+class ISIMDOperation : public SIMDOperation {
+public:
+  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &l, const ref<Expr> &r);
+  FExprCtor Ctor;
+
+  ISIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+
+  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
+    return Ctor(l, r);
+  }
+};
+
 class FSIMDOperation : public SIMDOperation {
 public:
   typedef ref<Expr> (*FExprCtor)(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE);
@@ -1775,7 +1787,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::Add: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    bindLocal(ki, state, AddExpr::create(left, right));
+    bindLocal(ki, state, ISIMDOperation(this, AddExpr::create).eval(i->getType(), left, right));
     break;
   }
 
