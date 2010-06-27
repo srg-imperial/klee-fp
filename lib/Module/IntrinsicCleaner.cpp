@@ -42,6 +42,23 @@ bool IntrinsicCleanerPass::runOnModule(Module &M) {
   return dirty;
 }
 
+static Value *CreateSaturatedValue(IRBuilder<> &builder, bool isSigned, const IntegerType *tt, Value *val) {
+  assert(isa<IntegerType>(val->getType()));
+  const IntegerType *ft = cast<IntegerType>(val->getType());
+  APInt maxVal = (isSigned ? APInt::getSignedMaxValue : APInt::getMaxValue)(tt->getBitWidth()).zext(ft->getBitWidth());
+  Constant *maxValConst = ConstantInt::get(ft, maxVal);
+  Value *cmp = isSigned ? builder.CreateICmpSGT(val, maxValConst) : builder.CreateICmpUGT(val, maxValConst);
+  val = builder.CreateSelect(cmp, maxValConst, val);
+  if (isSigned) {
+    APInt minVal = APInt::getSignedMinValue(tt->getBitWidth()).sext(ft->getBitWidth());
+    Constant *minValConst = ConstantInt::get(ft, minVal);
+    Value *cmp = isSigned ? builder.CreateICmpSLT(val, minValConst) : builder.CreateICmpULT(val, minValConst);
+    val = builder.CreateSelect(cmp, minValConst, val);
+  }
+  val = builder.CreateTrunc(val, tt);
+  return val;
+}
+
 bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) { 
   bool dirty = false;
   
@@ -184,6 +201,39 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         FPToSIInst *conv = new FPToSIInst(lowElem, i32, "", ii);
 
         ii->replaceAllUsesWith(conv);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
+      case Intrinsic::x86_sse2_packssdw_128: {
+        Value *src1 = ii->getOperand(1);
+        Value *src2 = ii->getOperand(2);
+
+        const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
+        const IntegerType *i16 = Type::getInt16Ty(getGlobalContext());
+
+        Value *res = UndefValue::get(ii->getType());
+
+        for (unsigned i = 0; i < 3; i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          res = builder.CreateInsertElement(res,
+                                            CreateSaturatedValue(builder, true, i16,
+                                                                 builder.CreateExtractElement(src1, ic)),
+                                            ic);
+        }
+
+        for (unsigned i = 0; i < 3; i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          Constant *i4c = ConstantInt::get(i32, i+4);
+          res = builder.CreateInsertElement(res,
+                                            CreateSaturatedValue(builder, true, i16,
+                                                                 builder.CreateExtractElement(src2, ic)),
+                                            i4c);
+        }
+
+        ii->replaceAllUsesWith(res);
 
         ii->removeFromParent();
         delete ii;
