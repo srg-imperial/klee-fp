@@ -315,22 +315,35 @@ public:
   const Executor *Exec;
   SIMDOperation(const Executor *Exec) : Exec(Exec) {}
 
-  virtual ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) = 0;
+  virtual ref<Expr> evalOne(const Type *tt, const Type *ft, ref<Expr> l, ref<Expr> r) = 0;
 
   ref<Expr> eval(const Type *t, ref<Expr> src) {
-    unsigned Bits = Exec->getWidthForLLVMType(t);
-    return eval(t, src, klee::ConstantExpr::create(0, Bits));
+    return eval(t, t, src);
+  }
+
+  ref<Expr> eval(const Type *tt, const Type *ft, ref<Expr> src) {
+    unsigned Bits = Exec->getWidthForLLVMType(ft);
+    return eval(tt, ft, src, klee::ConstantExpr::create(0, Bits));
   }
 
   ref<Expr> eval(const Type *t, ref<Expr> l, ref<Expr> r) {
-    if (const VectorType *vt = dyn_cast<VectorType>(t)) {
-      const Type *ElTy = vt->getElementType();
-      unsigned EltBits = Exec->getWidthForLLVMType(ElTy);
+    return eval(t, t, l, r);
+  }
+
+  ref<Expr> eval(const Type *tt, const Type *ft, ref<Expr> l, ref<Expr> r) {
+    if (const VectorType *vft = dyn_cast<VectorType>(ft)) {
+      assert(isa<VectorType>(tt));
+      const VectorType *vtt = cast<VectorType>(tt);
+
+      const Type *fElTy = vft->getElementType();
+      const Type *tElTy = vtt->getElementType();
+      unsigned EltBits = Exec->getWidthForLLVMType(fElTy);
    
-      unsigned ElemCount = vt->getNumElements();
-      ref<Expr> *elems = new ref<Expr>[vt->getNumElements()];
+      unsigned ElemCount = vft->getNumElements();
+      assert(vtt->getNumElements() == ElemCount);
+      ref<Expr> *elems = new ref<Expr>[vft->getNumElements()];
       for (unsigned i = 0; i < ElemCount; ++i)
-        elems[i] = evalOne(ElTy,
+        elems[i] = evalOne(tElTy, fElTy,
                            ExtractExpr::create(l, EltBits*(ElemCount-i-1), EltBits),
                            ExtractExpr::create(r, EltBits*(ElemCount-i-1), EltBits));
    
@@ -338,7 +351,7 @@ public:
       delete[] elems;
       return Result;
     } else
-      return evalOne(t, l, r);
+      return evalOne(tt, ft, l, r);
   }
 };
 
@@ -349,7 +362,7 @@ public:
 
   FSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
 
-  ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, r, t->isFP128Ty());
   }
 };
@@ -361,7 +374,7 @@ public:
 
   FUnSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
 
-  ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, t->isFP128Ty());
   }
 };
@@ -373,8 +386,20 @@ public:
 
   I2FSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
 
-  ref<Expr> evalOne(const Type *t, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, TypeToFloatSemantics(t));
+  }
+};
+
+class F2ISIMDOperation : public SIMDOperation {
+public:
+  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &e, Expr::Width W, bool isIEEE);
+  FExprCtor Ctor;
+
+  F2ISIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+
+  ref<Expr> evalOne(const Type *tt, const Type *ft, ref<Expr> l, ref<Expr> r) {
+    return Ctor(l, Exec->getWidthForLLVMType(tt), ft->isFP128Ty());
   }
 };
 
@@ -2098,17 +2123,12 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::FPToUI:
   case Instruction::FPToSI: {
-    Expr::Width resultType = getWidthForLLVMType(i->getType());
-    ref<ConstantExpr> arg (cast<ConstantExpr>(eval(ki, 0, state).value));
-    uint64_t bits[2];
-    bool isExact;
-    arg->getAPFloatValue()
-        .convertToInteger(bits,
-	                  resultType,
-                          i->getOpcode() == Instruction::FPToSI, 
-                          APFloat::rmTowardZero, 
-                          &isExact);
-    bindLocal(ki, state, ConstantExpr::alloc(APInt(resultType, 2, bits)));
+    ref<Expr> arg = eval(ki, 0, state).value;
+    const llvm::Type *type = i->getType();
+    bindLocal(ki, state, F2ISIMDOperation(this,
+       (i->getOpcode() == Instruction::FPToUI
+      ? FPToUIExpr::create
+      : FPToSIExpr::create)).eval(type, arg));
     break;
   }
 
