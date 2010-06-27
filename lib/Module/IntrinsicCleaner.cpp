@@ -113,12 +113,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_loadu_dq: {
         Value *src = ii->getOperand(1);
 
-        VectorType* vecTy = NULL;
-        switch (ii->getIntrinsicID()) {
-          case Intrinsic::x86_sse_loadu_ps: vecTy = VectorType::get(Type::getFloatTy(getGlobalContext()), 4); break;
-          case Intrinsic::x86_sse2_loadu_dq: vecTy = VectorType::get(Type::getInt8Ty(getGlobalContext()), 16); break;
-          default: assert(0 && "unrecognised vector load");
-        }
+        const VectorType* vecTy = cast<VectorType>(ii->getType());
         PointerType *vecPtrTy = PointerType::get(vecTy, 0);
 
         CastInst* pv = new BitCastInst(src, vecPtrTy, "", ii);
@@ -131,14 +126,16 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
-      case Intrinsic::x86_sse_storeu_ps: {
+      case Intrinsic::x86_sse_storeu_ps:
+      case Intrinsic::x86_sse2_storel_dq:
+      case Intrinsic::x86_sse2_storeu_dq: {
         Value *dst = ii->getOperand(1);
         Value *src = ii->getOperand(2);
 
-        VectorType* floatVec4Ty = VectorType::get(Type::getFloatTy(getGlobalContext()), 4);
-        PointerType *floatVec4PtrTy = PointerType::get(floatVec4Ty, 0);
+        const VectorType* vecTy = cast<VectorType>(src->getType());
+        PointerType *vecPtrTy = PointerType::get(vecTy, 0);
 
-        CastInst* pv = new BitCastInst(dst, floatVec4PtrTy, "", ii);
+        CastInst* pv = new BitCastInst(dst, vecPtrTy, "", ii);
         new StoreInst(src, pv, false, ii);
 
         ii->removeFromParent();
