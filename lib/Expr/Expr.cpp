@@ -785,6 +785,8 @@ ref<Expr> ExtractExpr::create(ref<Expr> expr, unsigned off, Width w) {
     return expr;
   } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
     return CE->Extract(off, w);
+  } else if (OrExpr *OE = dyn_cast<OrExpr>(expr)) {
+    return OrExpr::create(ExtractExpr::create(OE->getKid(0), off, w), ExtractExpr::create(OE->getKid(1), off, w));
   } else {
     // Extract(Concat)
     if (ConcatExpr *ce = dyn_cast<ConcatExpr>(expr)) {
