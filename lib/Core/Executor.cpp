@@ -357,10 +357,10 @@ public:
 
 class ISIMDOperation : public SIMDOperation {
 public:
-  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &l, const ref<Expr> &r);
-  FExprCtor Ctor;
+  typedef ref<Expr> (*ExprCtor)(const ref<Expr> &l, const ref<Expr> &r);
+  ExprCtor Ctor;
 
-  ISIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+  ISIMDOperation(const Executor *Exec, ExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
 
   ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, r);
@@ -369,10 +369,10 @@ public:
 
 class FSIMDOperation : public SIMDOperation {
 public:
-  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE);
-  FExprCtor Ctor;
+  typedef ref<Expr> (*ExprCtor)(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE);
+  ExprCtor Ctor;
 
-  FSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+  FSIMDOperation(const Executor *Exec, ExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
 
   ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, r, t->isFP128Ty());
@@ -381,10 +381,10 @@ public:
 
 class FUnSIMDOperation : public SIMDOperation {
 public:
-  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &src, bool isIEEE);
-  FExprCtor Ctor;
+  typedef ref<Expr> (*ExprCtor)(const ref<Expr> &src, bool isIEEE);
+  ExprCtor Ctor;
 
-  FUnSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+  FUnSIMDOperation(const Executor *Exec, ExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
 
   ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, t->isFP128Ty());
@@ -393,10 +393,10 @@ public:
 
 class I2FSIMDOperation : public SIMDOperation {
 public:
-  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &src, const fltSemantics *sem);
-  FExprCtor Ctor;
+  typedef ref<Expr> (*ExprCtor)(const ref<Expr> &src, const fltSemantics *sem);
+  ExprCtor Ctor;
 
-  I2FSIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+  I2FSIMDOperation(const Executor *Exec, ExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
 
   ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, TypeToFloatSemantics(t));
@@ -405,10 +405,10 @@ public:
 
 class F2ISIMDOperation : public SIMDOperation {
 public:
-  typedef ref<Expr> (*FExprCtor)(const ref<Expr> &e, Expr::Width W, bool isIEEE);
-  FExprCtor Ctor;
+  typedef ref<Expr> (*ExprCtor)(const ref<Expr> &e, Expr::Width W, bool isIEEE);
+  ExprCtor Ctor;
 
-  F2ISIMDOperation(const Executor *Exec, FExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
+  F2ISIMDOperation(const Executor *Exec, ExprCtor Ctor) : SIMDOperation(Exec), Ctor(Ctor) {}
 
   ref<Expr> evalOne(const Type *tt, const Type *ft, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, Exec->getWidthForLLVMType(tt), ft->isFP128Ty());
