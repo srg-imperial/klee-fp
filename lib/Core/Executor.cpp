@@ -2308,17 +2308,12 @@ void Executor::updateStates(ExecutionState *current) {
   removedStates.clear();
 }
 
-void Executor::bindInstructionConstants(KInstruction *KI) {
-  GetElementPtrInst *gepi = dyn_cast<GetElementPtrInst>(KI->inst);
-  if (!gepi)
-    return;
-
-  KGEPInstruction *kgepi = static_cast<KGEPInstruction*>(KI);
+template <typename TypeIt>
+void Executor::computeOffsets(KGEPInstruction *kgepi, TypeIt ib, TypeIt ie) {
   ref<ConstantExpr> constantOffset =
     ConstantExpr::alloc(0, Context::get().getPointerWidth());
   uint64_t index = 1;
-  for (gep_type_iterator ii = gep_type_begin(gepi), ie = gep_type_end(gepi);
-       ii != ie; ++ii) {
+  for (TypeIt ii = ib; ii != ie; ++ii) {
     if (const StructType *st = dyn_cast<StructType>(*ii)) {
       const StructLayout *sl = kmodule->targetData->getStructLayout(st);
       const ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
@@ -2346,6 +2341,20 @@ void Executor::bindInstructionConstants(KInstruction *KI) {
     index++;
   }
   kgepi->offset = constantOffset->getZExtValue();
+}
+
+void Executor::bindInstructionConstants(KInstruction *KI) {
+  KGEPInstruction *kgepi = static_cast<KGEPInstruction*>(KI);
+
+  if (GetElementPtrInst *gepi = dyn_cast<GetElementPtrInst>(KI->inst)) {
+    computeOffsets(kgepi, gep_type_begin(gepi), gep_type_end(gepi));
+  } else if (InsertValueInst *ivi = dyn_cast<InsertValueInst>(KI->inst)) {
+    computeOffsets(kgepi, iv_type_begin(ivi), iv_type_end(ivi));
+    assert(kgepi->indices.empty() && "InsertValue constant offset expected");
+  } else if (ExtractValueInst *evi = dyn_cast<ExtractValueInst>(KI->inst)) {
+    computeOffsets(kgepi, ev_type_begin(evi), ev_type_end(evi));
+    assert(kgepi->indices.empty() && "ExtractValue constant offset expected");
+  }
 }
 
 void Executor::bindModuleConstants() {
