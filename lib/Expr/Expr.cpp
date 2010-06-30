@@ -731,9 +731,16 @@ ref<Expr> ConcatExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
   // Fold concatenation of constants.
   //
   // FIXME: concat 0 x -> zext x ?
-  if (ConstantExpr *lCE = dyn_cast<ConstantExpr>(l))
+  if (ConstantExpr *lCE = dyn_cast<ConstantExpr>(l)) {
     if (ConstantExpr *rCE = dyn_cast<ConstantExpr>(r))
       return lCE->Concat(rCE);
+
+    // Merge Concat(Constant, Concat(Constant, _))
+    //    -> Concat(Concat(Constant, Constant), _)
+    if (ConcatExpr *rCE = dyn_cast<ConcatExpr>(r))
+      if (ConstantExpr *rlCE = dyn_cast<ConstantExpr>(rCE->getKid(0)))
+        return ConcatExpr::create(lCE->Concat(rlCE), rCE->getKid(1));
+  }
 
   // Merge contiguous Extracts
   if (ExtractExpr *ee_left = dyn_cast<ExtractExpr>(l)) {
