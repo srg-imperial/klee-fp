@@ -1,0 +1,96 @@
+From cc4a628d0efa612a490460eee7753fbfe78ea299 Mon Sep 17 00:00:00 2001
+From: Peter Collingbourne <peter@pcc.me.uk>
+Date: Wed, 30 Jun 2010 10:39:39 +0100
+Subject: [PATCH] Add support for InsertValue and ExtractValue to gep_type_iterator
+
+---
+ include/llvm/Support/GetElementPtrTypeIterator.h |   38 ++++++++++++++++++++-
+ 1 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/include/llvm/Support/GetElementPtrTypeIterator.h b/include/llvm/Support/GetElementPtrTypeIterator.h
+index e5e7fc7..35046fe 100644
+--- a/include/llvm/Support/GetElementPtrTypeIterator.h
++++ b/include/llvm/Support/GetElementPtrTypeIterator.h
+@@ -8,7 +8,7 @@
+ //===----------------------------------------------------------------------===//
+ //
+ // This file implements an iterator for walking through the types indexed by
+-// getelementptr instructions.
++// getelementptr, insertvalue and extractvalue instructions.
+ //
+ //===----------------------------------------------------------------------===//
+ 
+@@ -17,6 +17,7 @@
+ 
+ #include "llvm/User.h"
+ #include "llvm/DerivedTypes.h"
++#include "llvm/Instructions.h"
+ 
+ namespace llvm {
+   template<typename ItTy = User::const_op_iterator>
+@@ -28,6 +29,12 @@ namespace llvm {
+     ItTy OpIt;
+     const Type *CurTy;
+     generic_gep_type_iterator() {}
++
++    Value *asValue(Value *V) const { return V; }
++    Value *asValue(unsigned U) const {
++      return ConstantInt::get(CurTy->getContext(), APInt(32, U));
++    }
++
+   public:
+ 
+     static generic_gep_type_iterator begin(const Type *Ty, ItTy It) {
+@@ -63,7 +70,7 @@ namespace llvm {
+     // current type directly.
+     const Type *operator->() const { return operator*(); }
+ 
+-    Value *getOperand() const { return *OpIt; }
++    Value *getOperand() const { return asValue(*OpIt); }
+ 
+     generic_gep_type_iterator& operator++() {   // Preincrement
+       if (const CompositeType *CT = dyn_cast<CompositeType>(CurTy)) {
+@@ -81,6 +88,9 @@ namespace llvm {
+   };
+ 
+   typedef generic_gep_type_iterator<> gep_type_iterator;
++  typedef generic_gep_type_iterator<ExtractValueInst::idx_iterator> ev_type_iterator;
++  typedef generic_gep_type_iterator<InsertValueInst::idx_iterator> iv_type_iterator;
++  typedef generic_gep_type_iterator<SmallVector<unsigned, 4>::const_iterator> vce_type_iterator;
+ 
+   inline gep_type_iterator gep_type_begin(const User *GEP) {
+     return gep_type_iterator::begin(GEP->getOperand(0)->getType(),
+@@ -97,6 +107,30 @@ namespace llvm {
+     return gep_type_iterator::end(GEP.op_end());
+   }
+ 
++  inline ev_type_iterator ev_type_begin(const ExtractValueInst *EV) {
++    return ev_type_iterator::begin(EV->getOperand(0)->getType(),
++                                   EV->idx_begin());
++  }
++  inline ev_type_iterator ev_type_end(const ExtractValueInst *EV) {
++    return ev_type_iterator::end(EV->idx_end());
++  }
++
++  inline iv_type_iterator iv_type_begin(const InsertValueInst *IV) {
++    return iv_type_iterator::begin(IV->getType(),
++                                   IV->idx_begin());
++  }
++  inline iv_type_iterator iv_type_end(const InsertValueInst *IV) {
++    return iv_type_iterator::end(IV->idx_end());
++  }
++
++  inline vce_type_iterator vce_type_begin(const ConstantExpr *CE) {
++    return vce_type_iterator::begin(CE->getOperand(0)->getType(),
++                                    CE->getIndices().begin());
++  }
++  inline vce_type_iterator vce_type_end(const ConstantExpr *CE) {
++    return vce_type_iterator::end(CE->getIndices().end());
++  }
++
+   template<typename ItTy>
+   inline generic_gep_type_iterator<ItTy>
+   gep_type_begin(const Type *Op0, ItTy I, ItTy E) {
+-- 
+1.6.5
+
