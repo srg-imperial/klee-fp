@@ -1105,13 +1105,7 @@ static ref<Expr> SRemExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
 }
 
 static ref<Expr> ShlExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
-  if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
-    uint64_t crv = cr->getZExtValue(128);
-    if (crv >= l->getWidth())
-      return ConstantExpr::create(0, l->getWidth());
-    else
-      return ConcatExpr::create(ExtractExpr::create(l, 0, l->getWidth() - crv), ConstantExpr::create(0, crv));
-  } else if (l->getWidth() == Expr::Bool) { // l & !r
+  if (l->getWidth() == Expr::Bool) { // l & !r
     return AndExpr::create(l, Expr::createIsZero(r));
   } else{
     return ShlExpr::alloc(l, r);
@@ -1119,13 +1113,7 @@ static ref<Expr> ShlExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
 }
 
 static ref<Expr> LShrExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
-  if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
-    uint64_t crv = cr->getZExtValue(128);
-    if (crv >= l->getWidth())
-      return ConstantExpr::create(0, l->getWidth());
-    else
-      return ConcatExpr::create(ConstantExpr::create(0, crv), ExtractExpr::create(l, crv, l->getWidth() - crv));
-  } else if (l->getWidth() == Expr::Bool) { // l & !r
+  if (l->getWidth() == Expr::Bool) { // l & !r
     return AndExpr::create(l, Expr::createIsZero(r));
   } else{
     return LShrExpr::alloc(l, r);
