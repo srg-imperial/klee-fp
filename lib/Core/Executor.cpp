@@ -2277,6 +2277,43 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     bindLocal(ki, state, Result);
     break;
   }
+  case Instruction::InsertValue: {
+    KGEPInstruction *kgepi = static_cast<KGEPInstruction*>(ki);
+
+    ref<Expr> agg = eval(ki, 0, state).value;
+    ref<Expr> val = eval(ki, 1, state).value;
+
+    ref<Expr> l = NULL, r = NULL;
+    unsigned lOffset = kgepi->offset, rOffset = kgepi->offset + val->getWidth();
+
+    if (lOffset > 0)
+      l = ExtractExpr::create(agg, 0, lOffset);
+    if (rOffset < agg->getWidth())
+      r = ExtractExpr::create(agg, rOffset, agg->getWidth() - rOffset);
+
+    ref<Expr> result;
+    if (!l.isNull() && !r.isNull())
+      result = ConcatExpr::create(r, ConcatExpr::create(val, l));
+    else if (!l.isNull())
+      result = ConcatExpr::create(val, l);
+    else if (!r.isNull())
+      result = ConcatExpr::create(r, val);
+    else
+      result = val;
+
+    bindLocal(ki, state, result);
+    break;
+  }
+  case Instruction::ExtractValue: {
+    KGEPInstruction *kgepi = static_cast<KGEPInstruction*>(ki);
+
+    ref<Expr> agg = eval(ki, 0, state).value;
+
+    ref<Expr> result = ExtractExpr::create(agg, kgepi->offset, getWidthForLLVMType(i->getType()));
+
+    bindLocal(ki, state, result);
+    break;
+  }
   default:
     terminateStateOnExecError(state, "illegal instruction");
     break;
