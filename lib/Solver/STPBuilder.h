@@ -98,8 +98,15 @@ private:
   ::VCExpr getInitialArray(const Array *os);
   ::VCExpr getArrayForUpdate(const Array *root, const UpdateNode *un);
 
-  ExprHandle constructActual(ref<Expr> e, int *width_out);
-  ExprHandle construct(ref<Expr> e, int *width_out);
+  enum STPExprType {
+    etBV,
+    etBOOL,
+    etDontCare
+  };
+
+  ExprHandle constructActual(ref<Expr> e, int *width_out, STPExprType *et_out);
+  ExprHandle construct(ref<Expr> e, int *width_out, STPExprType *et_out);
+  ExprHandle construct(ref<Expr> e, int *width_out, STPExprType et_out);
   
   ::VCExpr buildVar(const char *name, unsigned width);
   ::VCExpr buildArray(const char *name, unsigned indexWidth, unsigned valueWidth);
@@ -114,7 +121,7 @@ public:
   ExprHandle getInitialRead(const Array *os, unsigned index);
 
   ExprHandle construct(ref<Expr> e) { 
-    ExprHandle res = construct(e, 0);
+    ExprHandle res = construct(e, 0, e->getWidth() == 1 ? etBOOL : etBV);
     constructed.clear();
     return res;
   }
