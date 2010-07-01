@@ -835,7 +835,7 @@ ref<Expr> ZExtExpr::create(const ref<Expr> &e, Width w) {
   } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
     return CE->ZExt(w);
   } else {
-    return ZExtExpr::alloc(e, w);
+    return ConcatExpr::create(ConstantExpr::create(0, w - kBits), e);
   }
 }
 
