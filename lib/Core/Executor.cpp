@@ -2284,7 +2284,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> val = eval(ki, 1, state).value;
 
     ref<Expr> l = NULL, r = NULL;
-    unsigned lOffset = kgepi->offset, rOffset = kgepi->offset + val->getWidth();
+    unsigned lOffset = kgepi->offset*8, rOffset = kgepi->offset*8 + val->getWidth();
 
     if (lOffset > 0)
       l = ExtractExpr::create(agg, 0, lOffset);
@@ -2309,7 +2309,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
     ref<Expr> agg = eval(ki, 0, state).value;
 
-    ref<Expr> result = ExtractExpr::create(agg, kgepi->offset, getWidthForLLVMType(i->getType()));
+    ref<Expr> result = ExtractExpr::create(agg, kgepi->offset*8, getWidthForLLVMType(i->getType()));
 
     bindLocal(ki, state, result);
     break;
