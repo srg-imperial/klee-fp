@@ -1794,21 +1794,21 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::Sub: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    bindLocal(ki, state, SubExpr::create(left, right));
+    bindLocal(ki, state, ISIMDOperation(this, SubExpr::create).eval(i->getType(), left, right));
     break;
   }
  
   case Instruction::Mul: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    bindLocal(ki, state, MulExpr::create(left, right));
+    bindLocal(ki, state, ISIMDOperation(this, MulExpr::create).eval(i->getType(), left, right));
     break;
   }
 
   case Instruction::UDiv: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    ref<Expr> result = UDivExpr::create(left, right);
+    ref<Expr> result = ISIMDOperation(this, UDivExpr::create).eval(i->getType(), left, right);
     bindLocal(ki, state, result);
     break;
   }
@@ -1816,7 +1816,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::SDiv: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    ref<Expr> result = SDivExpr::create(left, right);
+    ref<Expr> result = ISIMDOperation(this, SDivExpr::create).eval(i->getType(), left, right);
     bindLocal(ki, state, result);
     break;
   }
@@ -1824,7 +1824,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::URem: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    ref<Expr> result = URemExpr::create(left, right);
+    ref<Expr> result = ISIMDOperation(this, URemExpr::create).eval(i->getType(), left, right);
     bindLocal(ki, state, result);
     break;
   }
@@ -1832,7 +1832,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::SRem: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    ref<Expr> result = SRemExpr::create(left, right);
+    ref<Expr> result = ISIMDOperation(this, SRemExpr::create).eval(i->getType(), left, right);
     bindLocal(ki, state, result);
     break;
   }
@@ -1864,7 +1864,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::Shl: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    ref<Expr> result = ShlExpr::create(left, right);
+    ref<Expr> result = ISIMDOperation(this, ShlExpr::create).eval(i->getType(), left, right);
     bindLocal(ki, state, result);
     break;
   }
@@ -1872,7 +1872,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::LShr: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    ref<Expr> result = LShrExpr::create(left, right);
+    ref<Expr> result = ISIMDOperation(this, LShrExpr::create).eval(i->getType(), left, right);
     bindLocal(ki, state, result);
     break;
   }
@@ -1880,7 +1880,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::AShr: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    ref<Expr> result = AShrExpr::create(left, right);
+    ref<Expr> result = ISIMDOperation(this, AShrExpr::create).eval(i->getType(), left, right);
     bindLocal(ki, state, result);
     break;
   }
@@ -1895,7 +1895,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_EQ: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = EqExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, EqExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state, result);
       break;
     }
@@ -1903,7 +1903,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_NE: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = NeExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, NeExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state, result);
       break;
     }
@@ -1911,7 +1911,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_UGT: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = UgtExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, UgtExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state,result);
       break;
     }
@@ -1919,7 +1919,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_UGE: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = UgeExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, UgeExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state, result);
       break;
     }
@@ -1927,7 +1927,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_ULT: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = UltExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, UltExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state, result);
       break;
     }
@@ -1935,7 +1935,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_ULE: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = UleExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, UleExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state, result);
       break;
     }
@@ -1943,7 +1943,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_SGT: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = SgtExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, SgtExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state, result);
       break;
     }
@@ -1951,7 +1951,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_SGE: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = SgeExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, SgeExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state, result);
       break;
     }
@@ -1959,7 +1959,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_SLT: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = SltExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, SltExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state, result);
       break;
     }
@@ -1967,7 +1967,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_SLE: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
-      ref<Expr> result = SleExpr::create(left, right);
+      ref<Expr> result = ISIMDOperation(this, SleExpr::create).eval(i->getType(), left, right);
       bindLocal(ki, state, result);
       break;
     }
@@ -2160,12 +2160,11 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
 
-    bool isIEEE = fi->getOperand(0)->getType()->isFP128Ty();
     ref<Expr> Result;
     switch( fi->getPredicate() ) {
 #define X(_inst_pred, _expr_type) \
     case FCmpInst::_inst_pred: \
-      Result = _expr_type::create(left, right, isIEEE); \
+      Result = FSIMDOperation(this, _expr_type::create).eval(i->getType(), fi->getOperand(0)->getType(), left, right); \
       break
       // Predicates which only care about whether or not the operands are NaNs.
     X(FCMP_ORD, FOrdExpr);
