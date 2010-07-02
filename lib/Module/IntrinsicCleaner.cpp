@@ -59,6 +59,11 @@ static Value *CreateSaturatedValue(IRBuilder<> &builder, bool isSigned, const In
   return val;
 }
 
+static Value *CreateMinMax(IRBuilder<> &builder, bool isMax, bool isSigned, Value *l, Value *r) {
+  Value *cmp = isSigned ? builder.CreateICmpSLT(l, r) : builder.CreateICmpULT(l, r);
+  return builder.CreateSelect(cmp, isMax ? r : l, isMax ? l : r);
+}
+
 bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) { 
   bool dirty = false;
   
@@ -248,6 +253,39 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
                                             CreateSaturatedValue(builder, isSigned, dstElTy,
                                                                  builder.CreateExtractElement(src2, ic)),
                                             icOfs);
+        }
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
+      case Intrinsic::x86_sse2_pminu_b: {
+        Value *src1 = ii->getOperand(1);
+        Value *src2 = ii->getOperand(2);
+
+        const VectorType *vt = cast<VectorType>(src1->getType());
+        unsigned elCount = vt->getNumElements();
+
+        assert(src2->getType() == vt);
+        assert(ii->getType() == vt);
+
+        bool isMax = false;
+        bool isSigned = false;
+
+        const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
+
+        Value *res = UndefValue::get(vt);
+
+        for (unsigned i = 0; i < elCount; i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          res = builder.CreateInsertElement(res,
+                                            CreateMinMax(builder, isMax, isSigned,
+                                                         builder.CreateExtractElement(src1, ic),
+                                                         builder.CreateExtractElement(src2, ic)),
+                                            ic);
         }
 
         ii->replaceAllUsesWith(res);
