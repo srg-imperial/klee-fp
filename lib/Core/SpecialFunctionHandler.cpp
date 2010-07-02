@@ -81,6 +81,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_print_range", handlePrintRange, false),
   add("klee_set_forking", handleSetForking, false),
   add("klee_stack_trace", handleStackTrace, false),
+  add("klee_dump_constraints", handleDumpConstraints, false),
   add("klee_warning", handleWarning, false),
   add("klee_warning_once", handleWarningOnce, false),
   add("klee_alias_function", handleAliasFunction, false),
@@ -433,6 +434,12 @@ void SpecialFunctionHandler::handleStackTrace(ExecutionState &state,
                                               KInstruction *target,
                                               std::vector<ref<Expr> > &arguments) {
   state.dumpStack(std::cout);
+}
+
+void SpecialFunctionHandler::handleDumpConstraints(ExecutionState &state,
+                                                   KInstruction *target,
+                                                   std::vector<ref<Expr> > &arguments) {
+  state.constraints.dump(std::cout);
 }
 
 void SpecialFunctionHandler::handleWarning(ExecutionState &state,

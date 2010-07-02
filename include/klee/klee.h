@@ -130,6 +130,9 @@ extern "C" {
   /* Print stack trace. */
   void klee_stack_trace(void);
 
+  /* Dump constraint set. */
+  void klee_dump_constraints(void);
+
 #ifdef __cplusplus
 }
 #endif
