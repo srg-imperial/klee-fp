@@ -204,30 +204,50 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
-      case Intrinsic::x86_sse2_packssdw_128: {
+      case Intrinsic::x86_mmx_packssdw:
+      case Intrinsic::x86_sse2_packssdw_128:
+      case Intrinsic::x86_mmx_packsswb:
+      case Intrinsic::x86_sse2_packsswb_128:
+      case Intrinsic::x86_mmx_packuswb:
+      case Intrinsic::x86_sse2_packuswb_128: {
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
+        const VectorType *srcTy = cast<VectorType>(src1->getType());
+        unsigned srcElCount = srcTy->getNumElements();
+
+        assert(src2->getType() == srcTy);
+
+        const VectorType *dstTy = cast<VectorType>(ii->getType());
+        const IntegerType *dstElTy = cast<IntegerType>(dstTy->getElementType());
+        unsigned dstElCount = dstTy->getNumElements();
+
+        assert(srcElCount*2 == dstElCount);
+
+        bool isSigned = (ii->getIntrinsicID() == Intrinsic::x86_mmx_packssdw
+                      || ii->getIntrinsicID() == Intrinsic::x86_sse2_packssdw_128
+                      || ii->getIntrinsicID() == Intrinsic::x86_mmx_packsswb
+                      || ii->getIntrinsicID() == Intrinsic::x86_sse2_packsswb_128);
+
         const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
-        const IntegerType *i16 = Type::getInt16Ty(getGlobalContext());
 
-        Value *res = UndefValue::get(ii->getType());
+        Value *res = UndefValue::get(dstTy);
 
-        for (unsigned i = 0; i < 3; i++) {
+        for (unsigned i = 0; i < srcElCount; i++) {
           Constant *ic = ConstantInt::get(i32, i);
           res = builder.CreateInsertElement(res,
-                                            CreateSaturatedValue(builder, true, i16,
+                                            CreateSaturatedValue(builder, isSigned, dstElTy,
                                                                  builder.CreateExtractElement(src1, ic)),
                                             ic);
         }
 
-        for (unsigned i = 0; i < 3; i++) {
+        for (unsigned i = 0; i < srcElCount; i++) {
           Constant *ic = ConstantInt::get(i32, i);
-          Constant *i4c = ConstantInt::get(i32, i+4);
+          Constant *icOfs = ConstantInt::get(i32, i+srcElCount);
           res = builder.CreateInsertElement(res,
-                                            CreateSaturatedValue(builder, true, i16,
+                                            CreateSaturatedValue(builder, isSigned, dstElTy,
                                                                  builder.CreateExtractElement(src2, ic)),
-                                            i4c);
+                                            icOfs);
         }
 
         ii->replaceAllUsesWith(res);
