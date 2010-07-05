@@ -59,6 +59,15 @@ static Value *CreateSaturatedValue(IRBuilder<> &builder, bool isSigned, const In
   return val;
 }
 
+static Value *CreateSaturatedUnsignedSub(IRBuilder<> &builder, Value *l, Value *r) {
+  assert(l->getType() == r->getType());
+  Value *cmp = builder.CreateICmpUGT(l, r);
+  Constant *zero = ConstantInt::get(l->getType(), 0);
+  Value *sub = builder.CreateSub(l, r);
+  Value *result = builder.CreateSelect(cmp, sub, zero);
+  return result;
+}
+
 static Value *CreateMinMax(IRBuilder<> &builder, bool isMax, bool isSigned, Value *l, Value *r) {
   Value *cmp = isSigned ? builder.CreateICmpSLT(l, r) : builder.CreateICmpULT(l, r);
   return builder.CreateSelect(cmp, isMax ? r : l, isMax ? l : r);
@@ -283,6 +292,36 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
           Constant *ic = ConstantInt::get(i32, i);
           res = builder.CreateInsertElement(res,
                                             CreateMinMax(builder, isMax, isSigned,
+                                                         builder.CreateExtractElement(src1, ic),
+                                                         builder.CreateExtractElement(src2, ic)),
+                                            ic);
+        }
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
+      case Intrinsic::x86_sse2_psubus_b: {
+        Value *src1 = ii->getOperand(1);
+        Value *src2 = ii->getOperand(2);
+
+        const VectorType *vt = cast<VectorType>(src1->getType());
+        unsigned elCount = vt->getNumElements();
+
+        assert(src2->getType() == vt);
+        assert(ii->getType() == vt);
+
+        const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
+
+        Value *res = UndefValue::get(vt);
+
+        for (unsigned i = 0; i < elCount; i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          res = builder.CreateInsertElement(res,
+                                            CreateSaturatedUnsignedSub(builder,
                                                          builder.CreateExtractElement(src1, ic),
                                                          builder.CreateExtractElement(src2, ic)),
                                             ic);
