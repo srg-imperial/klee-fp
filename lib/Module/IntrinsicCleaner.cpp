@@ -288,7 +288,8 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
-      case Intrinsic::x86_sse2_pminu_b: {
+      case Intrinsic::x86_sse2_pminu_b:
+      case Intrinsic::x86_sse2_pmins_w: {
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -299,7 +300,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         assert(ii->getType() == vt);
 
         bool isMax = false;
-        bool isSigned = false;
+        bool isSigned = (ii->getIntrinsicID() == Intrinsic::x86_sse2_pmins_w);
 
         const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
 
