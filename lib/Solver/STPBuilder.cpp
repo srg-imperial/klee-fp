@@ -524,7 +524,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
     
   case Expr::Select: {
     SelectExpr *se = cast<SelectExpr>(e);
-    ExprHandle cond = construct(se->cond, 0, false);
+    ExprHandle cond = construct(se->cond, 0, etBOOL);
     ExprHandle tExpr = construct(se->trueExpr, width_out, etBV);
     ExprHandle fExpr = construct(se->falseExpr, width_out, etBV);
     *et_out = etBV;
