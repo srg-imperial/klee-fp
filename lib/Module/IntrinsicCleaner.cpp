@@ -442,6 +442,41 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
+      case Intrinsic::x86_sse2_pmulh_w: {
+        Value *src1 = ii->getOperand(1);
+        Value *src2 = ii->getOperand(2);
+
+        const VectorType *vt = cast<VectorType>(src1->getType());
+        unsigned elCount = vt->getNumElements();
+
+        const IntegerType *i16 = Type::getInt16Ty(getGlobalContext());
+        const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
+
+        assert(src2->getType() == vt);
+        assert(ii->getType() == vt);
+	assert(vt->getElementType() == i16);
+
+        Value *res = UndefValue::get(vt);
+
+        for (unsigned i = 0; i < elCount; i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          Value *v1 = builder.CreateExtractElement(src1, ic);
+          Value *v2 = builder.CreateExtractElement(src2, ic);
+          Value *x1 = builder.CreateSExt(v1, i32);
+          Value *x2 = builder.CreateSExt(v2, i32);
+          Value *mul = builder.CreateMul(x1, x2);
+          Value *mulHi = builder.CreateLShr(mul, 16);
+          Value *mulHiTrunc = builder.CreateTrunc(mulHi, i16);
+          res = builder.CreateInsertElement(res, mulHiTrunc, ic);
+        }
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
       case Intrinsic::dbg_stoppoint: {
         // We can remove this stoppoint if the next instruction is
