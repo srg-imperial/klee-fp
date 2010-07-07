@@ -467,15 +467,17 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
-      case Intrinsic::x86_sse2_psrai_d: {
+      case Intrinsic::x86_sse2_psrai_d:
+      case Intrinsic::x86_sse2_psrai_w: {
         Value *src = ii->getOperand(1);
         Value *count = ii->getOperand(2);
 
         const VectorType *vt = cast<VectorType>(src->getType());
         unsigned elCount = vt->getNumElements();
 
-        assert(count->getType() == vt->getElementType());
         assert(ii->getType() == vt);
+
+        count = builder.CreateIntCast(count, vt->getElementType(), false);
 
         const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
 
