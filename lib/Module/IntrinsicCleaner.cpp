@@ -78,6 +78,29 @@ static Value *CreateSaturatedUnsignedAdd(IRBuilder<> &builder, Value *l, Value *
   return result;
 }
 
+static Value *CreateIsNegative(IRBuilder<> &builder, Value *v) {
+  const IntegerType *t = cast<IntegerType>(v->getType());
+  const IntegerType *i1 = Type::getInt1Ty(v->getContext());
+  return builder.CreateTrunc(builder.CreateAShr(v, t->getBitWidth()-1), i1);
+}
+
+static Value *CreateSaturatedSignedAdd(IRBuilder<> &builder, Value *l, Value *r) {
+  const IntegerType *t = cast<IntegerType>(l->getType());
+  assert(l->getType() == r->getType());
+  Value *lNeg = CreateIsNegative(builder, l);
+  Value *rNeg = CreateIsNegative(builder, r);
+  Value *add = builder.CreateAdd(l, r);
+  Value *addNeg = CreateIsNegative(builder, add);
+  Value *over = builder.CreateAnd(builder.CreateNot(lNeg), builder.CreateAnd(builder.CreateNot(rNeg), addNeg));
+  Value *under = builder.CreateAnd(lNeg, builder.CreateAnd(rNeg, builder.CreateNot(addNeg)));
+
+  Constant *min = ConstantInt::get(t, APInt::getSignedMinValue(t->getBitWidth()));
+  Constant *max = ConstantInt::get(t, APInt::getSignedMaxValue(t->getBitWidth()));
+  Value *res = builder.CreateSelect(over, max,
+               builder.CreateSelect(under, min, add));
+  return res;
+}
+
 static Value *CreateSignExtendedICmp(IRBuilder<> &builder, CmpInst::Predicate p, Value *l, Value *r) {
   assert(l->getType() == r->getType());
   Value *cmp = builder.CreateICmp(p, l, r);
@@ -372,6 +395,36 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
           Constant *ic = ConstantInt::get(i32, i);
           res = builder.CreateInsertElement(res,
                                             CreateSaturatedUnsignedAdd(builder,
+                                                         builder.CreateExtractElement(src1, ic),
+                                                         builder.CreateExtractElement(src2, ic)),
+                                            ic);
+        }
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
+      case Intrinsic::x86_sse2_padds_w: {
+        Value *src1 = ii->getOperand(1);
+        Value *src2 = ii->getOperand(2);
+
+        const VectorType *vt = cast<VectorType>(src1->getType());
+        unsigned elCount = vt->getNumElements();
+
+        assert(src2->getType() == vt);
+        assert(ii->getType() == vt);
+
+        const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
+
+        Value *res = UndefValue::get(vt);
+
+        for (unsigned i = 0; i < elCount; i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          res = builder.CreateInsertElement(res,
+                                            CreateSaturatedSignedAdd(builder,
                                                          builder.CreateExtractElement(src1, ic),
                                                          builder.CreateExtractElement(src2, ic)),
                                             ic);

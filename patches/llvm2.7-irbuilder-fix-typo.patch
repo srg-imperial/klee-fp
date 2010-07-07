@@ -1,0 +1,11 @@
+--- llvm-2.7.orig/include/llvm/Support/IRBuilder.h	2010-03-05 22:21:58.000000000 +0000
++++ llvm-2.7/include/llvm/Support/IRBuilder.h	2010-07-07 20:29:40.451199603 +0100
+@@ -459,7 +459,7 @@
+   Value *CreateAShr(Value *LHS, uint64_t RHS, const Twine &Name = "") {
+     Constant *RHSC = ConstantInt::get(LHS->getType(), RHS);
+     if (Constant *LC = dyn_cast<Constant>(LHS))
+-      return Folder.CreateSShr(LC, RHSC);
++      return Folder.CreateAShr(LC, RHSC);
+     return Insert(BinaryOperator::CreateAShr(LHS, RHSC), Name);
+   }
+ 
