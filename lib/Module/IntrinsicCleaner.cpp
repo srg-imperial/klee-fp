@@ -414,6 +414,34 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
+      case Intrinsic::x86_sse2_psrai_d: {
+        Value *src = ii->getOperand(1);
+        Value *count = ii->getOperand(2);
+
+        const VectorType *vt = cast<VectorType>(src->getType());
+        unsigned elCount = vt->getNumElements();
+
+        assert(count->getType() == vt->getElementType());
+        assert(ii->getType() == vt);
+
+        const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
+
+        Value *res = UndefValue::get(vt);
+
+        for (unsigned i = 0; i < elCount; i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          res = builder.CreateInsertElement(res,
+                                            builder.CreateAShr(builder.CreateExtractElement(src, ic), count),
+                                            ic);
+        }
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
       case Intrinsic::dbg_stoppoint: {
         // We can remove this stoppoint if the next instruction is
