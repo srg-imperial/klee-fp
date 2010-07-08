@@ -80,8 +80,7 @@ static Value *CreateSaturatedUnsignedAdd(IRBuilder<> &builder, Value *l, Value *
 
 static Value *CreateIsNegative(IRBuilder<> &builder, Value *v) {
   const IntegerType *t = cast<IntegerType>(v->getType());
-  const IntegerType *i1 = Type::getInt1Ty(v->getContext());
-  return builder.CreateTrunc(builder.CreateAShr(v, t->getBitWidth()-1), i1);
+  return builder.CreateICmpNE(builder.CreateAShr(v, t->getBitWidth()-1), ConstantInt::get(t, 0));
 }
 
 static Value *CreateSaturatedSignedAdd(IRBuilder<> &builder, Value *l, Value *r) {
