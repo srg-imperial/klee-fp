@@ -1530,6 +1530,14 @@ static ref<Expr> EqExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
     } else {
       return ConstantExpr::create(0, Expr::Bool);
     }
+  } else if (rk == Expr::Concat) {
+    ref<Expr> rl = r->getKid(0), rr = r->getKid(1);
+    ref<Expr> ll = cl->Extract(rr->getWidth(), rl->getWidth());
+    ref<Expr> lr = cl->Extract(0, rr->getWidth());
+    if (ll == rl)
+      return EqExpr::create(lr, rr);
+    else if (lr == rr)
+      return EqExpr::create(ll, rl);
   } else if (rk==Expr::Add) {
     const AddExpr *ae = cast<AddExpr>(r);
     if (isa<ConstantExpr>(ae->left)) {
