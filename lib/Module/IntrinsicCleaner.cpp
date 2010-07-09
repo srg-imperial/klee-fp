@@ -508,7 +508,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
 
         assert(src2->getType() == vt);
         assert(ii->getType() == vt);
-	assert(vt->getElementType() == i16);
+        assert(vt->getElementType() == i16);
 
         Value *res = UndefValue::get(vt);
 
