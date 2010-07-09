@@ -112,6 +112,13 @@ static Value *CreateMinMax(IRBuilder<> &builder, bool isMax, bool isSigned, Valu
   return builder.CreateSelect(cmp, isMax ? r : l, isMax ? l : r);
 }
 
+static Value *CreateAbsDiff(IRBuilder<> &builder, bool isSigned, const IntegerType *tt, Value *l, Value *r) {
+  Value *lmr = builder.CreateSub(builder.CreateIntCast(l, tt, isSigned),
+                                 builder.CreateIntCast(r, tt, isSigned));
+  Value *lmrIsNeg = CreateIsNegative(builder, lmr);
+  return builder.CreateSelect(lmrIsNeg, builder.CreateNeg(lmr), lmr);
+}
+
 bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) { 
   bool dirty = false;
   
@@ -523,6 +530,55 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
           Value *mulHiTrunc = builder.CreateTrunc(mulHi, i16);
           res = builder.CreateInsertElement(res, mulHiTrunc, ic);
         }
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
+      case Intrinsic::x86_sse2_psad_bw: {
+        Value *src1 = ii->getOperand(1);
+        Value *src2 = ii->getOperand(2);
+
+        const VectorType *vt = cast<VectorType>(src1->getType());
+        const VectorType *rt = cast<VectorType>(ii->getType());
+
+        const IntegerType *i8 = Type::getInt8Ty(getGlobalContext());
+        const IntegerType *i16 = Type::getInt16Ty(getGlobalContext());
+        const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
+        const IntegerType *i64 = Type::getInt64Ty(getGlobalContext());
+
+        assert(src2->getType() == vt);
+
+        assert(vt->getElementType() == i8);
+        assert(vt->getNumElements() == 16);
+
+        assert(rt->getElementType() == i64);
+        assert(rt->getNumElements() == 2);
+
+        Value *res = UndefValue::get(rt);
+
+        Value *lo = ConstantInt::get(i16, 0);
+        for (unsigned i = 0; i < 8; i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          Value *v1 = builder.CreateExtractElement(src1, ic);
+          Value *v2 = builder.CreateExtractElement(src2, ic);
+          lo = builder.CreateAdd(lo, CreateAbsDiff(builder, false, i16, v1, v2));
+        }
+        lo = builder.CreateZExt(lo, i64);
+        res = builder.CreateInsertElement(res, lo, ConstantInt::get(i32, 0));
+
+        Value *hi = ConstantInt::get(i16, 0);
+        for (unsigned i = 8; i < 16; i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          Value *v1 = builder.CreateExtractElement(src1, ic);
+          Value *v2 = builder.CreateExtractElement(src2, ic);
+          hi = builder.CreateAdd(hi, CreateAbsDiff(builder, false, i16, v1, v2));
+        }
+        hi = builder.CreateZExt(hi, i64);
+        res = builder.CreateInsertElement(res, hi, ConstantInt::get(i32, 1));
 
         ii->replaceAllUsesWith(res);
 
