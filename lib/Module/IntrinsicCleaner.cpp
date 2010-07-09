@@ -587,6 +587,44 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
+      case Intrinsic::x86_sse2_pmadd_wd: {
+        Value *src1 = ii->getOperand(1);
+        Value *src2 = ii->getOperand(2);
+
+        const VectorType *vt = cast<VectorType>(src1->getType());
+        const VectorType *rt = cast<VectorType>(ii->getType());
+
+        const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
+
+        assert(src2->getType() == vt);
+        assert(vt->getNumElements() == rt->getNumElements()*2);
+
+        Value *res = UndefValue::get(rt);
+
+        for (unsigned i = 0; i < rt->getNumElements(); i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          Constant *i2p0c = ConstantInt::get(i32, i*2);
+          Constant *i2p1c = ConstantInt::get(i32, i*2+1);
+          Value *x0 = builder.CreateExtractElement(src1, i2p0c);
+          Value *y0 = builder.CreateExtractElement(src2, i2p0c);
+          Value *x1 = builder.CreateExtractElement(src1, i2p1c);
+          Value *y1 = builder.CreateExtractElement(src2, i2p1c);
+          x0 = builder.CreateIntCast(x0, rt->getElementType(), true);
+          x1 = builder.CreateIntCast(x1, rt->getElementType(), true);
+          y0 = builder.CreateIntCast(y0, rt->getElementType(), true);
+          y1 = builder.CreateIntCast(y1, rt->getElementType(), true);
+          Value *madd = builder.CreateAdd(builder.CreateMul(x1, y1),
+                                          builder.CreateMul(x0, y0));
+          res = builder.CreateInsertElement(res, madd, ic);
+        }
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
       case Intrinsic::dbg_stoppoint: {
         // We can remove this stoppoint if the next instruction is
