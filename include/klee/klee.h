@@ -145,6 +145,12 @@ extern "C" {
   /* Dump constraint set. */
   void klee_dump_constraints(void);
 
+  /* Number of SSE instructions executed. */
+  extern unsigned klee_sse_count;
+
+  /* Callback for each SSE instruction executed. */
+  void klee_sse(void);
+
 #ifdef __cplusplus
 }
 #endif
