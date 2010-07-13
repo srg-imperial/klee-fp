@@ -339,6 +339,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_pminu_b:
+      case Intrinsic::x86_sse2_pmaxu_b:
       case Intrinsic::x86_sse2_pmins_w:
       case Intrinsic::x86_sse2_pmaxs_w: {
         CreateSSECallback(builder, b.getParent()->getParent());
@@ -352,7 +353,8 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         assert(src2->getType() == vt);
         assert(ii->getType() == vt);
 
-        bool isMax = (ii->getIntrinsicID() == Intrinsic::x86_sse2_pmaxs_w);
+        bool isMax = (ii->getIntrinsicID() == Intrinsic::x86_sse2_pmaxu_b
+                   || ii->getIntrinsicID() == Intrinsic::x86_sse2_pmaxs_w);
         bool isSigned = (ii->getIntrinsicID() == Intrinsic::x86_sse2_pmins_w
                       || ii->getIntrinsicID() == Intrinsic::x86_sse2_pmaxs_w);
 
