@@ -58,16 +58,6 @@ targets.<p>
     KLEE runs very slowly in Debug mode).
   </li>
   
-  <li><a href="http://sites.google.com/site/stpfastprover/">Download and build
-      the STP constraint solver</a> (revisions later than 734 are untested).
-    <div class="instr">
-      $ svn co -r 734 https://stp-fast-prover.svn.sourceforge.net/svnroot/stp-fast-prover/trunk/stp stp <br>
-      $ cd stp <br>
-      $ patch -p1 < /path/to/klee/patches/stp-interfaceflags.patch <br>
-      $ ./clean-install.sh --with-prefix=<i>path/to/stp/inst</i>
-    </div>
-  </li>
-
   <li>Checkout KLEE (to any path you like):
     <div class="instr">
       $ svn co http://llvm.org/svn/llvm-project/klee/trunk klee
@@ -76,13 +66,13 @@ targets.<p>
   
   <li>Configure KLEE (from the KLEE source directory): 
     <div class="instr">
-      $ ./configure --with-llvm=<i>path/to/llvm</i> --with-stp=<i>path/to/stp/inst</i>
+      $ ./configure --with-llvm=<i>path/to/llvm</i>
     </div>
     
     <p>This assumes that you compiled LLVM in-place.  If you used a
       different directory for the object files then use:
       <div class="instr">
-	$ ./configure --with-llvmsrc=<i>path/to/llvm/src</i> --with-llvmobj=<i>path/to/llvm/obj</i> --with-stp=<i>path/to/stp/inst</i>
+	$ ./configure --with-llvmsrc=<i>path/to/llvm/src</i> --with-llvmobj=<i>path/to/llvm/obj</i>
       </div>
   </li>
 
@@ -150,6 +140,40 @@ library.</p>
   <li>Rebuild KLEE and run <tt>make check</tt> and verify that the POSIX tests
     run correctly.
   </li>
+</ol>
+
+<h2 id="stp">Building KLEE with a more recent version of STP</h2>
+
+<p>If your benchmarks are running slowly or not terminating it may
+be worth trying a more recent version of KLEE's constraint solver
+<a href="http://sites.google.com/site/stpfastprover/">STP</a>,
+which offers performance improvements over the version supplied
+with KLEE.</p>
+
+<p>STP does not make frequent releases, and its Subversion repository
+is under constant development and may be unstable.  The instructions
+below are for a particular revision which is known to pass the KLEE
+test suite, but you can try a more recent revision (at your own risk)
+by changing or removing the <tt>-r</tt> argument to the <tt>svn
+co</tt> command.</p>
+
+<ol>
+  <li>Download and build STP.
+    <div class="instr">
+      $ svn co -r 940 https://stp-fast-prover.svn.sourceforge.net/svnroot/stp-fast-prover/trunk/stp stp <br>
+      $ cd stp <br>
+      $ scripts/configure --with-prefix=<i>path/to/stp/inst</i> --with-cryptominisat2 <br>
+      $ make OPTIMIZE=-O2 CFLAGS_M32= install
+    </div>
+  </li>
+
+  <li>Configure KLEE:
+    <div class="instr">
+      $ ./configure --with-llvm=<i>path/to/llvm</i> --with-stp=<i>path/to/stp/inst</i>
+    </div>
+  </li>
+
+  <li>Rebuild KLEE.</li>
 </ol>
 
 </div>
