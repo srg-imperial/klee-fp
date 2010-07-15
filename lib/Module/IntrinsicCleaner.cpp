@@ -474,6 +474,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
+      case Intrinsic::x86_sse2_pcmpgt_b:
       case Intrinsic::x86_sse2_pcmpgt_w: {
         CreateSSECallback(builder, b.getParent()->getParent());
 
