@@ -371,7 +371,7 @@ private:
   ConstantExpr(const llvm::APFloat &v);
 
 public:
-  ~ConstantExpr() {};
+  ~ConstantExpr() {}
   
   Width getWidth() const { return value.getBitWidth(); }
   Kind getKind() const { return Constant; }
