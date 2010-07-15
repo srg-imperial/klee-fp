@@ -10,6 +10,7 @@
 #include "Passes.h"
 
 #include "klee/Config/config.h"
+#include "klee/Internal/Module/InstructionInfoTable.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
@@ -141,23 +142,34 @@ static Constant *CreateStrConstPtr(Module *mod, StringRef str) {
   return strVarStartPtr;
 }
 
-static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii) {
+static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii,
+                              const std::string &file, unsigned line) {
   Module *mod = ii->getParent()->getParent()->getParent();
   Constant *fc = mod->getOrInsertFunction("klee_sse", 
                                           builder.getVoidTy(), 
                                           builder.getInt8PtrTy(),
+                                          builder.getInt8PtrTy(),
+                                          builder.getInt32Ty(),
                                           NULL);
 
   Constant *intrinNamePtr = CreateStrConstPtr(mod, ii->getCalledFunction()->getName());
+  Constant *filePtr = CreateStrConstPtr(mod, file);
+  Constant *lineCst = ConstantInt::get(builder.getInt32Ty(), line);
 
-  builder.CreateCall(fc, intrinNamePtr);
+  builder.CreateCall3(fc, intrinNamePtr, filePtr, lineCst);
 }
 
 bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) { 
   bool dirty = false;
   
   unsigned WordSize = TargetData.getPointerSizeInBits() / 8;
+
+  std::string file = "unknown";
+  unsigned line = 0;
+    
   for (BasicBlock::iterator i = b.begin(), ie = b.end(); i != ie;) {     
+    getInstructionDebugInfo(i, file, line);
+
     IntrinsicInst *ii = dyn_cast<IntrinsicInst>(&*i);
     // increment now since LowerIntrinsic deletion makes iterator invalid.
     ++i;  
@@ -205,7 +217,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
 
       case Intrinsic::x86_sse_loadu_ps:
       case Intrinsic::x86_sse2_loadu_dq: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src = ii->getOperand(1);
 
@@ -225,7 +237,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse_storeu_ps:
       case Intrinsic::x86_sse2_storel_dq:
       case Intrinsic::x86_sse2_storeu_dq: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *dst = ii->getOperand(1);
         Value *src = ii->getOperand(2);
@@ -243,7 +255,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
 
       case Intrinsic::x86_sse2_psll_dq_bs:
       case Intrinsic::x86_sse2_psrl_dq_bs: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src = ii->getOperand(1);
         Value *count = ii->getOperand(2);
@@ -264,7 +276,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_cvtdq2ps: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src = ii->getOperand(1);
 
@@ -278,7 +290,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_cvtps2dq: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src = ii->getOperand(1);
 
@@ -292,7 +304,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_cvtsd2si: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         const Type *i32 = Type::getInt32Ty(getGlobalContext());
 
@@ -316,7 +328,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_packsswb_128:
       case Intrinsic::x86_mmx_packuswb:
       case Intrinsic::x86_sse2_packuswb_128: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
@@ -369,7 +381,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_pmaxu_b:
       case Intrinsic::x86_sse2_pmins_w:
       case Intrinsic::x86_sse2_pmaxs_w: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
@@ -406,7 +418,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_psubus_b: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
@@ -438,7 +450,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_paddus_b: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
@@ -470,7 +482,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_padds_w: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
@@ -503,7 +515,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
 
       case Intrinsic::x86_sse2_pcmpgt_b:
       case Intrinsic::x86_sse2_pcmpgt_w: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
@@ -536,7 +548,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
 
       case Intrinsic::x86_sse2_psrai_d:
       case Intrinsic::x86_sse2_psrai_w: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src = ii->getOperand(1);
         Value *count = ii->getOperand(2);
@@ -567,7 +579,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_pmulh_w: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
@@ -604,7 +616,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_psad_bw: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
@@ -655,7 +667,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_pmadd_wd: {
-        CreateSSECallback(builder, ii);
+        CreateSSECallback(builder, ii, file, line);
 
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
