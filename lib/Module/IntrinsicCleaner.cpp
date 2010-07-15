@@ -119,6 +119,28 @@ static Value *CreateAbsDiff(IRBuilder<> &builder, bool isSigned, const IntegerTy
   return builder.CreateSelect(lmrIsNeg, builder.CreateNeg(lmr), lmr);
 }
 
+static Constant *CreateStrConstPtr(Module *mod, StringRef str) {
+  std::string strName = "__strconst_" + str.str();
+  GlobalVariable *strVar = mod->getGlobalVariable(strName, true);
+
+  if (!strVar) {
+    Constant *strConst = ConstantArray::get(mod->getContext(), str);
+
+    strVar = new GlobalVariable(*mod, strConst->getType(), true,
+                                GlobalValue::InternalLinkage,
+                                strConst, strName);
+  }
+
+  Constant *zero32 = ConstantInt::getNullValue(Type::getInt32Ty(mod->getContext()));
+  Constant *indexes[] = { zero32, zero32 };
+
+  Constant *strVarStartPtr =
+    ConstantExpr::getGetElementPtr(strVar, indexes,
+				   sizeof(indexes)/sizeof(indexes[0]));
+
+  return strVarStartPtr;
+}
+
 static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii) {
   Module *mod = ii->getParent()->getParent()->getParent();
   Constant *fc = mod->getOrInsertFunction("klee_sse", 
@@ -126,20 +148,8 @@ static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii) {
 					  builder.getInt8PtrTy(),
                                           NULL);
 
-  Constant *intrinNameStr = ConstantArray::get(mod->getContext(), 
-					       ii->getCalledFunction()->getName());
-  
-  GlobalVariable *intrinName = new GlobalVariable(*mod, intrinNameStr->getType(), true,
-						  GlobalValue::InternalLinkage,
-						  intrinNameStr,
-						  "__" + ii->getCalledFunction()->getName());
+  Constant *intrinNamePtr = CreateStrConstPtr(mod, ii->getCalledFunction()->getName());
 
-  Constant* indexes[] = { ConstantInt::getNullValue(builder.getInt32Ty()), 
-			  ConstantInt::getNullValue(builder.getInt32Ty()) };
-  Constant *intrinNamePtr =
-    ConstantExpr::getGetElementPtr(intrinName, indexes,
-				   sizeof(indexes)/sizeof(indexes[0]));
-  
   builder.CreateCall(fc, intrinNamePtr);
 }
 
