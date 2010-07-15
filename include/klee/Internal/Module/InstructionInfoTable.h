@@ -55,8 +55,6 @@ namespace klee {
 
   private:
     const std::string *internString(std::string s);
-    bool getInstructionDebugInfo(const llvm::Instruction *I,
-                                 const std::string *&File, unsigned &Line);
 
   public:
     InstructionInfoTable(llvm::Module *m);
@@ -66,6 +64,11 @@ namespace klee {
     const InstructionInfo &getInfo(const llvm::Instruction*) const;
     const InstructionInfo &getFunctionInfo(const llvm::Function*) const;
   };
+
+/// Extract debugging information from the given instruction,
+/// returns true if able to do so
+bool getInstructionDebugInfo(const llvm::Instruction *I,
+                             std::string &File, unsigned &Line);
 
 }
 
