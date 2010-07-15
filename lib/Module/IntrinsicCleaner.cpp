@@ -145,7 +145,7 @@ static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii) {
   Module *mod = ii->getParent()->getParent()->getParent();
   Constant *fc = mod->getOrInsertFunction("klee_sse", 
                                           builder.getVoidTy(), 
-					  builder.getInt8PtrTy(),
+                                          builder.getInt8PtrTy(),
                                           NULL);
 
   Constant *intrinNamePtr = CreateStrConstPtr(mod, ii->getCalledFunction()->getName());
