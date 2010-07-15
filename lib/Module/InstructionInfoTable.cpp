@@ -92,19 +92,19 @@ static std::string getDSPIPath(DILocation Loc) {
 }
 #endif
 
-bool InstructionInfoTable::getInstructionDebugInfo(const llvm::Instruction *I, 
-                                                   const std::string *&File,
-                                                   unsigned &Line) {
+bool klee::getInstructionDebugInfo(const llvm::Instruction *I, 
+                                   std::string &File,
+                                   unsigned &Line) {
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
   if (const DbgStopPointInst *dspi = dyn_cast<DbgStopPointInst>(I)) {
-    File = internString(getDSPIPath(dspi));
+    File = getDSPIPath(dspi);
     Line = dspi->getLine();
     return true;
   }
 #else
   if (MDNode *N = I->getMetadata("dbg")) {
     DILocation Loc(N);
-    File = internString(getDSPIPath(Loc));
+    File = getDSPIPath(Loc);
     Line = Loc.getLineNumber();
     return true;
   }
@@ -128,9 +128,13 @@ InstructionInfoTable::InstructionInfoTable(Module *m)
     // following the CFG, but it is not clear that it ever matters in
     // practice.
     for (inst_iterator it = inst_begin(fnIt), ie = inst_end(fnIt);
-         it != ie; ++it)
-      if (getInstructionDebugInfo(&*it, initialFile, initialLine))
+         it != ie; ++it) {
+      std::string file;
+      if (getInstructionDebugInfo(&*it, file, initialLine)) {
+        initialFile = internString(file); 
         break;
+      }
+    }
     
     typedef std::map<BasicBlock*, std::pair<const std::string*,unsigned> > 
       sourceinfo_ty;
@@ -153,7 +157,8 @@ InstructionInfoTable::InstructionInfoTable(Module *m)
 
         sourceinfo_ty::iterator si = sourceInfo.find(bb);
         assert(si != sourceInfo.end());
-        const std::string *file = si->second.first;
+        std::string file;
+        const std::string *infile = si->second.first;
         unsigned line = si->second.second;
         
         for (BasicBlock::iterator it = bb->begin(), ie = bb->end();
@@ -164,10 +169,11 @@ InstructionInfoTable::InstructionInfoTable(Module *m)
             lineTable.find(instr);
           if (ltit!=lineTable.end())
             assemblyLine = ltit->second;
-          getInstructionDebugInfo(instr, file, line);
+          if (getInstructionDebugInfo(instr, file, line))
+            infile = internString(file);
           infos.insert(std::make_pair(instr,
                                       InstructionInfo(id++,
-                                                      *file,
+                                                      *infile,
                                                       line,
                                                       assemblyLine)));        
         }
@@ -175,7 +181,7 @@ InstructionInfoTable::InstructionInfoTable(Module *m)
         for (succ_iterator it = succ_begin(bb), ie = succ_end(bb); 
              it != ie; ++it) {
           if (sourceInfo.insert(std::make_pair(*it,
-                                               std::make_pair(file, line))).second)
+                                               std::make_pair(infile, line))).second)
             worklist.push_back(*it);
         }
       } while (!worklist.empty());
