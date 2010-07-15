@@ -25,12 +25,12 @@
 namespace klee {
   class Array;
   class CallPathNode;
-  class Cell;
-  class KFunction;
-  class KInstruction;
+  struct Cell;
+  struct KFunction;
+  struct KInstruction;
   class MemoryObject;
   class PTreeNode;
-  class InstructionInfo;
+  struct InstructionInfo;
 
 std::ostream &operator<<(std::ostream &os, const MemoryMap &mm);
 
@@ -110,7 +110,7 @@ public:
   void removeFnAlias(std::string fn);
   
 private:
-  ExecutionState() : fakeState(false), underConstrained(0), ptreeNode(0) {};
+  ExecutionState() : fakeState(false), underConstrained(0), ptreeNode(0) {}
 
 public:
   ExecutionState(KFunction *kf);
