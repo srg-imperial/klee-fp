@@ -1637,11 +1637,7 @@ CMPCREATE(SleExpr, Sle)
         (cat) == Expr::fcMaybeZero || \
         (cat) == Expr::fcMaybePInf)
 
-ref<Expr> FOeqExpr::create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
-  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l))
-    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))
-      return cl->FOeq(cr, isIEEE);
-
+static ref<Expr> FOeqExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
   Expr::FPCategories lcat = l->getCategories(isIEEE),
                      rcat = r->getCategories(isIEEE);
 
@@ -1666,6 +1662,71 @@ ref<Expr> FOeqExpr::create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) 
 
   return FOeqExpr::alloc(l, r, isIEEE);
 }
+
+static ref<Expr> FOeqExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r, bool isIEEE) { 
+  /* Under certain conditions, we can reduce:
+   * FOeq(?IToFP(X), Const)    to    Eq(X, FPTo?I(Const))
+   * thus permitting STP to examine the expression X.
+   */
+  if (FConvertExpr *ifc = dyn_cast<FConvertExpr>(r))
+    if (!SemMismatch(isIEEE, ifc->getSemantics())) {
+      /* First, check that the constant has no fractional component,
+       * and that it does not overflow wrt the integer bitwidth of
+       * the non-constant operand. */
+      bool isSigned = isa<SIToFPExpr>(r);
+      ref<Expr> kid = ifc->getKid(0);
+      ref<ConstantExpr> clint = isSigned ? cl->FPToSI(kid->getWidth(), isIEEE)
+                                         : cl->FPToUI(kid->getWidth(), isIEEE);
+      ref<ConstantExpr> clf = isSigned ? cl->SIToFP(ifc->getSemantics())
+                                       : cl->UIToFP(ifc->getSemantics());
+      if (cl->FOeq(clf, isIEEE)->isOne()) {
+        /* Second, check that the conversion for the non-constant operand will
+         * not be rounded, or that even if it is rounded, the result would not
+         * match the constant operand anyway.  We do this by checking that:
+         *    |constant operand| < 2^(mantissa bitwidth+1)
+         * FIXME: we could also do a range comparison for sufficiently large
+         * constants. */
+        unsigned precision = APFloat::semanticsPrecision(*ifc->getSemantics());
+        if (precision + isSigned >= kid->getWidth()) {
+          /* If the precision is sufficiently large we don't need to do this
+           * test at all since the floating point value would be able to
+           * accommodate all integer values without need for rounding. */
+          return EqExpr::create(clint, kid);
+        }
+        ref<ConstantExpr> max = ConstantExpr::create(1, kid->getWidth())->Shl(ConstantExpr::create(precision, kid->getWidth()));
+        ref<ConstantExpr> cond = isSigned ? clint->Slt(max) : clint->Ult(max);
+        if (isSigned)
+          cond = cond->And(max->Neg()->Slt(clint));
+        if (cond->isOne())
+          return EqExpr::create(clint, kid);
+      } else
+        /* If the constant has a fractional component, or is too
+         * large, the comparison will always yield 0. */
+        return ConstantExpr::create(0, Expr::Bool);
+    }
+  return FOeqExpr_create(cl, r, isIEEE);
+}
+
+static ref<Expr> FOeqExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr, bool isIEEE) {  
+  return FOeqExpr_createPartialR(cr, l, isIEEE);
+}
+  
+
+#define FCMPCREATE_T(_e_op, _op, _reflexive_e_op, partialL, partialR) \
+ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) { \
+  assert(l->getWidth()==r->getWidth() && "type mismatch");             \
+  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {                  \
+    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))                  \
+      return cl->_op(cr, isIEEE);                                      \
+    return partialR(cl, r.get(), isIEEE);                              \
+  } else if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {           \
+    return partialL(l.get(), cr, isIEEE);                              \
+  } else {                                                             \
+    return _e_op ## _create(l.get(), r.get(), isIEEE);                 \
+  }                                                                    \
+}
+
+FCMPCREATE_T(FOeqExpr, FOeq, FOeqExpr, FOeqExpr_createPartial, FOeqExpr_createPartialR)
 
 inline Expr::FPCategories leastCategory(Expr::FPCategories cats) {
   return Expr::FPCategories(cats & -cats);
