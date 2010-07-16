@@ -711,6 +711,54 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
+      case Intrinsic::x86_sse_cmp_ps: {
+        CreateSSECallback(builder, ii, file, line);
+
+        Value *src1 = ii->getOperand(1);
+        Value *src2 = ii->getOperand(2);
+        ConstantInt *pred = cast<ConstantInt>(ii->getOperand(3));
+
+        static const CmpInst::Predicate pred2fcmp[] = {
+          CmpInst::FCMP_OEQ, 
+          CmpInst::FCMP_OLT, 
+          CmpInst::FCMP_OLE, 
+          CmpInst::FCMP_UNO, 
+          CmpInst::FCMP_UNE, 
+          CmpInst::FCMP_UGE, 
+          CmpInst::FCMP_UGT, 
+          CmpInst::FCMP_ORD
+        };
+
+        CmpInst::Predicate fcmpPred = pred2fcmp[pred->getZExtValue()];
+
+        const VectorType *vt = cast<VectorType>(src1->getType());
+
+        const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
+        const Type *f32 = Type::getFloatTy(getGlobalContext());
+
+        assert(src2->getType() == vt);
+        assert(ii->getType() == vt);
+        assert(vt->getElementType() == f32);
+
+        Value *res = UndefValue::get(vt);
+
+        for (unsigned i = 0; i < vt->getNumElements(); i++) {
+          Constant *ic = ConstantInt::get(i32, i);
+          Value *v1 = builder.CreateExtractElement(src1, ic);
+          Value *v2 = builder.CreateExtractElement(src2, ic);
+          Value *rb = builder.CreateFCmp(fcmpPred, v1, v2);
+          Value *rx = builder.CreateSExt(rb, i32);
+          Value *rf = builder.CreateBitCast(rx, f32);
+          res = builder.CreateInsertElement(res, rf, ic);
+        }
+
+        ii->replaceAllUsesWith(res);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
       case Intrinsic::dbg_stoppoint: {
         // We can remove this stoppoint if the next instruction is
