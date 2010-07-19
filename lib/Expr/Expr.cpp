@@ -794,6 +794,10 @@ ref<Expr> ExtractExpr::create(ref<Expr> expr, unsigned off, Width w) {
     return CE->Extract(off, w);
   } else if (OrExpr *OE = dyn_cast<OrExpr>(expr)) {
     return OrExpr::create(ExtractExpr::create(OE->getKid(0), off, w), ExtractExpr::create(OE->getKid(1), off, w));
+  } else if (AndExpr *AE = dyn_cast<AndExpr>(expr)) {
+    return AndExpr::create(ExtractExpr::create(AE->getKid(0), off, w), ExtractExpr::create(AE->getKid(1), off, w));
+  } else if (XorExpr *XE = dyn_cast<XorExpr>(expr)) {
+    return XorExpr::create(ExtractExpr::create(XE->getKid(0), off, w), ExtractExpr::create(XE->getKid(1), off, w));
   } else {
     // Extract(Concat)
     if (ConcatExpr *ce = dyn_cast<ConcatExpr>(expr)) {
