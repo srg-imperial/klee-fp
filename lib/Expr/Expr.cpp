@@ -1032,6 +1032,12 @@ static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
     return l;
   } else if (cr->isZero()) {
     return cr;
+  } else if (ConcatExpr *cl = dyn_cast<ConcatExpr>(l)) {
+    ref<Expr> ll = cl->getKid(0);
+    ref<Expr> lr = cl->getKid(1);
+    ref<Expr> rl = cr->Extract(lr->getWidth(), ll->getWidth());
+    ref<Expr> rr = cr->Extract(0, lr->getWidth());
+    return ConcatExpr::create(AndExpr::create(ll, rl), AndExpr::create(lr, rr));
   } else {
     return AndExpr::alloc(l, cr);
   }
