@@ -153,13 +153,13 @@ ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e, bool isNeg) 
       ref<Expr> neg;
       if (IsNotExpr(e, neg))
         return Expr::createIsZero(_rewriteConstraint(neg, !isNeg));
+      break;
     }
-    default:
-      if (HasFPExpr(e))
-        return ConstantExpr::create(isNeg ? 0 : 1, Expr::Bool);
-      else
-        return e;
+    default: break;
   }
+  if (HasFPExpr(e))
+    return ConstantExpr::create(isNeg ? 0 : 1, Expr::Bool);
+  return e;
 }
 
 ref<Expr> FPRewritingSolver::rewriteConstraint(const ref<Expr> &e) {
