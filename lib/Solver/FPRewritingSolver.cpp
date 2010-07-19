@@ -149,6 +149,10 @@ ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e, bool isNeg) 
       return constrainEquality(e->getKid(0), e->getKid(1)); /* I don't think this is right */
     case Expr::FOne:
       return Expr::createIsZero(constrainEquality(e->getKid(0), e->getKid(1)));
+    case Expr::And:
+      if (e->getWidth() == 1)
+        return AndExpr::create(_rewriteConstraint(e->getKid(0), isNeg), _rewriteConstraint(e->getKid(1), isNeg));
+      break;
     case Expr::Eq: {
       ref<Expr> neg;
       if (IsNotExpr(e, neg))
