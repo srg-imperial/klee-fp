@@ -553,6 +553,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
 
       case Intrinsic::x86_sse2_psrai_d:
       case Intrinsic::x86_sse2_psrai_w:
+      case Intrinsic::x86_sse2_psrli_w:
       case Intrinsic::x86_sse2_pslli_w: {
         CreateSSECallback(builder, ii, file, line);
 
@@ -569,6 +570,8 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
           case Intrinsic::x86_sse2_psrai_d:
           case Intrinsic::x86_sse2_psrai_w:
             opc = Instruction::AShr; break;
+          case Intrinsic::x86_sse2_psrli_w:
+            opc = Instruction::LShr; break;
           case Intrinsic::x86_sse2_pslli_w:
             opc = Instruction::Shl; break;
           default:
