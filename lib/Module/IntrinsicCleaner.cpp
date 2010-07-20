@@ -552,7 +552,8 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_psrai_d:
-      case Intrinsic::x86_sse2_psrai_w: {
+      case Intrinsic::x86_sse2_psrai_w:
+      case Intrinsic::x86_sse2_pslli_w: {
         CreateSSECallback(builder, ii, file, line);
 
         Value *src = ii->getOperand(1);
@@ -563,6 +564,17 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
 
         assert(ii->getType() == vt);
 
+        Instruction::BinaryOps opc;
+        switch (ii->getIntrinsicID()) {
+          case Intrinsic::x86_sse2_psrai_d:
+          case Intrinsic::x86_sse2_psrai_w:
+            opc = Instruction::AShr; break;
+          case Intrinsic::x86_sse2_pslli_w:
+            opc = Instruction::Shl; break;
+          default:
+            assert(0 && "Unexpected intrinsic");
+        }
+
         count = builder.CreateIntCast(count, vt->getElementType(), false);
 
         const IntegerType *i32 = Type::getInt32Ty(getGlobalContext());
@@ -572,7 +584,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         for (unsigned i = 0; i < elCount; i++) {
           Constant *ic = ConstantInt::get(i32, i);
           res = builder.CreateInsertElement(res,
-                                            builder.CreateAShr(builder.CreateExtractElement(src, ic), count),
+                                            builder.CreateBinOp(opc, builder.CreateExtractElement(src, ic), count),
                                             ic);
         }
 
