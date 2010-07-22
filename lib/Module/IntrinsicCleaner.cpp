@@ -151,14 +151,26 @@ static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii,
                                           builder.getInt8PtrTy(),
                                           builder.getInt32Ty(),
                                           builder.getInt8PtrTy(),
+                                          builder.getInt8PtrTy(),
                                           NULL);
 
-  Constant *intrinNamePtr = CreateStrConstPtr(mod, ii->getCalledFunction()->getName());
-  Constant *filePtr = CreateStrConstPtr(mod, file);
-  Constant *funcPtr = CreateStrConstPtr(mod, ii->getParent()->getParent()->getName());
-  Constant *lineCst = ConstantInt::get(builder.getInt32Ty(), line);
+  char instrPtrStr[20];
 
-  builder.CreateCall4(fc, intrinNamePtr, filePtr, lineCst, funcPtr);
+  StringRef instrName = ii->getName();
+  if (instrName.empty()) {
+    snprintf(instrPtrStr, 20, "%p", (void *) ii);
+    instrName = instrPtrStr;
+  }
+
+  Value *args[] = {
+    CreateStrConstPtr(mod, ii->getCalledFunction()->getName()),
+    CreateStrConstPtr(mod, file),
+    ConstantInt::get(builder.getInt32Ty(), line),
+    CreateStrConstPtr(mod, ii->getParent()->getParent()->getName()),
+    CreateStrConstPtr(mod, instrName)
+  };
+
+  builder.CreateCall(fc, args, args + sizeof(args)/sizeof(args[0]));
 }
 
 bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) { 
