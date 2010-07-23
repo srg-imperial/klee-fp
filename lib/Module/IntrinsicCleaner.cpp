@@ -29,6 +29,8 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Target/TargetData.h"
 
+#include <sstream>
+
 using namespace llvm;
 
 namespace klee {
@@ -142,6 +144,18 @@ static Constant *CreateStrConstPtr(Module *mod, StringRef str) {
   return strVarStartPtr;
 }
 
+/// Find instruction number by finding the instruction's place in
+/// the basic block.
+static unsigned InstructionNumber(Instruction *i) {
+  BasicBlock *bb = i->getParent();
+  unsigned instrNum = 0;
+  for (BasicBlock::iterator ii = bb->begin(), ie = bb->end(); ii != ie; ++ii, ++instrNum) {
+    if (&*ii == i)
+      return instrNum;
+  }
+  assert(0 && "Could not find instruction in basic block!");
+}
+
 static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii,
                               const std::string &file, unsigned line) {
   Module *mod = ii->getParent()->getParent()->getParent();
@@ -154,20 +168,19 @@ static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii,
                                           builder.getInt8PtrTy(),
                                           NULL);
 
-  char instrPtrStr[20];
-
   StringRef instrName = ii->getName();
-  if (instrName.empty()) {
-    snprintf(instrPtrStr, 20, "%p", (void *) ii);
-    instrName = instrPtrStr;
-  }
+  std::ostringstream ss;
+  if (instrName.empty())
+    ss << InstructionNumber(ii);
+  else
+    ss << instrName.str();
 
   Value *args[] = {
     CreateStrConstPtr(mod, ii->getCalledFunction()->getName()),
     CreateStrConstPtr(mod, file),
     ConstantInt::get(builder.getInt32Ty(), line),
     CreateStrConstPtr(mod, ii->getParent()->getParent()->getName()),
-    CreateStrConstPtr(mod, instrName)
+    CreateStrConstPtr(mod, ss.str())
   };
 
   builder.CreateCall(fc, args, args + sizeof(args)/sizeof(args[0]));
