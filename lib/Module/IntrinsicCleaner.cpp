@@ -170,6 +170,7 @@ static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii,
 
   StringRef instrName = ii->getName();
   std::ostringstream ss;
+  ss << ii->getParent()->getName().str() << " ";
   if (instrName.empty())
     ss << InstructionNumber(ii);
   else
