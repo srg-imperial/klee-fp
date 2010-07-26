@@ -50,3 +50,10 @@ bool klee::isSIMDInstruction(Instruction *i) {
 
   return false;
 }
+
+StringRef klee::getIntrinsicOrInstructionName(Instruction *i) {
+  if (IntrinsicInst *ii = dyn_cast<IntrinsicInst>(i))
+    return ii->getCalledFunction()->getName();
+  else
+    return i->getOpcodeName();
+}

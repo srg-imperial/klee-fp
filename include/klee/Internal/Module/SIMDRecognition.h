@@ -10,11 +10,13 @@
 namespace llvm {
 
 class Instruction;
+class StringRef;
 
 }
 
 namespace klee {
 
 bool isSIMDInstruction(llvm::Instruction *i);
+llvm::StringRef getIntrinsicOrInstructionName(llvm::Instruction *i);
 
 }
