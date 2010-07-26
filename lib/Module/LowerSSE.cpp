@@ -121,80 +121,10 @@ static Value *CreateAbsDiff(IRBuilder<> &builder, bool isSigned, const IntegerTy
   return builder.CreateSelect(lmrIsNeg, builder.CreateNeg(lmr), lmr);
 }
 
-static Constant *CreateStrConstPtr(Module *mod, StringRef str) {
-  std::string strName = "__strconst_" + str.str();
-  GlobalVariable *strVar = mod->getGlobalVariable(strName, true);
-
-  if (!strVar) {
-    Constant *strConst = ConstantArray::get(mod->getContext(), str);
-
-    strVar = new GlobalVariable(*mod, strConst->getType(), true,
-                                GlobalValue::InternalLinkage,
-                                strConst, strName);
-  }
-
-  Constant *zero32 = ConstantInt::getNullValue(Type::getInt32Ty(mod->getContext()));
-  Constant *indexes[] = { zero32, zero32 };
-
-  Constant *strVarStartPtr =
-    ConstantExpr::getGetElementPtr(strVar, indexes,
-				   sizeof(indexes)/sizeof(indexes[0]));
-
-  return strVarStartPtr;
-}
-
-/// Find instruction number by finding the instruction's place in
-/// the basic block.
-static unsigned InstructionNumber(Instruction *i) {
-  BasicBlock *bb = i->getParent();
-  unsigned instrNum = 0;
-  for (BasicBlock::iterator ii = bb->begin(), ie = bb->end(); ii != ie; ++ii, ++instrNum) {
-    if (&*ii == i)
-      return instrNum;
-  }
-  assert(0 && "Could not find instruction in basic block!");
-}
-
-static void CreateSSECallback(IRBuilder<> &builder, IntrinsicInst *ii,
-                              const std::string &file, unsigned line) {
-  Module *mod = ii->getParent()->getParent()->getParent();
-  Constant *fc = mod->getOrInsertFunction("klee_sse", 
-                                          builder.getVoidTy(), 
-                                          builder.getInt8PtrTy(),
-                                          builder.getInt8PtrTy(),
-                                          builder.getInt32Ty(),
-                                          builder.getInt8PtrTy(),
-                                          builder.getInt8PtrTy(),
-                                          NULL);
-
-  StringRef instrName = ii->getName();
-  std::ostringstream ss;
-  ss << ii->getParent()->getName().str() << " ";
-  if (instrName.empty())
-    ss << InstructionNumber(ii);
-  else
-    ss << instrName.str();
-
-  Value *args[] = {
-    CreateStrConstPtr(mod, ii->getCalledFunction()->getName()),
-    CreateStrConstPtr(mod, file),
-    ConstantInt::get(builder.getInt32Ty(), line),
-    CreateStrConstPtr(mod, ii->getParent()->getParent()->getName()),
-    CreateStrConstPtr(mod, ss.str())
-  };
-
-  builder.CreateCall(fc, args, args + sizeof(args)/sizeof(args[0]));
-}
-
 bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) { 
   bool dirty = false;
   
-  std::string file = "unknown";
-  unsigned line = 0;
-    
   for (BasicBlock::iterator i = b.begin(), ie = b.end(); i != ie;) {     
-    getInstructionDebugInfo(i, file, line);
-
     IntrinsicInst *ii = dyn_cast<IntrinsicInst>(&*i);
     // increment now since LowerIntrinsic deletion makes iterator invalid.
     ++i;  
@@ -204,8 +134,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       switch (ii->getIntrinsicID()) {
       case Intrinsic::x86_sse_loadu_ps:
       case Intrinsic::x86_sse2_loadu_dq: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src = ii->getOperand(1);
 
         const VectorType* vecTy = cast<VectorType>(ii->getType());
@@ -224,8 +152,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse_storeu_ps:
       case Intrinsic::x86_sse2_storel_dq:
       case Intrinsic::x86_sse2_storeu_dq: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *dst = ii->getOperand(1);
         Value *src = ii->getOperand(2);
 
@@ -242,8 +168,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
 
       case Intrinsic::x86_sse2_psll_dq_bs:
       case Intrinsic::x86_sse2_psrl_dq_bs: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src = ii->getOperand(1);
         Value *count = ii->getOperand(2);
 
@@ -263,8 +187,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_cvtdq2ps: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src = ii->getOperand(1);
 
         Value *res = builder.CreateSIToFP(src, ii->getType());
@@ -277,8 +199,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_cvtps2dq: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src = ii->getOperand(1);
 
         Value *res = builder.CreateFPToSI(src, ii->getType());
@@ -291,8 +211,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_cvtsd2si: {
-        CreateSSECallback(builder, ii, file, line);
-
         const Type *i32 = Type::getInt32Ty(getGlobalContext());
 
         Value *zero32 = ConstantInt::get(i32, 0);
@@ -315,8 +233,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_packsswb_128:
       case Intrinsic::x86_mmx_packuswb:
       case Intrinsic::x86_sse2_packuswb_128: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -368,8 +284,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_pmaxu_b:
       case Intrinsic::x86_sse2_pmins_w:
       case Intrinsic::x86_sse2_pmaxs_w: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -405,8 +319,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_psubus_b: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -437,8 +349,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_paddus_b: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -469,8 +379,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_padds_w: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -502,8 +410,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
 
       case Intrinsic::x86_sse2_pcmpgt_b:
       case Intrinsic::x86_sse2_pcmpgt_w: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -537,8 +443,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_psrai_w:
       case Intrinsic::x86_sse2_psrli_w:
       case Intrinsic::x86_sse2_pslli_w: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src = ii->getOperand(1);
         Value *count = ii->getOperand(2);
 
@@ -581,8 +485,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_pmulh_w: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -618,8 +520,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_psad_bw: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -669,8 +569,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_pmadd_wd: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
 
@@ -709,8 +607,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse_cmp_ps: {
-        CreateSSECallback(builder, ii, file, line);
-
         Value *src1 = ii->getOperand(1);
         Value *src2 = ii->getOperand(2);
         ConstantInt *pred = cast<ConstantInt>(ii->getOperand(3));
