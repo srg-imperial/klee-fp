@@ -86,10 +86,7 @@ int main(int argc, char **argv) {
       for (BasicBlock::iterator i = b->begin(), ie = b->end(); i != ie; ++i)
         if (klee::isSIMDInstruction(i)) {
           *Out << i->getParent()->getParent()->getName() << "," << i->getParent()->getName() << ",";
-          if (IntrinsicInst *ii = dyn_cast<IntrinsicInst>(i))
-            *Out << Intrinsic::getName(ii->getIntrinsicID());
-          else
-            *Out << i->getOpcodeName();
+          *Out << klee::getIntrinsicOrInstructionName(i);
           *Out << "\n";
         }
 
