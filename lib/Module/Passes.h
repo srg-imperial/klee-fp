@@ -70,6 +70,28 @@ public:
   virtual bool runOnModule(llvm::Module &M);
 };
   
+class LowerSSEPass : public llvm::ModulePass {
+  static char ID;
+
+  bool runOnBasicBlock(llvm::BasicBlock &b);
+public:
+  LowerSSEPass()
+    : llvm::ModulePass((intptr_t) &ID) {}
+  
+  virtual bool runOnModule(llvm::Module &M);
+};
+  
+class SIMDInstrumentationPass : public llvm::ModulePass {
+  static char ID;
+
+  bool runOnBasicBlock(llvm::BasicBlock &b);
+public:
+  SIMDInstrumentationPass()
+    : llvm::ModulePass((intptr_t) &ID) {}
+  
+  virtual bool runOnModule(llvm::Module &M);
+};
+  
   // performs two transformations which make interpretation
   // easier and faster.
   //

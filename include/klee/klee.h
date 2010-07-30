@@ -149,7 +149,7 @@ extern "C" {
   extern unsigned klee_sse_count;
 
   /* Callback for each SSE instruction executed. */
-  void klee_sse(char *name, char *file, unsigned line);
+  void klee_sse(char *name, char *file, unsigned line, char* func, char *inst);
 
 #ifdef __cplusplus
 }
