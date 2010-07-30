@@ -80,6 +80,11 @@ namespace {
   cl::opt<bool>
   DebugPrintEscapingFunctions("debug-print-escaping-functions", 
                               cl::desc("Print functions whose address is taken."));
+
+  cl::opt<bool>
+  InstrumentSIMD("instrument-simd",
+                 cl::desc("Instrument every SIMD instruction with a call to klee_sse"),
+                 cl::init(false));
 }
 
 KModule::KModule(Module *_module) 
@@ -254,6 +259,9 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   pm.add(new RaiseAsmPass());
   if (opts.CheckDivZero) pm.add(new DivCheckPass());
   pm.add(createLowerAtomicPass());          // Lower llvm.atomic.*
+  if (InstrumentSIMD)
+    pm.add(new SIMDInstrumentationPass());
+  pm.add(new LowerSSEPass());
   // FIXME: This false here is to work around a bug in
   // IntrinsicLowering which caches values which may eventually be
   // deleted (via RAUW). This can be removed once LLVM fixes this
