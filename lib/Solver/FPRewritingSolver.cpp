@@ -67,10 +67,8 @@ static bool IsNotExpr(ref<Expr> e, ref<Expr> &neg) {
 }
 
 /* Given a pair of floating point expressions lhs and rhs, return an expression
- * which is a sufficient condition for either of:
- *
- *   1. lhs == rhs (ordered comparison) holds
- *   2. both lhs and rhs are NaN
+ * which is a sufficient condition for lhs == rhs (unordered or bitwise
+ * comparison) to hold
  *
  * The inverse of the expression is also a necessary condition for
  * lhs != rhs (ordered comparison) to hold
@@ -145,8 +143,8 @@ bool HasFPExpr(ref<Expr> e) {
 
 ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e, bool isNeg) {
   switch (e->getKind()) {
-    case Expr::FOeq:
-      return constrainEquality(e->getKid(0), e->getKid(1)); /* I don't think this is right */
+    case Expr::FUeq:
+      return constrainEquality(e->getKid(0), e->getKid(1));
     case Expr::FOne:
       return Expr::createIsZero(constrainEquality(e->getKid(0), e->getKid(1)));
     case Expr::And:
@@ -157,6 +155,8 @@ ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e, bool isNeg) 
       ref<Expr> neg;
       if (IsNotExpr(e, neg))
         return Expr::createIsZero(_rewriteConstraint(neg, !isNeg));
+      if (HasFPExpr(e))
+        return constrainEquality(e->getKid(0), e->getKid(1));
       break;
     }
     default: break;
