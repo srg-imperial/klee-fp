@@ -121,6 +121,12 @@ static Value *CreateAbsDiff(IRBuilder<> &builder, bool isSigned, const IntegerTy
   return builder.CreateSelect(lmrIsNeg, builder.CreateNeg(lmr), lmr);
 }
 
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 8)
+#define GET_ARG_OPERAND(INST, NUM) (INST)->getOperand((NUM)+1)
+#else
+#define GET_ARG_OPERAND(INST, NUM) (INST)->getArgOperand(NUM)
+#endif
+
 bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) { 
   bool dirty = false;
   
@@ -134,7 +140,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       switch (ii->getIntrinsicID()) {
       case Intrinsic::x86_sse_loadu_ps:
       case Intrinsic::x86_sse2_loadu_dq: {
-        Value *src = ii->getOperand(1);
+        Value *src = GET_ARG_OPERAND(ii, 0);
 
         const VectorType* vecTy = cast<VectorType>(ii->getType());
         PointerType *vecPtrTy = PointerType::get(vecTy, 0);
@@ -152,8 +158,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse_storeu_ps:
       case Intrinsic::x86_sse2_storel_dq:
       case Intrinsic::x86_sse2_storeu_dq: {
-        Value *dst = ii->getOperand(1);
-        Value *src = ii->getOperand(2);
+        Value *dst = GET_ARG_OPERAND(ii, 0);
+        Value *src = GET_ARG_OPERAND(ii, 1);
 
         const VectorType* vecTy = cast<VectorType>(src->getType());
         PointerType *vecPtrTy = PointerType::get(vecTy, 0);
@@ -168,8 +174,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
 
       case Intrinsic::x86_sse2_psll_dq_bs:
       case Intrinsic::x86_sse2_psrl_dq_bs: {
-        Value *src = ii->getOperand(1);
-        Value *count = ii->getOperand(2);
+        Value *src = GET_ARG_OPERAND(ii, 0);
+        Value *count = GET_ARG_OPERAND(ii, 1);
 
         const Type *i128 = IntegerType::get(getGlobalContext(), 128);
 
@@ -187,7 +193,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_cvtdq2ps: {
-        Value *src = ii->getOperand(1);
+        Value *src = GET_ARG_OPERAND(ii, 0);
 
         Value *res = builder.CreateSIToFP(src, ii->getType());
 
@@ -199,7 +205,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_cvtps2dq: {
-        Value *src = ii->getOperand(1);
+        Value *src = GET_ARG_OPERAND(ii, 0);
 
         Value *res = builder.CreateFPToSI(src, ii->getType());
 
@@ -215,7 +221,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
 
         Value *zero32 = ConstantInt::get(i32, 0);
 
-        Value *src = ii->getOperand(1);
+        Value *src = GET_ARG_OPERAND(ii, 0);
 
         ExtractElementInst *lowElem = ExtractElementInst::Create(src, zero32, "", ii);
         FPToSIInst *conv = new FPToSIInst(lowElem, i32, "", ii);
@@ -233,8 +239,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_packsswb_128:
       case Intrinsic::x86_mmx_packuswb:
       case Intrinsic::x86_sse2_packuswb_128: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *srcTy = cast<VectorType>(src1->getType());
         unsigned srcElCount = srcTy->getNumElements();
@@ -284,8 +290,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_pmaxu_b:
       case Intrinsic::x86_sse2_pmins_w:
       case Intrinsic::x86_sse2_pmaxs_w: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *vt = cast<VectorType>(src1->getType());
         unsigned elCount = vt->getNumElements();
@@ -319,8 +325,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_psubus_b: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *vt = cast<VectorType>(src1->getType());
         unsigned elCount = vt->getNumElements();
@@ -349,8 +355,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_paddus_b: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *vt = cast<VectorType>(src1->getType());
         unsigned elCount = vt->getNumElements();
@@ -379,8 +385,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_padds_w: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *vt = cast<VectorType>(src1->getType());
         unsigned elCount = vt->getNumElements();
@@ -410,8 +416,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
 
       case Intrinsic::x86_sse2_pcmpgt_b:
       case Intrinsic::x86_sse2_pcmpgt_w: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *vt = cast<VectorType>(src1->getType());
         unsigned elCount = vt->getNumElements();
@@ -443,8 +449,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_psrai_w:
       case Intrinsic::x86_sse2_psrli_w:
       case Intrinsic::x86_sse2_pslli_w: {
-        Value *src = ii->getOperand(1);
-        Value *count = ii->getOperand(2);
+        Value *src = GET_ARG_OPERAND(ii, 0);
+        Value *count = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *vt = cast<VectorType>(src->getType());
         unsigned elCount = vt->getNumElements();
@@ -485,8 +491,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_pmulh_w: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *vt = cast<VectorType>(src1->getType());
         unsigned elCount = vt->getNumElements();
@@ -520,8 +526,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_psad_bw: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *vt = cast<VectorType>(src1->getType());
         const VectorType *rt = cast<VectorType>(ii->getType());
@@ -569,8 +575,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse2_pmadd_wd: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
 
         const VectorType *vt = cast<VectorType>(src1->getType());
         const VectorType *rt = cast<VectorType>(ii->getType());
@@ -607,9 +613,9 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse_cmp_ps: {
-        Value *src1 = ii->getOperand(1);
-        Value *src2 = ii->getOperand(2);
-        ConstantInt *pred = cast<ConstantInt>(ii->getOperand(3));
+        Value *src1 = GET_ARG_OPERAND(ii, 0);
+        Value *src2 = GET_ARG_OPERAND(ii, 1);
+        ConstantInt *pred = cast<ConstantInt>(GET_ARG_OPERAND(ii, 2));
 
         static const CmpInst::Predicate pred2fcmp[] = {
           CmpInst::FCMP_OEQ, 
