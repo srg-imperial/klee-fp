@@ -71,6 +71,8 @@ class STPBuilder {
   /// use.
   bool optimizeDivides;
 
+  unsigned fpCount;
+
 private:
   unsigned getShiftBits(unsigned amount) {
     return (amount == 64) ? 6 : 5;

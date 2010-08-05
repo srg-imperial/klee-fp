@@ -1845,12 +1845,20 @@ ref<Expr> FPToUIExpr::create(const ref<Expr> &e, Width W, bool isIEEE) {
   if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
     return ce->FPToUI(W, isIEEE);
 
+  if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
+    if (!SemMismatch(isIEEE, fee->getSemantics()))
+        return FPToUIExpr::create(fee->getKid(0), W, fee->fromIsIEEE());
+
   return FPToUIExpr::alloc(e, W, isIEEE);
 }
 
 ref<Expr> FPToSIExpr::create(const ref<Expr> &e, Width W, bool isIEEE) {
   if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
     return ce->FPToSI(W, isIEEE);
+
+  if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
+    if (!SemMismatch(isIEEE, fee->getSemantics()))
+        return FPToSIExpr::create(fee->getKid(0), W, fee->fromIsIEEE());
 
   return FPToSIExpr::alloc(e, W, isIEEE);
 }
