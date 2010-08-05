@@ -129,6 +129,8 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
 }
 
 bool HasFPExpr(ref<Expr> e) {
+  if (isa<F2IConvertExpr>(e))
+    return false;
   if (isa<FConvertExpr>(e)
    || isa<FOrd1Expr>(e)
    || isa<FBinaryExpr>(e)

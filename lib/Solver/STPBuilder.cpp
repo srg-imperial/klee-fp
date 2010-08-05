@@ -53,7 +53,7 @@ namespace {
 /***/
 
 STPBuilder::STPBuilder(::VC _vc, bool _optimizeDivides) 
-  : vc(_vc), optimizeDivides(_optimizeDivides)
+  : vc(_vc), optimizeDivides(_optimizeDivides), fpCount(0)
 {
   tempVars[0] = buildVar("__tmpInt8", 8);
   tempVars[1] = buildVar("__tmpInt16", 16);
@@ -897,6 +897,15 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
   case Expr::Sgt:
   case Expr::Sge:
 #endif
+
+  case Expr::FPToSI:
+  case Expr::FPToUI: {
+    std::ostringstream ss;
+    ss << "FPtoI" << fpCount++;
+    *width_out = e->getWidth();
+    *et_out = etBV;
+    return buildVar(ss.str().c_str(), e->getWidth());
+  }
 
   default: 
     assert(0 && "unhandled Expr type");
