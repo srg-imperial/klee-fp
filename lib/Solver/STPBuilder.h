@@ -62,9 +62,22 @@ namespace klee {
   };
 
 class STPBuilder {
+  enum STPExprType {
+    etBV,
+    etBOOL,
+    etDontCare
+  };
+
   ::VC vc;
   ExprHandle tempVars[4];
-  ExprHashMap< std::pair<ExprHandle, unsigned> > constructed;
+  struct ConstructedExpr {
+    ConstructedExpr(ExprHandle expr, unsigned width, STPExprType type)
+      : expr(expr), width(width), type(type) {}
+    ExprHandle expr;
+    unsigned width;
+    STPExprType type;
+  };
+  ExprHashMap<ConstructedExpr> constructed;
 
   /// optimizeDivides - Rewrite division and reminders by constants
   /// into multiplies and shifts. STP should probably handle this for
@@ -103,12 +116,6 @@ private:
 
   ::VCExpr getInitialArray(const Array *os);
   ::VCExpr getArrayForUpdate(const Array *root, const UpdateNode *un);
-
-  enum STPExprType {
-    etBV,
-    etBOOL,
-    etDontCare
-  };
 
   ExprHandle constructActual(ref<Expr> e, int *width_out, STPExprType *et_out);
   ExprHandle construct(ref<Expr> e, int *width_out, STPExprType *et_out);
