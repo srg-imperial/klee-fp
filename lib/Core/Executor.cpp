@@ -1757,13 +1757,16 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> fExpr = eval(ki, 2, state).value;
 
     Expr::Kind condKind = cond->getKind();
+#if 0
     if (condKind == Expr::FOrd1 || (condKind >= Expr::FOrd && condKind <= Expr::FUne)) {
       Executor::StatePair branches = fork(state, cond, true);
       if (branches.first)
         bindLocal(ki, *branches.first, tExpr);
       if (branches.second)
         bindLocal(ki, *branches.second, fExpr);
-    } else {
+    } else
+#endif
+    {
       ref<Expr> result = SelectExpr::create(cond, tExpr, fExpr);
       bindLocal(ki, state, result);
     }
