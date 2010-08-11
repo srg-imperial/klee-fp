@@ -439,17 +439,18 @@ ExprHandle STPBuilder::construct(ref<Expr> e, int *width_out, STPExprType *et_ou
   if (!UseConstructHash || isa<ConstantExpr>(e)) {
     return constructActual(e, width_out, et_out);
   } else {
-    ExprHashMap< std::pair<ExprHandle, unsigned> >::iterator it = 
-      constructed.find(e);
+    ExprHashMap<ConstructedExpr>::iterator it = constructed.find(e);
     if (it!=constructed.end()) {
       if (width_out)
-        *width_out = it->second.second;
-      return it->second.first;
+        *width_out = it->second.width;
+      if (et_out)
+        *et_out = it->second.type;
+      return it->second.expr;
     } else {
       int width;
       if (!width_out) width_out = &width;
       ExprHandle res = constructActual(e, width_out, et_out);
-      constructed.insert(std::make_pair(e, std::make_pair(res, *width_out)));
+      constructed.insert(std::make_pair(e, ConstructedExpr(res, *width_out, *et_out)));
       return res;
     }
   }
