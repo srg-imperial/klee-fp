@@ -109,8 +109,9 @@ static Value *CreateSignExtendedICmp(IRBuilder<> &builder, CmpInst::Predicate p,
   return res;
 }
 
-static Value *CreateMinMax(IRBuilder<> &builder, bool isMax, bool isSigned, Value *l, Value *r) {
-  Value *cmp = isSigned ? builder.CreateICmpSLT(l, r) : builder.CreateICmpULT(l, r);
+static Value *CreateMinMax(IRBuilder<> &builder, bool isMax, bool isFloat, bool isSigned, Value *l, Value *r) {
+  Value *cmp = isFloat ? builder.CreateFCmpOLT(l, r) :
+               isSigned ? builder.CreateICmpSLT(l, r) : builder.CreateICmpULT(l, r);
   return builder.CreateSelect(cmp, isMax ? r : l, isMax ? l : r);
 }
 
@@ -289,7 +290,9 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_pminu_b:
       case Intrinsic::x86_sse2_pmaxu_b:
       case Intrinsic::x86_sse2_pmins_w:
-      case Intrinsic::x86_sse2_pmaxs_w: {
+      case Intrinsic::x86_sse2_pmaxs_w:
+      case Intrinsic::x86_sse_min_ps:
+      case Intrinsic::x86_sse_max_ps: {
         Value *src1 = GET_ARG_OPERAND(ii, 0);
         Value *src2 = GET_ARG_OPERAND(ii, 1);
 
@@ -300,7 +303,10 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
         assert(ii->getType() == vt);
 
         bool isMax = (ii->getIntrinsicID() == Intrinsic::x86_sse2_pmaxu_b
-                   || ii->getIntrinsicID() == Intrinsic::x86_sse2_pmaxs_w);
+                   || ii->getIntrinsicID() == Intrinsic::x86_sse2_pmaxs_w
+                   || ii->getIntrinsicID() == Intrinsic::x86_sse_max_ps);
+        bool isFloat = (ii->getIntrinsicID() == Intrinsic::x86_sse_min_ps
+                     || ii->getIntrinsicID() == Intrinsic::x86_sse_max_ps);
         bool isSigned = (ii->getIntrinsicID() == Intrinsic::x86_sse2_pmins_w
                       || ii->getIntrinsicID() == Intrinsic::x86_sse2_pmaxs_w);
 
@@ -311,7 +317,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
         for (unsigned i = 0; i < elCount; i++) {
           Constant *ic = ConstantInt::get(i32, i);
           res = builder.CreateInsertElement(res,
-                                            CreateMinMax(builder, isMax, isSigned,
+                                            CreateMinMax(builder, isMax, isFloat, isSigned,
                                                          builder.CreateExtractElement(src1, ic),
                                                          builder.CreateExtractElement(src2, ic)),
                                             ic);
