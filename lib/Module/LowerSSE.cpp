@@ -330,7 +330,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
         break;
       }
 
-      case Intrinsic::x86_sse2_psubus_b: {
+      case Intrinsic::x86_sse2_psubus_b:
+      case Intrinsic::x86_sse2_psubus_w: {
         Value *src1 = GET_ARG_OPERAND(ii, 0);
         Value *src2 = GET_ARG_OPERAND(ii, 1);
 
