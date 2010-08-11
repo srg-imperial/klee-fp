@@ -66,50 +66,6 @@ static bool IsNotExpr(ref<Expr> e, ref<Expr> &neg) {
   return true;
 }
 
-enum MinMax { mmUnknown, mmMin, mmMax };
-
-// Given an expression, if that expression represents a floating point
-// min or max operation over any number of operands, return true.
-// The list of operands is returned through ops and the type of
-// operation (min or max) through mm.
-//
-// This isn't as good as it could be.  For one thing, we could use
-// constrainEquality to compare the inner operands.  We could also
-// recognise FOle (simplifies to (a < b || a == b)) and the unordered
-// comparisons (recognise Not)
-bool collectFMinMax(ref<Expr> &e, std::set<ref<Expr> > &ops, MinMax &mm) {
-  SelectExpr *se = dyn_cast<SelectExpr>(e);
-  if (!se)
-    return false;
-
-  FOltExpr *le = dyn_cast<FOltExpr>(se->getKid(0));
-  if (!le)
-    return false;
-
-  ref<Expr> e0 = se->getKid(1);
-  ref<Expr> e1 = se->getKid(2);
-
-  if (e0 == le->getKid(0) && e1 == le->getKid(1)) {
-    if (mm == mmMax)
-      return false;
-    mm = mmMin;
-    if (!collectFMinMax(e0, ops, mm)) ops.insert(e0);
-    if (!collectFMinMax(e1, ops, mm)) ops.insert(e1);
-    return true;
-  }
-
-  if (e0 == le->getKid(1) && e1 == le->getKid(0)) {
-    if (mm == mmMin)
-      return false;
-    mm = mmMax;
-    if (!collectFMinMax(e0, ops, mm)) ops.insert(e0);
-    if (!collectFMinMax(e1, ops, mm)) ops.insert(e1);
-    return true;
-  }
-
-  return false;
-}
-
 /* Given a pair of floating point expressions lhs and rhs, return an expression
  * which is a sufficient condition for lhs == rhs (unordered or bitwise
  * comparison) to hold
@@ -165,23 +121,6 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
         return constrainEquality(lhsNeg, rhsNeg);
       else
         return ConstantExpr::alloc(0, Expr::Bool);
-    }
-    case Expr::Select: {
-      std::set<ref<Expr> > lhsOps, rhsOps;
-      MinMax lhsMM = mmUnknown, rhsMM = mmUnknown;
-      if (collectFMinMax(lhs, lhsOps, lhsMM) &&
-          collectFMinMax(rhs, rhsOps, rhsMM) &&
-          lhsMM == rhsMM && lhsOps == rhsOps) {
-#if 0
-        std::cerr << "collectFMinMax matched min/max exprs: mm = " << lhsMM << ", ops = {" << std::endl;
-        for (std::set<ref<Expr> >::iterator i = lhsOps.begin(), e = lhsOps.end(); i != e; ++i) {
-          (*i)->dump();
-        }
-        std::cerr << "}" << std::endl;
-#endif
-        return ConstantExpr::alloc(1, Expr::Bool);
-      }
-      break;
     }
     default: break;
       // assert(0 && "Floating point value expected");
