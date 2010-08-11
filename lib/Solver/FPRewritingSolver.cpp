@@ -122,10 +122,10 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
       else
         return ConstantExpr::alloc(0, Expr::Bool);
     }
-    default:
-      return ConstantExpr::alloc(lhs->compare(*rhs) == 0 ? 1 : 0, Expr::Bool);
+    default: break;
       // assert(0 && "Floating point value expected");
   }
+  return ConstantExpr::alloc(lhs->compare(*rhs) == 0 ? 1 : 0, Expr::Bool);
 }
 
 bool HasFPExpr(ref<Expr> e) {
