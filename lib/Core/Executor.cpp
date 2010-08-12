@@ -1756,8 +1756,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> tExpr = eval(ki, 1, state).value;
     ref<Expr> fExpr = eval(ki, 2, state).value;
 
-    Expr::Kind condKind = cond->getKind();
 #if 0
+    Expr::Kind condKind = cond->getKind();
     if (condKind == Expr::FOrd1 || (condKind >= Expr::FOrd && condKind <= Expr::FUne)) {
       Executor::StatePair branches = fork(state, cond, true);
       if (branches.first)
