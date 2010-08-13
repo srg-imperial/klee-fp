@@ -1,0 +1,26 @@
+--- lib/Transforms/Utils/SimplifyCFG.cpp.orig	2010-08-13 21:30:40.000000000 +0100
++++ lib/Transforms/Utils/SimplifyCFG.cpp	2010-08-13 21:31:49.000000000 +0100
+@@ -42,6 +42,10 @@
+ PHINodeFoldingThreshold("phi-node-folding-threshold", cl::Hidden, cl::init(2),
+    cl::desc("Control the amount of phi node folding to perform (default = 2)"));
+ 
++static cl::opt<bool>
++UnsafePhiNodeFolding("unsafe-phi-node-folding", cl::Hidden, cl::init(false),
++   cl::desc("Consider FP operations which may throw exceptions for phi node folding"));
++
+ namespace {
+ class SimplifyCFGOpt {
+   const TargetData *const TD;
+@@ -278,6 +282,12 @@
+         Cost = 1;
+         break;   // These are all cheap and non-trapping instructions.
+ 
++      case Instruction::FCmp:
++        if (UnsafePhiNodeFolding) {
++          Cost = 1;
++          break;
++        } else return false;
++
+       case Instruction::Select:
+         Cost = 2;
+         break;
