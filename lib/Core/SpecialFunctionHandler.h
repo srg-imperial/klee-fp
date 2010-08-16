@@ -97,6 +97,7 @@ namespace klee {
     HANDLER(handleSilentExit);
     HANDLER(handleStackTrace);
     HANDLER(handleDumpConstraints);
+    HANDLER(handleWatch);
     HANDLER(handleUnderConstrained);
     HANDLER(handleWarning);
     HANDLER(handleWarningOnce);

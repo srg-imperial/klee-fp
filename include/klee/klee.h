@@ -151,6 +151,9 @@ extern "C" {
   /* Callback for each SSE instruction executed. */
   void klee_sse(char *name, char *file, unsigned line, char* func, char *inst);
 
+  /* Add a memory watchpoint at the given address. */
+  void klee_watch(void *, size_t);
+
 #ifdef __cplusplus
 }
 #endif
