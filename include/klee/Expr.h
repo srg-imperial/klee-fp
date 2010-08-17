@@ -285,6 +285,7 @@ public:
   }
 
   /* Kind utilities */
+  bool isNotExpr(ref<Expr> &neg) const;
 
   /* Utility creation functions */
   static ref<Expr> createCoerceToPointerType(ref<Expr> e);
