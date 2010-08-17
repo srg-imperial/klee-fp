@@ -733,6 +733,10 @@ ref<Expr> SelectExpr::create(ref<Expr> c, ref<Expr> t, ref<Expr> f) {
         return AndExpr::create(c, t);
       }
     }
+  } else {
+    ref<Expr> lNeg, rNeg;
+    if (c->getKind() == Expr::And && c->getKid(0)->isNotExpr(lNeg) && c->getKid(1)->isNotExpr(rNeg))
+      return SelectExpr::create(OrExpr::create(lNeg, rNeg), f, t);
   }
   
   return SelectExpr::alloc(c, t, f);
