@@ -742,6 +742,15 @@ ref<Expr> ConcatExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
         return ConcatExpr::create(lCE->Concat(rlCE), rCE->getKid(1));
   }
 
+  if (SelectExpr *lSE = dyn_cast<SelectExpr>(l)) {
+    if (isa<ConstantExpr>(lSE->getKid(1)) &&
+        isa<ConstantExpr>(lSE->getKid(2)) &&
+        isa<ConstantExpr>(r)) {
+      return SelectExpr::create(lSE->getKid(0),
+                                ConcatExpr::create(lSE->getKid(1), r),
+                                ConcatExpr::create(lSE->getKid(2), r));
+    }
+  }
   // Merge contiguous Extracts
   if (ExtractExpr *ee_left = dyn_cast<ExtractExpr>(l)) {
     if (ExtractExpr *ee_right = dyn_cast<ExtractExpr>(r)) {
