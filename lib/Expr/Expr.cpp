@@ -807,6 +807,9 @@ ref<Expr> ExtractExpr::create(ref<Expr> expr, unsigned off, Width w) {
     return AndExpr::create(ExtractExpr::create(AE->getKid(0), off, w), ExtractExpr::create(AE->getKid(1), off, w));
   } else if (XorExpr *XE = dyn_cast<XorExpr>(expr)) {
     return XorExpr::create(ExtractExpr::create(XE->getKid(0), off, w), ExtractExpr::create(XE->getKid(1), off, w));
+  } else if (SExtExpr *SEE = dyn_cast<SExtExpr>(expr)) {
+    if (SEE->getKid(0)->getWidth() == 1)
+      return SExtExpr::create(SEE->getKid(0), w);
   } else {
     // Extract(Concat)
     if (ConcatExpr *ce = dyn_cast<ConcatExpr>(expr)) {
