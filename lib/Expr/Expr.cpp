@@ -1060,6 +1060,13 @@ static ref<Expr> AndExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
 static ref<Expr> AndExpr_create(Expr *l, Expr *r) {
   if (l->getKind() == Expr::Concat && r->getKind() == Expr::Concat && l->getKid(0)->getWidth() == r->getKid(0)->getWidth())
     return ConcatExpr::create(AndExpr::create(l->getKid(0), r->getKid(0)), AndExpr::create(l->getKid(1), r->getKid(1)));
+
+  if (l->getKind() == Expr::SExt && l->getKid(0)->getWidth() == 1)
+    return SelectExpr::create(l->getKid(0), r, ConstantExpr::create(0, l->getWidth()));
+
+  if (r->getKind() == Expr::SExt && r->getKid(0)->getWidth() == 1)
+    return SelectExpr::create(r->getKid(0), l, ConstantExpr::create(0, r->getWidth()));
+
   return AndExpr::alloc(l, r);
 }
 
