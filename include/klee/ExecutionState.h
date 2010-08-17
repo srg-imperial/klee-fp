@@ -105,6 +105,10 @@ public:
 
   unsigned incomingBBIndex;
 
+  // Current memory watchpoint.
+  ref<Expr> watchpoint;
+  size_t watchpointSize;
+
   std::string getFnAlias(std::string fn);
   void addFnAlias(std::string old_fn, std::string new_fn);
   void removeFnAlias(std::string fn);
