@@ -193,6 +193,21 @@ Expr::FPCategories Expr::getCategories(bool isIEEE) const {
   return fcAll;
 }
 
+bool Expr::isNotExpr(ref<Expr> &neg) const {
+  if (getKind() != Expr::Eq)
+    return false;
+  ref<Expr> kid0 = getKid(0), kid1 = getKid(1);
+  if (kid0->getWidth() != Expr::Bool)
+    return false;
+  if (kid0->isFalse())
+    neg = kid1;
+  else if (kid1->isFalse())
+    neg = kid0;
+  else
+    return false;
+  return true;
+}
+
 unsigned ConstantExpr::computeHash() {
   hashValue = value.getHashValue() ^ (getWidth() * MAGIC_HASH_CONSTANT);
   return hashValue;

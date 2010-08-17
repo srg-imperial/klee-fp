@@ -51,21 +51,6 @@ public:
                             bool &hasSolution);
 };
 
-static bool IsNotExpr(ref<Expr> e, ref<Expr> &neg) {
-  if (e->getKind() != Expr::Eq)
-    return false;
-  ref<Expr> kid0 = e->getKid(0), kid1 = e->getKid(1);
-  if (kid0->getWidth() != Expr::Bool)
-    return false;
-  if (kid0->isFalse())
-    neg = kid1;
-  else if (kid1->isFalse())
-    neg = kid0;
-  else
-    return false;
-  return true;
-}
-
 /* Given a pair of floating point expressions lhs and rhs, return an expression
  * which is a sufficient condition for lhs == rhs (unordered or bitwise
  * comparison) to hold
@@ -117,7 +102,7 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
     }
     case Expr::Eq: {
       ref<Expr> lhsNeg, rhsNeg;
-      if (IsNotExpr(lhs, lhsNeg) && IsNotExpr(rhs, rhsNeg))
+      if (lhs->isNotExpr(lhsNeg) && rhs->isNotExpr(rhsNeg))
         return constrainEquality(lhsNeg, rhsNeg);
       else
         return ConstantExpr::alloc(0, Expr::Bool);
@@ -155,7 +140,7 @@ ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e, bool isNeg) 
       break;
     case Expr::Eq: {
       ref<Expr> neg;
-      if (IsNotExpr(e, neg))
+      if (e->isNotExpr(neg))
         return Expr::createIsZero(_rewriteConstraint(neg, !isNeg));
       if (HasFPExpr(e))
         return constrainEquality(e->getKid(0), e->getKid(1));
