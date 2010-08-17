@@ -157,7 +157,6 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       }
 
       case Intrinsic::x86_sse_storeu_ps:
-      case Intrinsic::x86_sse2_storel_dq:
       case Intrinsic::x86_sse2_storeu_dq: {
         Value *dst = GET_ARG_OPERAND(ii, 0);
         Value *src = GET_ARG_OPERAND(ii, 1);
@@ -167,6 +166,25 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
 
         CastInst* pv = new BitCastInst(dst, vecPtrTy, "", ii);
         new StoreInst(src, pv, false, ii);
+
+        ii->removeFromParent();
+        delete ii;
+        break;
+      }
+
+      case Intrinsic::x86_sse2_storel_dq: {
+        Value *dst = GET_ARG_OPERAND(ii, 0);
+        Value *src = GET_ARG_OPERAND(ii, 1);
+
+        const Type *i128 = IntegerType::get(getGlobalContext(), 128);
+        const Type *i64 = IntegerType::get(getGlobalContext(), 64);
+        const Type *p0i64 = PointerType::get(i64, 0);
+
+        Value *srci = builder.CreateBitCast(src, i128);
+        Value *src64 = builder.CreateTrunc(srci, i64);
+
+        Value *dst64 = builder.CreateBitCast(dst, p0i64);
+        builder.CreateStore(src64, dst64);
 
         ii->removeFromParent();
         delete ii;
