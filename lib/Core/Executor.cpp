@@ -2992,6 +2992,20 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                      getWidthForLLVMType(target->inst->getType()));
   unsigned bytes = Expr::getMinBytesForWidth(type);
 
+  if (!state.watchpoint.isNull() && isWrite) {
+    if (address == state.watchpoint) {
+      puts("Hit watchpoint, value = ");
+      value->dump();
+    } else if (isa<ConstantExpr>(state.watchpoint) && isa<ConstantExpr>(address)) {
+      uint64_t wpConst = cast<ConstantExpr>(state.watchpoint)->getZExtValue(),
+               adConst = cast<ConstantExpr>(address)->getZExtValue();
+      if (wpConst + state.watchpointSize >= adConst && wpConst < adConst + value->getWidth()/8) {
+        printf("Hit watchpoint (inexact), wp addr = %lu, wr addr = %lu, value =\n", wpConst, adConst);
+        value->dump();
+      }
+    }
+  }
+
   if (SimplifySymIndices) {
     if (!isa<ConstantExpr>(address))
       address = state.constraints.simplifyExpr(address);

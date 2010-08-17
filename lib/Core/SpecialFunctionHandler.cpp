@@ -87,6 +87,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_set_forking", handleSetForking, false),
   add("klee_stack_trace", handleStackTrace, false),
   add("klee_dump_constraints", handleDumpConstraints, false),
+  add("klee_watch", handleWatch, false),
   add("klee_warning", handleWarning, false),
   add("klee_warning_once", handleWarningOnce, false),
   add("klee_alias_function", handleAliasFunction, false),
@@ -445,6 +446,14 @@ void SpecialFunctionHandler::handleDumpConstraints(ExecutionState &state,
                                                    KInstruction *target,
                                                    std::vector<ref<Expr> > &arguments) {
   state.constraints.dump(std::cout);
+}
+
+void SpecialFunctionHandler::handleWatch(ExecutionState &state,
+                                         KInstruction *target,
+                                         std::vector<ref<Expr> > &arguments) {
+  state.watchpoint = arguments[0];
+  assert(isa<ConstantExpr>(arguments[1]) && "Size param must be constant");
+  state.watchpointSize = cast<ConstantExpr>(arguments[1])->getZExtValue();
 }
 
 void SpecialFunctionHandler::handleWarning(ExecutionState &state,
