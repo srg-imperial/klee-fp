@@ -1039,7 +1039,7 @@ static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
     ref<Expr> rr = cr->Extract(0, lr->getWidth());
     return ConcatExpr::create(AndExpr::create(ll, rl), AndExpr::create(lr, rr));
   } else {
-    return AndExpr::alloc(l, cr);
+    return AndExpr_create(l, cr.get());
   }
 }
 static ref<Expr> AndExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
