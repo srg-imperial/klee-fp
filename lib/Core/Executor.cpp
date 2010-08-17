@@ -3000,7 +3000,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
       uint64_t wpConst = cast<ConstantExpr>(state.watchpoint)->getZExtValue(),
                adConst = cast<ConstantExpr>(address)->getZExtValue();
       if (wpConst + state.watchpointSize >= adConst && wpConst < adConst + value->getWidth()/8) {
-        puts("Hit watchpoint (inexact), value = ");
+        printf("Hit watchpoint (inexact), wp addr = %lu, wr addr = %lu, value =\n", wpConst, adConst);
         value->dump();
       }
     }
