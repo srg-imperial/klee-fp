@@ -33,7 +33,7 @@ public:
     : solver(_solver) {}
   ~FPRewritingSolver() { delete solver; }
 
-  ref<Expr> constrainEquality(ref<Expr> lhs, ref<Expr> rhs);
+  ref<Expr> constrainEquality(ref<Expr> lhs, ref<Expr> rhs, bool isUnordered = false);
 
   ref<Expr> fuseConstraints(const ref<Expr> &e1, const ref<Expr> &e2);
 
@@ -51,6 +51,50 @@ public:
                             bool &hasSolution);
 };
 
+enum MinMax { mmUnknown, mmMin, mmMax };
+
+// Given an expression, if that expression represents a floating point
+// min or max operation over any number of operands, return true.
+// The list of operands is returned through ops and the type of
+// operation (min or max) through mm.
+//
+// This isn't as good as it could be.  For one thing, we could use
+// constrainEquality to compare the inner operands.  We could also
+// recognise FOle (simplifies to (a < b || a == b)) and the unordered
+// comparisons (recognise Not)
+bool collectFMinMax(ref<Expr> &e, std::set<ref<Expr> > &ops, MinMax &mm) {
+  SelectExpr *se = dyn_cast<SelectExpr>(e);
+  if (!se)
+    return false;
+
+  FOltExpr *le = dyn_cast<FOltExpr>(se->getKid(0));
+  if (!le)
+    return false;
+
+  ref<Expr> e0 = se->getKid(1);
+  ref<Expr> e1 = se->getKid(2);
+
+  if (e0 == le->getKid(0) && e1 == le->getKid(1)) {
+    if (mm == mmMax)
+      return false;
+    mm = mmMin;
+    if (!collectFMinMax(e0, ops, mm)) ops.insert(e0);
+    if (!collectFMinMax(e1, ops, mm)) ops.insert(e1);
+    return true;
+  }
+
+  if (e0 == le->getKid(1) && e1 == le->getKid(0)) {
+    if (mm == mmMin)
+      return false;
+    mm = mmMax;
+    if (!collectFMinMax(e0, ops, mm)) ops.insert(e0);
+    if (!collectFMinMax(e1, ops, mm)) ops.insert(e1);
+    return true;
+  }
+
+  return false;
+}
+
 /* Given a pair of floating point expressions lhs and rhs, return an expression
  * which is a sufficient condition for lhs == rhs (unordered or bitwise
  * comparison) to hold
@@ -58,7 +102,7 @@ public:
  * The inverse of the expression is also a necessary condition for
  * lhs != rhs (ordered comparison) to hold
  */
-ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
+ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs, bool isUnordered) {
   Expr::Kind kind = lhs->getKind();
   if (kind != rhs->getKind())
     return ConstantExpr::alloc(0, Expr::Bool);
@@ -68,16 +112,16 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
     case Expr::FMul:
     case Expr::FOeq:
       return OrExpr::create(
-               AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0)),
-                               constrainEquality(lhs->getKid(1), rhs->getKid(1))),
-               AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(1)),
-                               constrainEquality(lhs->getKid(1), rhs->getKid(0))));
+               AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0), isUnordered),
+                               constrainEquality(lhs->getKid(1), rhs->getKid(1), isUnordered)),
+               AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(1), isUnordered),
+                               constrainEquality(lhs->getKid(1), rhs->getKid(0), isUnordered)));
     case Expr::FSub:
     case Expr::FDiv:
     case Expr::FRem:
     case Expr::FOlt:
-      return AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0)),
-                             constrainEquality(lhs->getKid(1), rhs->getKid(1)));
+      return AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0), isUnordered),
+                             constrainEquality(lhs->getKid(1), rhs->getKid(1), isUnordered));
     case Expr::FPExt:
     case Expr::FPTrunc: {
       F2FConvertExpr *fclhs = cast<F2FConvertExpr>(lhs), *fcrhs = cast<F2FConvertExpr>(rhs);
@@ -85,7 +129,7 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
        || fclhs->getSemantics() != fcrhs->getSemantics())
         return ConstantExpr::alloc(0, Expr::Bool);
       ref<Expr> lhsKid = lhs->getKid(0), rhsKid = rhs->getKid(0);
-      return constrainEquality(lhsKid, rhsKid);
+      return constrainEquality(lhsKid, rhsKid, isUnordered);
     }
     case Expr::UIToFP:
     case Expr::SIToFP: {
@@ -103,9 +147,27 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs) {
     case Expr::Eq: {
       ref<Expr> lhsNeg, rhsNeg;
       if (lhs->isNotExpr(lhsNeg) && rhs->isNotExpr(rhsNeg))
-        return constrainEquality(lhsNeg, rhsNeg);
+        return constrainEquality(lhsNeg, rhsNeg, isUnordered);
       else
         return ConstantExpr::alloc(0, Expr::Bool);
+    }
+    case Expr::Select: {
+      std::set<ref<Expr> > lhsOps, rhsOps;
+      MinMax lhsMM = mmUnknown, rhsMM = mmUnknown;
+      if (isUnordered &&
+          collectFMinMax(lhs, lhsOps, lhsMM) &&
+          collectFMinMax(rhs, rhsOps, rhsMM) &&
+          lhsMM == rhsMM && lhsOps == rhsOps) {
+#if 0
+        std::cerr << "collectFMinMax matched min/max exprs: mm = " << lhsMM << ", ops = {" << std::endl;
+        for (std::set<ref<Expr> >::iterator i = lhsOps.begin(), e = lhsOps.end(); i != e; ++i) {
+          (*i)->dump();
+        }
+        std::cerr << "}" << std::endl;
+#endif
+        return ConstantExpr::alloc(1, Expr::Bool);
+      }
+      break;
     }
     default: break;
       // assert(0 && "Floating point value expected");
@@ -131,9 +193,9 @@ bool HasFPExpr(ref<Expr> e) {
 ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e, bool isNeg) {
   switch (e->getKind()) {
     case Expr::FUeq:
-      return constrainEquality(e->getKid(0), e->getKid(1));
+      return constrainEquality(e->getKid(0), e->getKid(1), true);
     case Expr::FOne:
-      return Expr::createIsZero(constrainEquality(e->getKid(0), e->getKid(1)));
+      return Expr::createIsZero(constrainEquality(e->getKid(0), e->getKid(1), true));
     case Expr::And:
       if (e->getWidth() == 1)
         return AndExpr::create(_rewriteConstraint(e->getKid(0), isNeg), _rewriteConstraint(e->getKid(1), isNeg));
