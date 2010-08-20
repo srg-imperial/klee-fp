@@ -208,14 +208,14 @@ bool ExecutionState::merge(const ExecutionState &b) {
          ie = aSuffix.end(); it != ie; ++it)
     {
       Expr::Kind kind = (*it)->getKind();
-      if (kind == Expr::FOrd1 || (kind >= Expr::FOrd && kind <= Expr::FUne))
+      if (kind == Expr::FOrd1 || kind == Expr::FCmp)
         return false;
     }
   for (std::set< ref<Expr> >::iterator it = bSuffix.begin(), 
          ie = bSuffix.end(); it != ie; ++it)
     {
       Expr::Kind kind = (*it)->getKind();
-      if (kind == Expr::FOrd1 || (kind >= Expr::FOrd && kind <= Expr::FUne))
+      if (kind == Expr::FOrd1 || kind == Expr::FCmp)
         return false;
     }
 

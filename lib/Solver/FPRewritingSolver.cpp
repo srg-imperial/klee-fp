@@ -57,24 +57,23 @@ enum MinMax { mmUnknown, mmMin, mmMax };
 // min or max operation over any number of operands, return true.
 // The list of operands is returned through ops and the type of
 // operation (min or max) through mm.
-//
-// This isn't as good as it could be.  For one thing, we could use
-// constrainEquality to compare the inner operands.  We could also
-// recognise FOle (simplifies to (a < b || a == b)) and the unordered
-// comparisons (recognise Not)
 bool collectFMinMax(ref<Expr> &e, std::set<ref<Expr> > &ops, MinMax &mm) {
   SelectExpr *se = dyn_cast<SelectExpr>(e);
   if (!se)
     return false;
 
-  FOltExpr *le = dyn_cast<FOltExpr>(se->getKid(0));
-  if (!le)
+  FCmpExpr *cmp = dyn_cast<FCmpExpr>(se->getKid(0));
+  if (!cmp)
+    return false;
+
+  FCmpExpr::Predicate p = cmp->getPredicate();
+  if ((p & (FCmpExpr::OLT | FCmpExpr::OGT)) != FCmpExpr::OLT)
     return false;
 
   ref<Expr> e0 = se->getKid(1);
   ref<Expr> e1 = se->getKid(2);
 
-  if (e0 == le->getKid(0) && e1 == le->getKid(1)) {
+  if (e0 == cmp->getKid(0) && e1 == cmp->getKid(1)) {
     if (mm == mmMax)
       return false;
     mm = mmMin;
@@ -83,7 +82,7 @@ bool collectFMinMax(ref<Expr> &e, std::set<ref<Expr> > &ops, MinMax &mm) {
     return true;
   }
 
-  if (e0 == le->getKid(1) && e1 == le->getKid(0)) {
+  if (e0 == cmp->getKid(1) && e1 == cmp->getKid(0)) {
     if (mm == mmMin)
       return false;
     mm = mmMax;
@@ -110,7 +109,6 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs, boo
   switch (kind) {
     case Expr::FAdd:
     case Expr::FMul:
-    case Expr::FOeq:
       return OrExpr::create(
                AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0), isUnordered),
                                constrainEquality(lhs->getKid(1), rhs->getKid(1), isUnordered)),
@@ -119,9 +117,24 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs, boo
     case Expr::FSub:
     case Expr::FDiv:
     case Expr::FRem:
-    case Expr::FOlt:
       return AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0), isUnordered),
                              constrainEquality(lhs->getKid(1), rhs->getKid(1), isUnordered));
+    case Expr::FCmp: {
+      FCmpExpr *clhs = cast<FCmpExpr>(lhs), *crhs = cast<FCmpExpr>(rhs);
+      if (clhs->getPredicate() != crhs->getPredicate())
+        return ConstantExpr::alloc(0, Expr::Bool);
+
+      if (clhs->isCommutative()) {
+        return OrExpr::create(
+                 AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0), isUnordered),
+                                 constrainEquality(lhs->getKid(1), rhs->getKid(1), isUnordered)),
+                 AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(1), isUnordered),
+                                 constrainEquality(lhs->getKid(1), rhs->getKid(0), isUnordered)));
+      } else {
+        return AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0), isUnordered),
+                               constrainEquality(lhs->getKid(1), rhs->getKid(1), isUnordered));
+      }
+    }
     case Expr::FPExt:
     case Expr::FPTrunc: {
       F2FConvertExpr *fclhs = cast<F2FConvertExpr>(lhs), *fcrhs = cast<F2FConvertExpr>(rhs);
@@ -192,10 +205,15 @@ bool HasFPExpr(ref<Expr> e) {
 
 ref<Expr> FPRewritingSolver::_rewriteConstraint(const ref<Expr> &e, bool isNeg) {
   switch (e->getKind()) {
-    case Expr::FUeq:
-      return constrainEquality(e->getKid(0), e->getKid(1), true);
-    case Expr::FOne:
-      return Expr::createIsZero(constrainEquality(e->getKid(0), e->getKid(1), true));
+    case Expr::FCmp:
+      switch (cast<FCmpExpr>(e)->getPredicate()) {
+        case FCmpExpr::UEQ:
+          return constrainEquality(e->getKid(0), e->getKid(1), true);
+        case FCmpExpr::ONE:
+          return Expr::createIsZero(constrainEquality(e->getKid(0), e->getKid(1), true));
+        default: break;
+      }
+      break;
     case Expr::And:
       if (e->getWidth() == 1)
         return AndExpr::create(_rewriteConstraint(e->getKid(0), isNeg), _rewriteConstraint(e->getKid(1), isNeg));
