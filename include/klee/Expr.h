@@ -179,20 +179,7 @@ public:
     Sge, ///< Not used in canonical form
 
     // FP Compare
-    FOrd,
-    FOeq,
-    FOlt,
-    FOle, ///< Not used in canonical form
-    FOgt, ///< Not used in canonical form
-    FOge, ///< Not used in canonical form
-    FOne,
-    FUno, ///< Not used in canonical form
-    FUeq, ///< Not used in canonical form
-    FUlt, ///< Not used in canonical form
-    FUle, ///< Not used in canonical form
-    FUgt, ///< Not used in canonical form
-    FUge, ///< Not used in canonical form
-    FUne, ///< Not used in canonical form
+    FCmp,
 
     LastKind=Sge,
 
@@ -211,9 +198,7 @@ public:
     FBinaryKindFirst=FAdd,
     FBinaryKindLast=FRem,
     CmpKindFirst=Eq,
-    CmpKindLast=FUne,
-    FCmpKindFirst=FOrd,
-    FCmpKindLast=FUne
+    CmpKindLast=FCmp
   };
 
   enum FPCategories {
@@ -528,9 +513,8 @@ public:
   typedef ref<ConstantExpr> FConstBinOp(const ref<ConstantExpr> &RHS, bool isIEEE);
   FConstBinOp FAdd, FSub, FMul, FDiv, FRem;
 
-  typedef ref<ConstantExpr> FConstCmpOp(const ref<ConstantExpr> &RHS, bool isIEEE);
-  ref<ConstantExpr> FOrd(bool isIEEE);
-  FConstCmpOp FOeq, FOlt;
+  typedef ref<ConstantExpr> FConstCmpOp(const ref<ConstantExpr> &RHS, const ref<ConstantExpr> &Pred, bool isIEEE);
+  FConstCmpOp FCmp;
 
   typedef ref<ConstantExpr> F2FConvertOp(const llvm::fltSemantics *sem, bool isIEEE);
   F2FConvertOp FPExt, FPTrunc;
@@ -613,16 +597,59 @@ public:
 
 class FCmpExpr : public CmpExpr {
 protected:
-  FCmpExpr(const ref<Expr> &l, const ref<Expr> &r, bool IsIEEE) : CmpExpr(l, r), IsIEEE(IsIEEE) {}
+  FCmpExpr(const ref<Expr> &l, const ref<Expr> &r, const ref<Expr> &pred, bool IsIEEE) : CmpExpr(l, r), pred(pred), IsIEEE(IsIEEE) {}
+  ref<Expr> pred;
   bool IsIEEE:1;
 
 public:
+  // Shamelessly copied from CmpInst::Predicate to avoid requiring Instructions.h here
+  enum Predicate {
+    FALSE = 0, OEQ = 1, OGT = 2, OGE = 3,
+    OLT = 4, OLE = 5, ONE = 6, ORD = 7,
+    UNO = 8, UEQ = 9, UGT = 10, UGE = 11,
+    ULT = 12, ULE = 13, UNE = 14, TRUE = 15
+  };
+
   static bool classof(const Expr *E) {
-    Kind k = E->getKind();
-    return Expr::FCmpKindFirst <= k && k <= Expr::FCmpKindLast;
+    return E->getKind() == Expr::FCmp;
   }
   static bool classof(const FCmpExpr *) { return true; }
   bool isIEEE() const { return IsIEEE; }
+  unsigned getNumKids() const { return 3; }
+  ref<Expr> getKid(unsigned i) const { 
+    if (i == 2)
+      return pred;
+    return CmpExpr::getKid(i);
+  }
+  static ref<Expr> alloc (const ref<Expr> &l, const ref<Expr> &r, const ref<Expr> &pred, bool IsIEEE) {
+    ref<Expr> res(new FCmpExpr(l, r, pred, IsIEEE));
+    res->computeHash();
+    return res;
+  }
+  static ref<Expr> create(const ref<Expr> &l, const ref<Expr> &r, const ref<Expr> &pred, bool IsIEEE);
+  Kind getKind() const { return FCmp; }
+  Predicate getPredicate() const { return (Predicate) cast<ConstantExpr>(pred)->getZExtValue(); }
+
+  static bool isCommutative(Predicate pred) {
+    unsigned pComm = pred & (OLT | OGT);
+    return (pComm != OLT && pComm != OGT);
+  }
+  bool isCommutative() const {
+    return isCommutative(getPredicate());
+  }
+
+  static Predicate getSwappedPredicate(Predicate pred) {
+    if (isCommutative(pred))
+      return pred;
+    return (Predicate) (pred ^ (OLT | OGT));
+  }
+  Predicate getSwappedPredicate() const {
+    return getSwappedPredicate(getPredicate());
+  }
+
+  virtual ref<Expr> rebuild(ref<Expr> kids[]) const {
+    return create(kids[0], kids[1], kids[2], IsIEEE);
+  }
 };
 
 // Special
@@ -1336,8 +1363,6 @@ FLOAT_ARITHMETIC_EXPR_CLASS(FRem)
 
 #define INT_COMPARISON_EXPR_CLASS(_class_kind) \
     EXPR_CLASS(_class_kind, CmpExpr, 2, INT_EXPR_DECL, INT_EXPR_REF, INT_KID_REF) };
-#define FLOAT_COMPARISON_EXPR_CLASS(_class_kind) \
-    EXPR_CLASS(_class_kind, FCmpExpr, 2, FLOAT_EXPR_DECL, FLOAT_EXPR_REF, FLOAT_KID_REF) };
 
 INT_COMPARISON_EXPR_CLASS(Eq)
 INT_COMPARISON_EXPR_CLASS(Ne)
@@ -1349,21 +1374,6 @@ INT_COMPARISON_EXPR_CLASS(Slt)
 INT_COMPARISON_EXPR_CLASS(Sle)
 INT_COMPARISON_EXPR_CLASS(Sgt)
 INT_COMPARISON_EXPR_CLASS(Sge)
-
-FLOAT_COMPARISON_EXPR_CLASS(FOrd)
-FLOAT_COMPARISON_EXPR_CLASS(FOeq)
-FLOAT_COMPARISON_EXPR_CLASS(FOlt)
-FLOAT_COMPARISON_EXPR_CLASS(FOle)
-FLOAT_COMPARISON_EXPR_CLASS(FOgt)
-FLOAT_COMPARISON_EXPR_CLASS(FOge)
-FLOAT_COMPARISON_EXPR_CLASS(FOne)
-FLOAT_COMPARISON_EXPR_CLASS(FUno)
-FLOAT_COMPARISON_EXPR_CLASS(FUeq)
-FLOAT_COMPARISON_EXPR_CLASS(FUlt)
-FLOAT_COMPARISON_EXPR_CLASS(FUle)
-FLOAT_COMPARISON_EXPR_CLASS(FUgt)
-FLOAT_COMPARISON_EXPR_CLASS(FUge)
-FLOAT_COMPARISON_EXPR_CLASS(FUne)
 
 // Implementations
 

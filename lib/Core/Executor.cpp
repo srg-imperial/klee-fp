@@ -379,6 +379,16 @@ public:
   }
 };
 
+class FCmpSIMDOperation : public SIMDOperation {
+public:
+  FCmpSIMDOperation(const Executor *Exec, FCmpInst::Predicate pred) : SIMDOperation(Exec), pred(klee::ConstantExpr::create(pred, 4)) {}
+  ref<klee::ConstantExpr> pred;
+
+  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
+    return FCmpExpr::create(l, r, pred, t->isFP128Ty());
+  }
+};
+
 class FUnSIMDOperation : public SIMDOperation {
 public:
   typedef ref<Expr> (*ExprCtor)(const ref<Expr> &src, bool isIEEE);
@@ -2155,43 +2165,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
 
-    ref<Expr> Result;
-    switch( fi->getPredicate() ) {
-#define X(_inst_pred, _expr_type) \
-    case FCmpInst::_inst_pred: \
-      Result = FSIMDOperation(this, _expr_type::create).eval(i->getType(), fi->getOperand(0)->getType(), left, right); \
-      break
-      // Predicates which only care about whether or not the operands are NaNs.
-    X(FCMP_ORD, FOrdExpr);
-    X(FCMP_UNO, FUnoExpr);
-
-      // Ordered comparisons return false if either operand is NaN.  Unordered
-      // comparisons return true if either operand is NaN.
-    X(FCMP_UEQ, FUeqExpr);
-    X(FCMP_OEQ, FOeqExpr);
-    X(FCMP_UGT, FUgtExpr);
-    X(FCMP_OGT, FOgtExpr);
-    X(FCMP_UGE, FUgeExpr);
-    X(FCMP_OGE, FOgeExpr);
-    X(FCMP_ULT, FUltExpr);
-    X(FCMP_OLT, FOltExpr);
-    X(FCMP_ULE, FUleExpr);
-    X(FCMP_OLE, FOleExpr);
-    X(FCMP_UNE, FUneExpr);
-    X(FCMP_ONE, FOneExpr);
-#undef X
-
-    case FCmpInst::FCMP_FALSE:
-      Result = ConstantExpr::alloc(false, Expr::Bool);
-      break;
-    case FCmpInst::FCMP_TRUE:
-      Result = ConstantExpr::alloc(true, Expr::Bool);
-      break;
-
-    default:
-      assert(0 && "Invalid FCMP predicate!");
-    }
-
+    ref<Expr> Result = FCmpSIMDOperation(this, fi->getPredicate()).eval(i->getType(), fi->getOperand(0)->getType(), left, right);
     bindLocal(ki, state, Result);
     break;
   }
