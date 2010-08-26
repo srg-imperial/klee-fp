@@ -121,6 +121,17 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs, boo
       else
         return ConstantExpr::alloc(0, Expr::Bool);
     }
+    case Expr::Select: {
+      if (lhs == rhs)
+        return ConstantExpr::alloc(1, Expr::Bool);
+      ref<Expr> lhsCond = lhs->getKid(0), rhsCond = rhs->getKid(0);
+      if (lhs->getKid(1) == rhs->getKid(2) && lhs->getKid(2) == rhs->getKid(1)) {
+        rhsCond = Expr::createIsZero(rhsCond);
+        if (lhsCond == rhsCond)
+          return ConstantExpr::alloc(1, Expr::Bool);
+      }
+      return ConstantExpr::alloc(0, Expr::Bool);
+    }
     default: break;
       // assert(0 && "Floating point value expected");
   }
