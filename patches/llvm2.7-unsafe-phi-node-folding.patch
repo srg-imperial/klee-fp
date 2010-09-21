@@ -11,10 +11,15 @@
  namespace {
  class SimplifyCFGOpt {
    const TargetData *const TD;
-@@ -278,6 +282,12 @@
+@@ -278,6 +282,17 @@
          Cost = 1;
          break;   // These are all cheap and non-trapping instructions.
  
++      case Instruction::FAdd:
++      case Instruction::FSub:
++      case Instruction::FMul:
++      case Instruction::FDiv:
++      case Instruction::FRem:
 +      case Instruction::FCmp:
 +        if (UnsafePhiNodeFolding) {
 +          Cost = 1;
