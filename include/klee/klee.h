@@ -154,6 +154,9 @@ extern "C" {
   /* Add a memory watchpoint at the given address. */
   void klee_watch(void *, size_t);
 
+  /* Compile the given memory block as an OpenCL code. */
+  void klee_ocl_compile(char *);
+
 #ifdef __cplusplus
 }
 #endif

@@ -101,6 +101,7 @@ namespace klee {
     HANDLER(handleUnderConstrained);
     HANDLER(handleWarning);
     HANDLER(handleWarningOnce);
+    HANDLER(handleOclCompile);
 #undef HANDLER
   };
 } // End klee namespace

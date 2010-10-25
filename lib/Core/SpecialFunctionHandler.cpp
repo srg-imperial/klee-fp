@@ -24,6 +24,8 @@
 #include "llvm/Module.h"
 #include "llvm/ADT/Twine.h"
 
+#include "clang/Frontend/CompilerInvocation.h"
+
 #include <errno.h>
 
 using namespace llvm;
@@ -91,6 +93,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_warning", handleWarning, false),
   add("klee_warning_once", handleWarningOnce, false),
   add("klee_alias_function", handleAliasFunction, false),
+  add("klee_ocl_compile", handleOclCompile, false),
   add("malloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
 
@@ -720,4 +723,13 @@ void SpecialFunctionHandler::handleMarkGlobal(ExecutionState &state,
     assert(!mo->isLocal);
     mo->isGlobal = true;
   }
+}
+
+void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
+                                              KInstruction *target,
+                                              std::vector<ref<Expr> > &arguments) {
+  std::string code = readStringAtAddress(state, arguments[0]);
+  std::cout << "code = " << code;
+
+  clang::CompilerInvocation clang;
 }
