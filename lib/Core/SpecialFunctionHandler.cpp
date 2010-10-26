@@ -21,10 +21,16 @@
 #include "Executor.h"
 #include "MemoryManager.h"
 
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/System/Host.h"
 
+#include "clang/CodeGen/CodeGenAction.h"
+#include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Frontend/TextDiagnosticPrinter.h"
 
 #include <errno.h>
 
@@ -728,8 +734,36 @@ void SpecialFunctionHandler::handleMarkGlobal(ExecutionState &state,
 void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
                                               KInstruction *target,
                                               std::vector<ref<Expr> > &arguments) {
-  std::string code = readStringAtAddress(state, arguments[0]);
-  std::cout << "code = " << code;
+  const char *codeName = "<OpenCL code>";
 
-  clang::CompilerInvocation clang;
+  std::string code = readStringAtAddress(state, arguments[0]);
+
+  MemoryBuffer *buf = MemoryBuffer::getMemBuffer(code);
+
+  OwningPtr<clang::CompilerInvocation> CI(new clang::CompilerInvocation);
+  CI->getFrontendOpts().Inputs.push_back(std::pair<clang::InputKind, std::string>(
+    clang::IK_OpenCL, codeName));
+  CI->getPreprocessorOpts().addRemappedFile(codeName, buf);
+  CI->setLangDefaults(clang::IK_OpenCL);
+
+  CI->getTargetOpts().Triple = sys::getHostTriple();
+
+  clang::CompilerInstance Clang;
+  Clang.setLLVMContext(&getGlobalContext());
+  Clang.setInvocation(CI.take());
+
+  clang::TextDiagnosticPrinter *DiagClient =
+    new clang::TextDiagnosticPrinter(errs(), clang::DiagnosticOptions());
+  Clang.setDiagnostics(new clang::Diagnostic(DiagClient));
+
+  OwningPtr<clang::CodeGenAction> Act(new clang::EmitLLVMOnlyAction);
+  if (!Clang.ExecuteAction(*Act)) {
+    Clang.takeLLVMContext();
+    return;
+  }
+
+  Module *Mod = Act->takeModule();
+  Mod->dump();
+
+  Clang.takeLLVMContext();
 }
