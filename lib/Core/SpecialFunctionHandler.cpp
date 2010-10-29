@@ -732,4 +732,5 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   std::cout << "code = " << code;
 
   clang::CompilerInvocation clang;
+  clang.getPreprocessorOpts().Includes.push_back(KLEE_SRC_DIR "/include/klee/clkernel.h");
 }
