@@ -2,6 +2,7 @@
 
 #include <CL/cl.h>
 
+#include <klee/klee.h>
 #include <klee/Internal/CL/clintern.h>
 
 cl_program clCreateProgramWithSource(cl_context context,
@@ -35,4 +36,22 @@ cl_program clCreateProgramWithSource(cl_context context,
   free(realLengths);
 
   return prog;
+}
+
+cl_int clBuildProgram(cl_program program,
+                      cl_uint num_devices,
+                      const cl_device_id *device_list,
+                      const char *options,
+                      void (CL_CALLBACK *pfn_notify)(cl_program program,
+                                                     void *user_data),
+                      void *user_data) {
+  cl_int result;
+
+  program->module = klee_ocl_compile(program->source);
+  result = program->module ? CL_SUCCESS : CL_BUILD_PROGRAM_FAILURE;
+
+  if (pfn_notify)
+    pfn_notify(program, user_data);
+
+  return result;
 }
