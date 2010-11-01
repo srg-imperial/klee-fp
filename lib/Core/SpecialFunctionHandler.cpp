@@ -769,6 +769,10 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   Module *Mod = Act->takeModule();
   Mod->dump();
 
+  executor.bindLocal(target, state, 
+                     ConstantExpr::create((uintptr_t) Mod,
+                                          sizeof(uintptr_t) * 8));
+
   Clang.takeLLVMContext();
 #else
   executor.terminateStateOnError(state, 
