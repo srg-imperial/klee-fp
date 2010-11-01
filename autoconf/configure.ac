@@ -213,6 +213,36 @@ else
 fi
 
 dnl **************************************************************************
+dnl User option to enable OpenCL
+
+AC_ARG_ENABLE(opencl,
+              AS_HELP_STRING([--enable-opencl],
+                             [Enable OpenCL support]),
+                             ,enableval=default)
+
+AC_MSG_CHECKING([OpenCL support])
+if test ${enableval} = "default" ; then
+  if test -d $llvm_src/tools/clang ; then  
+    AC_MSG_RESULT([default (enabled)])
+  else
+    AC_MSG_RESULT([default (disabled, no clang)])
+  fi
+else
+  if test ${enableval} = "yes" ; then
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+  fi
+fi
+
+if test ${enableval} = "yes" ; then
+  AC_DEFINE(HAVE_OPENCL, 1, [Using Clang/OpenCL])
+  AC_SUBST(ENABLE_OPENCL,[[1]])
+else
+  AC_SUBST(ENABLE_OPENCL,[[0]])
+fi
+
+dnl **************************************************************************
 dnl User option to select runtime version
 
 AC_ARG_WITH(runtime,

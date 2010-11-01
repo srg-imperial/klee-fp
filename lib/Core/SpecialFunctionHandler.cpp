@@ -27,10 +27,12 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/System/Host.h"
 
+#ifdef HAVE_OPENCL
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#endif
 
 #include <errno.h>
 
@@ -734,6 +736,7 @@ void SpecialFunctionHandler::handleMarkGlobal(ExecutionState &state,
 void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
                                               KInstruction *target,
                                               std::vector<ref<Expr> > &arguments) {
+#ifdef HAVE_OPENCL
   const char *codeName = "<OpenCL code>";
 
   std::string code = readStringAtAddress(state, arguments[0]);
@@ -767,4 +770,9 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   Mod->dump();
 
   Clang.takeLLVMContext();
+#else
+  executor.terminateStateOnError(state, 
+                                 "OpenCL support not available", 
+                                 "opencl.err");
+#endif
 }

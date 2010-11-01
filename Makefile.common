@@ -42,4 +42,6 @@ CXX.Flags += -DKLEE_SRC_DIR=\"$(PROJ_SRC_ROOT)\" -DKLEE_DIR=\"$(PROJ_OBJ_ROOT)\"
 CXX.Flags += -DEXT_HASH_MAP
 
 # For clang
-CXX.Flags += -I$(LLVM_SRC_ROOT)/tools/clang/include -I$(LLVM_OBJ_ROOT)/tools/clang/include 
+ifeq ($(ENABLE_OPENCL),1)
+  CXX.Flags += -I$(LLVM_SRC_ROOT)/tools/clang/include -I$(LLVM_OBJ_ROOT)/tools/clang/include 
+endif
