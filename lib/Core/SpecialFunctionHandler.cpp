@@ -101,7 +101,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_warning", handleWarning, false),
   add("klee_warning_once", handleWarningOnce, false),
   add("klee_alias_function", handleAliasFunction, false),
-  add("klee_ocl_compile", handleOclCompile, false),
+  add("klee_ocl_compile", handleOclCompile, true),
   add("malloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
 
