@@ -3,3 +3,19 @@
 #define __global __attribute__((address_space(3)))
 
 #define __kernel
+
+typedef __attribute__((ext_vector_type(2))) float float2;
+typedef __attribute__((ext_vector_type(3))) float float3;
+typedef __attribute__((ext_vector_type(4))) float float4;
+typedef __attribute__((ext_vector_type(5))) float float5;
+typedef __attribute__((ext_vector_type(6))) float float6;
+typedef __attribute__((ext_vector_type(7))) float float7;
+typedef __attribute__((ext_vector_type(8))) float float8;
+typedef __attribute__((ext_vector_type(9))) float float9;
+typedef __attribute__((ext_vector_type(10))) float float10;
+typedef __attribute__((ext_vector_type(11))) float float11;
+typedef __attribute__((ext_vector_type(12))) float float12;
+typedef __attribute__((ext_vector_type(13))) float float13;
+typedef __attribute__((ext_vector_type(14))) float float14;
+typedef __attribute__((ext_vector_type(15))) float float15;
+typedef __attribute__((ext_vector_type(16))) float float16;
