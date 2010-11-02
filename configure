@@ -2174,6 +2174,7 @@ fi
 echo $ECHO_N "checking OpenCL support... $ECHO_C" >&6; }
 if test ${enableval} = "default" ; then
   if test -d $llvm_src/tools/clang ; then
+    enableval=yes
     { echo "$as_me:$LINENO: result: default (enabled)" >&5
 echo "${ECHO_T}default (enabled)" >&6; }
   else

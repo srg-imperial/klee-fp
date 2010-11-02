@@ -223,6 +223,7 @@ AC_ARG_ENABLE(opencl,
 AC_MSG_CHECKING([OpenCL support])
 if test ${enableval} = "default" ; then
   if test -d $llvm_src/tools/clang ; then  
+    enableval=yes
     AC_MSG_RESULT([default (enabled)])
   else
     AC_MSG_RESULT([default (disabled, no clang)])
