@@ -6,3 +6,7 @@ struct _cl_program {
   size_t sourceSize;
   uintptr_t module;
 };
+
+struct _cl_kernel {
+  uintptr_t function;
+};

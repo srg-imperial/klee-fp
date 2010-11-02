@@ -102,6 +102,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_warning_once", handleWarningOnce, false),
   add("klee_alias_function", handleAliasFunction, false),
   add("klee_ocl_compile", handleOclCompile, true),
+  add("klee_ocl_lookup_kernel_function", handleOclLookupKernelFunction, true),
   add("malloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
 
@@ -781,4 +782,19 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
                                  "OpenCL support not available", 
                                  "opencl.err");
 #endif
+}
+
+void SpecialFunctionHandler::handleOclLookupKernelFunction(ExecutionState &state,
+                                                           KInstruction *target,
+                                                           std::vector<ref<Expr> > &arguments) {
+  uintptr_t module = cast<ConstantExpr>(arguments[0])->getZExtValue();
+  std::string functionName = readStringAtAddress(state, arguments[1]);
+
+  Module *modulePtr = (Module *) module;
+
+  Function *function = modulePtr->getFunction(functionName);
+
+  executor.bindLocal(target, state, 
+                     ConstantExpr::create((uintptr_t) function,
+                                          sizeof(uintptr_t) * 8));
 }

@@ -695,6 +695,7 @@ static const char *modelledExternals[] = {
   "klee_dump_constraints",
   "klee_watch",
   "klee_ocl_compile",
+  "klee_ocl_lookup_kernel_function",
   "llvm.dbg.stoppoint", 
   "llvm.va_start", 
   "llvm.va_end", 

@@ -157,6 +157,9 @@ extern "C" {
   /* Compile the given memory block as an OpenCL code. */
   uintptr_t klee_ocl_compile(char *);
 
+  /* Look up the given kernel function in the given OpenCL module. */
+  uintptr_t klee_ocl_lookup_kernel_function(uintptr_t, const char *);
+
 #ifdef __cplusplus
 }
 #endif
