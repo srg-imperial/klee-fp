@@ -762,6 +762,8 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
 
   OwningPtr<clang::CodeGenAction> Act(new clang::EmitLLVMOnlyAction);
   if (!Clang.ExecuteAction(*Act)) {
+    executor.bindLocal(target, state, 
+                       ConstantExpr::create(0, sizeof(uintptr_t) * 8));
     Clang.takeLLVMContext();
     return;
   }
