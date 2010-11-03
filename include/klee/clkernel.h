@@ -19,3 +19,5 @@ typedef __attribute__((ext_vector_type(13))) float float13;
 typedef __attribute__((ext_vector_type(14))) float float14;
 typedef __attribute__((ext_vector_type(15))) float float15;
 typedef __attribute__((ext_vector_type(16))) float float16;
+
+typedef unsigned int uint;
