@@ -21,3 +21,15 @@ typedef __attribute__((ext_vector_type(15))) float float15;
 typedef __attribute__((ext_vector_type(16))) float float16;
 
 typedef unsigned int uint;
+typedef unsigned long ulong;
+
+typedef ulong size_t;
+
+uint get_work_dim(void);
+size_t get_global_size(uint dimindx);
+size_t get_global_id(uint dimindx);
+size_t get_local_size(uint dimindx);
+size_t get_local_id(uint dimindx);
+size_t get_num_groups(uint dimindx);
+size_t get_group_id(uint dimindx);
+size_t get_global_offset(uint dimindx);
