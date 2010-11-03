@@ -17,3 +17,7 @@ struct _cl_program {
 struct _cl_kernel {
   uintptr_t function;
 };
+
+struct _cl_command_queue {
+  struct _cl_context *context;
+};
