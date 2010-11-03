@@ -49,3 +49,37 @@ clCreateContextFromType(const cl_context_properties *properties,
 
   return create_the_context(pfn_notify, user_data);
 }
+
+cl_int clGetContextInfo(cl_context context,
+                        cl_context_info param_name,
+                        size_t param_value_size,
+                        void *param_value,
+                        size_t *param_value_size_ret) {
+  switch (param_name) {
+    case CL_CONTEXT_NUM_DEVICES: {
+      if (param_value_size_ret)
+        *param_value_size_ret = sizeof(cl_uint);
+      if (param_value) {
+        cl_uint *r = param_value;
+        if (param_value_size < sizeof(cl_uint))
+          return CL_INVALID_VALUE;
+        *r = 1;
+      }
+      break;
+    }
+    case CL_CONTEXT_DEVICES: {
+      if (param_value_size_ret)
+        *param_value_size_ret = sizeof(cl_device_id);
+      if (param_value) {
+        cl_device_id *r = param_value;
+        if (param_value_size < sizeof(cl_device_id))
+          return CL_INVALID_VALUE;
+        *r = (cl_device_id) 1;
+      }
+      break;
+    }
+    default: return CL_INVALID_VALUE;
+  }
+
+  return CL_SUCCESS;
+}
