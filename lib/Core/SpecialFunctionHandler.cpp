@@ -261,6 +261,36 @@ SpecialFunctionHandler::readMemoryAtAddress(ExecutionState &state,
   }
 }
 
+// writes a memory block to memory
+void
+SpecialFunctionHandler::writeMemoryAtAddress(ExecutionState &state, 
+                                             ref<Expr> addressExpr,
+                                             const void *data,
+                                             size_t size) {
+  ObjectPair op;
+  addressExpr = executor.toUnique(state, addressExpr);
+  ref<ConstantExpr> address = cast<ConstantExpr>(addressExpr);
+  if (!state.addressSpace.resolveOne(address, op))
+    assert(0 && "XXX out of bounds / multiple resolution unhandled");
+  bool res;
+  assert(executor.solver->mustBeTrue(state, 
+                                     EqExpr::create(address, 
+                                                    op.first->getBaseExpr()),
+                                     res) &&
+         res &&
+         "XXX interior pointer unhandled");
+  const MemoryObject *mo = op.first;
+  ObjectState *os = const_cast<ObjectState *>(op.second);
+
+  assert(size < mo->size && "Memory object too small for data");
+  const char *buf = (const char *) data;
+
+  unsigned i;
+  for (i = 0; i < mo->size; i++) {
+    os->write8(i, buf[i]);
+  }
+}
+
 /****/
 
 void SpecialFunctionHandler::handleAbort(ExecutionState &state,
