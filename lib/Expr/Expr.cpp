@@ -359,14 +359,13 @@ ConstantExpr::ConstantExpr(const llvm::APFloat &v) :
 
 ref<Expr> ConstantExpr::fromMemory(void *address, Width width) {
   switch (width) {
-  default: assert(0 && "invalid type");
   case  Expr::Bool: return ConstantExpr::create(*(( uint8_t*) address), width);
   case  Expr::Int8: return ConstantExpr::create(*(( uint8_t*) address), width);
   case Expr::Int16: return ConstantExpr::create(*((uint16_t*) address), width);
   case Expr::Int32: return ConstantExpr::create(*((uint32_t*) address), width);
   case Expr::Int64: return ConstantExpr::create(*((uint64_t*) address), width);
   // FIXME: what about machines without x87 support?
-  case Expr::Fl80:
+  default:
     return ConstantExpr::alloc(llvm::APInt(width,
       (width+llvm::integerPartWidth-1)/llvm::integerPartWidth,
       (const uint64_t*)address));
