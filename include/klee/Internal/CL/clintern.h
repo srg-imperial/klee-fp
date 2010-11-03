@@ -21,3 +21,8 @@ struct _cl_kernel {
 struct _cl_command_queue {
   struct _cl_context *context;
 };
+
+struct _cl_mem {
+  void *data;
+  size_t size;
+};
