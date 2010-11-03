@@ -58,6 +58,7 @@ namespace klee {
     /* Convenience routines */
 
     std::string readStringAtAddress(ExecutionState &state, ref<Expr> address);
+    void readMemoryAtAddress(ExecutionState &state, ref<Expr> addressExpr, void *data, size_t size);
     
     /* Handlers */
 

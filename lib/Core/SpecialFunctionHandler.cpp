@@ -227,6 +227,40 @@ SpecialFunctionHandler::readStringAtAddress(ExecutionState &state,
   return result;
 }
 
+// reads a memory block from memory
+void
+SpecialFunctionHandler::readMemoryAtAddress(ExecutionState &state, 
+                                            ref<Expr> addressExpr,
+                                            void *data,
+                                            size_t size) {
+  ObjectPair op;
+  addressExpr = executor.toUnique(state, addressExpr);
+  ref<ConstantExpr> address = cast<ConstantExpr>(addressExpr);
+  if (!state.addressSpace.resolveOne(address, op))
+    assert(0 && "XXX out of bounds / multiple resolution unhandled");
+  bool res;
+  assert(executor.solver->mustBeTrue(state, 
+                                     EqExpr::create(address, 
+                                                    op.first->getBaseExpr()),
+                                     res) &&
+         res &&
+         "XXX interior pointer unhandled");
+  const MemoryObject *mo = op.first;
+  const ObjectState *os = op.second;
+
+  assert(size < mo->size && "Memory object too small for data");
+  char *buf = (char *) data;
+
+  unsigned i;
+  for (i = 0; i < mo->size; i++) {
+    ref<Expr> cur = os->read8(i);
+    cur = executor.toUnique(state, cur);
+    assert(isa<ConstantExpr>(cur) && 
+           "hit symbolic char while reading concrete memory");
+    buf[i] = cast<ConstantExpr>(cur)->getZExtValue(8);
+  }
+}
+
 /****/
 
 void SpecialFunctionHandler::handleAbort(ExecutionState &state,
