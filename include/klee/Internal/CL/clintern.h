@@ -16,18 +16,30 @@ struct _cl_program {
   uintptr_t module;
 };
 
+struct _cl_mem {
+  void *data;
+  size_t size;
+};
+
+union _cl_intern_arg_data {
+  uint8_t i8;
+  uint16_t i16;
+  uint32_t i32;
+  uint64_t i64;
+  float f32;
+  double f64;
+  struct _cl_mem mem;
+};
+
 struct _cl_kernel {
   uintptr_t function;
+  union _cl_intern_arg_data args[16];
 };
 
 struct _cl_command_queue {
   struct _cl_context *context;
 };
 
-struct _cl_mem {
-  void *data;
-  size_t size;
-};
 typedef int8_t cl_intern_arg_type;
 
 #define CL_INTERN_ARG_TYPE_I8  0
