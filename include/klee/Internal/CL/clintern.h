@@ -28,3 +28,12 @@ struct _cl_mem {
   void *data;
   size_t size;
 };
+typedef int8_t cl_intern_arg_type;
+
+#define CL_INTERN_ARG_TYPE_I8  0
+#define CL_INTERN_ARG_TYPE_I16 1
+#define CL_INTERN_ARG_TYPE_I32 2
+#define CL_INTERN_ARG_TYPE_I64 3
+#define CL_INTERN_ARG_TYPE_F32 4
+#define CL_INTERN_ARG_TYPE_F64 5
+#define CL_INTERN_ARG_TYPE_MEM 6

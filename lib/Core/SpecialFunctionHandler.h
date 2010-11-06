@@ -105,6 +105,7 @@ namespace klee {
     HANDLER(handleWarningOnce);
     HANDLER(handleOclCompile);
     HANDLER(handleOclLookupKernelFunction);
+    HANDLER(handleOclGetArgType);
 #undef HANDLER
   };
 } // End klee namespace

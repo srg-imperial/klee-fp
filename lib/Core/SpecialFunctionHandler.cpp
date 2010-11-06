@@ -32,6 +32,8 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+
+#include "klee/Internal/CL/clintern.h"
 #endif
 
 #include <errno.h>
@@ -102,6 +104,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_warning_once", handleWarningOnce, false),
   add("klee_alias_function", handleAliasFunction, false),
   add("klee_ocl_compile", handleOclCompile, true),
+  add("klee_ocl_get_arg_type", handleOclGetArgType, true),
   add("klee_ocl_lookup_kernel_function", handleOclLookupKernelFunction, true),
   add("malloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
@@ -846,6 +849,40 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
                                  "OpenCL support not available", 
                                  "opencl.err");
 #endif
+}
+
+static cl_intern_arg_type typeAsCLArgType(const Type *t) {
+  if (t->isIntegerTy(8))
+    return CL_INTERN_ARG_TYPE_I8;
+  if (t->isIntegerTy(16))
+    return CL_INTERN_ARG_TYPE_I16;
+  if (t->isIntegerTy(32))
+    return CL_INTERN_ARG_TYPE_I32;
+  if (t->isIntegerTy(64))
+    return CL_INTERN_ARG_TYPE_I64;
+  if (t->isFloatTy())
+    return CL_INTERN_ARG_TYPE_F32;
+  if (t->isDoubleTy())
+    return CL_INTERN_ARG_TYPE_F64;
+  if (t->isPointerTy())
+    return CL_INTERN_ARG_TYPE_MEM;
+  assert(0 && "Unknown type");
+}
+
+void SpecialFunctionHandler::handleOclGetArgType(ExecutionState &state,
+                                                 KInstruction *target,
+                                                 std::vector<ref<Expr> > &arguments) {
+  uintptr_t function = cast<ConstantExpr>(arguments[0])->getZExtValue();
+  Function *functionPtr = (Function *) function;
+
+  size_t argIndex = cast<ConstantExpr>(arguments[1])->getZExtValue();
+  const Type *argType = functionPtr->getFunctionType()->getParamType(argIndex);
+  assert(argType && "arg out of bounds");
+  cl_intern_arg_type argCLType = typeAsCLArgType(argType);
+
+  executor.bindLocal(target, state, 
+                     ConstantExpr::create(argCLType,
+                                          sizeof(cl_intern_arg_type) * 8));
 }
 
 void SpecialFunctionHandler::handleOclLookupKernelFunction(ExecutionState &state,
