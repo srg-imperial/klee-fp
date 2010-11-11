@@ -26,6 +26,9 @@ cl_int clSetKernelArg(cl_kernel kernel,
                       cl_uint arg_index,
                       size_t arg_size,
                       const void *arg_value) {
+  if (arg_index >= klee_ocl_get_arg_count(kernel->function))
+    return CL_INVALID_ARG_INDEX;
+
   switch (klee_ocl_get_arg_type(kernel->function, arg_index)) {
 #define X(TYPE, FIELD) { \
       const TYPE *ap = arg_value; \
