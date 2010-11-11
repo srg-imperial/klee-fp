@@ -158,10 +158,10 @@ extern "C" {
   uintptr_t klee_ocl_compile(char *);
 
   /* Look up the given kernel function in the given OpenCL module. */
-  uintptr_t klee_ocl_lookup_kernel_function(uintptr_t, const char *);
+  void (*klee_ocl_lookup_kernel_function(uintptr_t, const char *))();
 
   /* Return the argument type for the given kernel function and arg offset. */
-  int8_t klee_ocl_get_arg_type(uintptr_t, size_t);
+  int8_t klee_ocl_get_arg_type(void (*)(), size_t);
 
 #ifdef __cplusplus
 }
