@@ -67,3 +67,44 @@ cl_int clSetKernelArg(cl_kernel kernel,
 
   return CL_SUCCESS;
 }
+
+cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
+                              cl_kernel kernel,
+                              cl_uint work_dim,
+                              const size_t *global_work_offset,
+                              const size_t *global_work_size,
+                              const size_t *local_work_size,
+                              cl_uint num_events_in_wait_list,
+                              const cl_event *event_wait_list,
+                              cl_event *event) {
+  uintptr_t argList = klee_icall_create_arg_list();
+  unsigned argCount = klee_ocl_get_arg_count(kernel->function);
+  unsigned i;
+
+  for (i = 0; i < argCount; ++i) {
+    switch (klee_ocl_get_arg_type(kernel->function, i)) {
+#define X(TYPE, FIELD) { \
+        TYPE a = kernel->args[i].FIELD; \
+        klee_icall_add_arg(argList, &a, sizeof(a)); \
+        break; \
+      }
+      case CL_INTERN_ARG_TYPE_I8: X(uint8_t, i8)
+      case CL_INTERN_ARG_TYPE_I16: X(uint16_t, i16)
+      case CL_INTERN_ARG_TYPE_I32: X(uint32_t, i32)
+      case CL_INTERN_ARG_TYPE_I64: X(uint64_t, i64)
+      case CL_INTERN_ARG_TYPE_F32: X(float, f32)
+      case CL_INTERN_ARG_TYPE_F64: X(double, f64)
+      case CL_INTERN_ARG_TYPE_MEM: {
+        void *a = kernel->args[i].mem.data;
+        klee_icall_add_arg(argList, &a, sizeof(a));
+        break;
+      }
+      default: return CL_INVALID_KERNEL;
+    }
+  }
+  
+  klee_icall(kernel->function, argList);
+  klee_icall_destroy_arg_list(argList);
+
+  return CL_SUCCESS;
+}
