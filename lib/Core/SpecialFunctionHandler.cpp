@@ -106,6 +106,10 @@ HandlerInfo handlerInfo[] = {
   add("klee_ocl_compile", handleOclCompile, true),
   add("klee_ocl_get_arg_type", handleOclGetArgType, true),
   add("klee_ocl_lookup_kernel_function", handleOclLookupKernelFunction, true),
+  add("klee_icall_create_arg_list", handleICallCreateArgList, true),
+  add("klee_icall_add_arg", handleICallAddArg, false),
+  add("klee_icall", handleICall, false),
+  add("klee_icall_destroy_arg_list", handleICallDestroyArgList, false),
   add("malloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
 
@@ -898,4 +902,64 @@ void SpecialFunctionHandler::handleOclLookupKernelFunction(ExecutionState &state
   executor.bindLocal(target, state, 
                      ConstantExpr::create((uintptr_t) function,
                                           sizeof(uintptr_t) * 8));
+}
+
+void SpecialFunctionHandler::handleICallCreateArgList(ExecutionState &state,
+                                                      KInstruction *target,
+                                                      std::vector<ref<Expr> > &arguments) {
+  std::vector< ref<Expr> > *args = new std::vector< ref<Expr> >;
+
+  executor.bindLocal(target, state, 
+                     ConstantExpr::create((uintptr_t) args,
+                                          sizeof(uintptr_t) * 8));
+}
+
+void SpecialFunctionHandler::handleICallAddArg(ExecutionState &state,
+                                               KInstruction *target,
+                                               std::vector<ref<Expr> > &arguments) {
+  uintptr_t args = cast<ConstantExpr>(arguments[0])->getZExtValue();
+  std::vector< ref<Expr> > *argsPtr = (std::vector< ref<Expr> > *) args;
+
+  ref<Expr> argPtr = arguments[1];
+
+  uintptr_t argSize = cast<ConstantExpr>(arguments[2])->getZExtValue();
+
+  ObjectPair op;
+  argPtr = executor.toUnique(state, argPtr);
+  ref<ConstantExpr> address = cast<ConstantExpr>(argPtr);
+  if (!state.addressSpace.resolveOne(address, op))
+    assert(0 && "XXX out of bounds / multiple resolution unhandled");
+  bool res;
+  assert(executor.solver->mustBeTrue(state, 
+                                     EqExpr::create(address, 
+                                                    op.first->getBaseExpr()),
+                                     res) &&
+         res &&
+         "XXX interior pointer unhandled");
+  const ObjectState *os = op.second;
+
+  ref<Expr> arg = os->read(0, argSize*8);
+
+  argsPtr->push_back(arg);
+}
+
+void SpecialFunctionHandler::handleICall(ExecutionState &state,
+                                         KInstruction *target,
+                                         std::vector<ref<Expr> > &arguments) {
+  uintptr_t fn = cast<ConstantExpr>(arguments[0])->getZExtValue();
+  Function *fnPtr = (Function *) fn;
+
+  uintptr_t args = cast<ConstantExpr>(arguments[1])->getZExtValue();
+  std::vector< ref<Expr> > *argsPtr = (std::vector< ref<Expr> > *) args;
+  
+  executor.executeCall(state, target, fnPtr, *argsPtr);
+}
+
+void SpecialFunctionHandler::handleICallDestroyArgList(ExecutionState &state,
+                                                       KInstruction *target,
+                                                       std::vector<ref<Expr> > &arguments) {
+  uintptr_t args = cast<ConstantExpr>(arguments[0])->getZExtValue();
+  std::vector< ref<Expr> > *argsPtr = (std::vector< ref<Expr> > *) args;
+
+  delete argsPtr;
 }

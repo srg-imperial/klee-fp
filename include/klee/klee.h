@@ -163,6 +163,18 @@ extern "C" {
   /* Return the argument type for the given kernel function and arg offset. */
   int8_t klee_ocl_get_arg_type(void (*)(), size_t);
 
+  /* Create a new arg list for indirect calling. */
+  uintptr_t klee_icall_create_arg_list(void);
+
+  /* Add an arg to the end of the arg list. */
+  void klee_icall_add_arg(uintptr_t, void *, size_t);
+
+  /* Perform an indirect call with the given arg list. */
+  void klee_icall(void (*)(), uintptr_t);
+
+  /* Delete the given arg list. */
+  void klee_icall_destroy_arg_list(uintptr_t);
+
 #ifdef __cplusplus
 }
 #endif
