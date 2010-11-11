@@ -163,6 +163,9 @@ extern "C" {
   /* Return the argument type for the given kernel function and arg offset. */
   int8_t klee_ocl_get_arg_type(void (*)(), size_t);
 
+  /* Return the argument count for the given kernel function. */
+  unsigned klee_ocl_get_arg_count(void (*)());
+
   /* Create a new arg list for indirect calling. */
   uintptr_t klee_icall_create_arg_list(void);
 

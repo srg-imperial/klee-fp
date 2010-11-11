@@ -106,6 +106,7 @@ namespace klee {
     HANDLER(handleOclCompile);
     HANDLER(handleOclLookupKernelFunction);
     HANDLER(handleOclGetArgType);
+    HANDLER(handleOclGetArgCount);
     HANDLER(handleICallCreateArgList);
     HANDLER(handleICallAddArg);
     HANDLER(handleICall);

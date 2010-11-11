@@ -105,6 +105,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_alias_function", handleAliasFunction, false),
   add("klee_ocl_compile", handleOclCompile, true),
   add("klee_ocl_get_arg_type", handleOclGetArgType, true),
+  add("klee_ocl_get_arg_count", handleOclGetArgCount, true),
   add("klee_ocl_lookup_kernel_function", handleOclLookupKernelFunction, true),
   add("klee_icall_create_arg_list", handleICallCreateArgList, true),
   add("klee_icall_add_arg", handleICallAddArg, false),
@@ -887,6 +888,19 @@ void SpecialFunctionHandler::handleOclGetArgType(ExecutionState &state,
   executor.bindLocal(target, state, 
                      ConstantExpr::create(argCLType,
                                           sizeof(cl_intern_arg_type) * 8));
+}
+
+void SpecialFunctionHandler::handleOclGetArgCount(ExecutionState &state,
+                                                  KInstruction *target,
+                                                  std::vector<ref<Expr> > &arguments) {
+  uintptr_t function = cast<ConstantExpr>(arguments[0])->getZExtValue();
+  Function *functionPtr = (Function *) function;
+
+  unsigned argCount = functionPtr->getFunctionType()->getNumParams();
+
+  executor.bindLocal(target, state,
+                     ConstantExpr::create(argCount,
+                                          sizeof(unsigned) * 8));
 }
 
 void SpecialFunctionHandler::handleOclLookupKernelFunction(ExecutionState &state,
