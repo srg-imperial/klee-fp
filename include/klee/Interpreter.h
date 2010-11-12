@@ -113,8 +113,7 @@ public:
   // for the search. use null to reset.
   virtual void useSeeds(const std::vector<struct KTest *> *seeds) = 0;
 
-  virtual void runFunctionAsMain(unsigned modIndex,
-                                 llvm::Function *f,
+  virtual void runFunctionAsMain(llvm::Function *f,
                                  int argc,
                                  char **argv,
                                  char **envp) = 0;

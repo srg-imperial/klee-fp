@@ -1301,8 +1301,7 @@ int main(int argc, char **argv, char **envp) {
   }
   infoFile << "PID: " << getpid() << "\n";
 
-  unsigned moduleId =
-    interpreter->addModule(mainModule, Opts);
+  interpreter->addModule(mainModule, Opts);
   externalsAndGlobalsCheck(mainModule);
 
   if (ReplayPathFile != "") {
@@ -1353,7 +1352,7 @@ int main(int argc, char **argv, char **envp) {
       std::cerr << "KLEE: replaying: " << *it << " (" << kTest_numBytes(out) << " bytes)"
                  << " (" << ++i << "/" << outFiles.size() << ")\n";
       // XXX should put envp in .ktest ?
-      interpreter->runFunctionAsMain(moduleId, mainFn, out->numArgs, out->args, pEnvp);
+      interpreter->runFunctionAsMain(mainFn, out->numArgs, out->args, pEnvp);
       if (interrupted) break;
     }
     interpreter->setReplayOut(0);
@@ -1404,7 +1403,7 @@ int main(int argc, char **argv, char **envp) {
         klee_error("Unable to change directory to: %s", RunInDir.c_str());
       }
     }
-    interpreter->runFunctionAsMain(moduleId, mainFn, pArgc, pArgv, pEnvp);
+    interpreter->runFunctionAsMain(mainFn, pArgc, pArgv, pEnvp);
 
     while (!seeds.empty()) {
       kTest_free(seeds.back());

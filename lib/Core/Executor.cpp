@@ -491,7 +491,7 @@ unsigned Executor::addModule(llvm::Module *module,
 }
 
 KModule *Executor::kmodule(const ExecutionState &state) const {
-  return kmodules[state.kmoduleIndex];
+  return kmodules[state.stack.back().moduleId];
 }
 
 Executor::~Executor() {
@@ -1238,6 +1238,24 @@ void Executor::stepInstruction(ExecutionState &state) {
     haltExecution = true;
 }
 
+KFunction *Executor::getKFunction(Function *function, unsigned &moduleId) {
+  unsigned curModuleId = 0;
+  for (std::vector<KModule*>::iterator i=kmodules.begin(), e=kmodules.end();
+       i != e; ++i) {
+    if (*i) {
+      typedef std::map<llvm::Function*, KFunction*> FMap;
+      FMap &fm = (*i)->functionMap;
+      FMap::iterator fi = fm.find(function);
+      if (fi != fm.end()) {
+        moduleId = curModuleId;
+        return fi->second;
+      }
+    }
+    ++curModuleId;
+  }
+  return NULL;
+}
+
 void Executor::executeCall(ExecutionState &state, 
                            KInstruction *ki,
                            Function *f,
@@ -1314,8 +1332,11 @@ void Executor::executeCall(ExecutionState &state,
     // guess. This just done to avoid having to pass KInstIterator everywhere
     // instead of the actual instruction, since we can't make a KInstIterator
     // from just an instruction (unlike LLVM).
-    KFunction *kf = kmodule(state)->functionMap[f];
-    state.pushFrame(state.prevPC, kf);
+    unsigned moduleId;
+    KFunction *kf = getKFunction(f, moduleId);
+    assert(kf && "KFunction not found!");
+
+    state.pushFrame(state.prevPC, kf, moduleId);
     state.pc = kf->instructions;
         
     if (statsTracker)
@@ -3178,13 +3199,11 @@ void Executor::executeMakeSymbolic(ExecutionState &state,
 
 /***/
 
-void Executor::runFunctionAsMain(unsigned modIndex,
-                                 Function *f,
+void Executor::runFunctionAsMain(Function *f,
 				 int argc,
 				 char **argv,
 				 char **envp) {
   std::vector<ref<Expr> > arguments;
-  KModule *kmodule = kmodules[modIndex];
 
   // force deterministic initialization of memory objects
   srand(1);
@@ -3201,7 +3220,8 @@ void Executor::runFunctionAsMain(unsigned modIndex,
   for (envc=0; envp[envc]; ++envc) ;
 
   unsigned NumPtrBytes = Context::get().getPointerWidth() / 8;
-  KFunction *kf = kmodule->functionMap[f];
+  unsigned moduleId;
+  KFunction *kf = getKFunction(f, moduleId);
   assert(kf);
   Function::arg_iterator ai = f->arg_begin(), ae = f->arg_end();
   if (ai!=ae) {
@@ -3223,8 +3243,7 @@ void Executor::runFunctionAsMain(unsigned modIndex,
     }
   }
 
-  ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
-  state->kmoduleIndex = modIndex;
+  ExecutionState *state = new ExecutionState(kf, moduleId);
   
   if (pathWriter) 
     state->pathOS = pathWriter->open();

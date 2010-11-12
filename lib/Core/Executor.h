@@ -248,6 +248,8 @@ private:
                    ref<Expr> address,
                    KInstruction *target = 0);
   
+  KFunction *getKFunction(llvm::Function *function, unsigned int &moduleId);
+
   void executeCall(ExecutionState &state, 
                    KInstruction *ki,
                    llvm::Function *f,
@@ -420,8 +422,7 @@ public:
     usingSeeds = seeds;
   }
 
-  virtual void runFunctionAsMain(unsigned modIndex,
-                                 llvm::Function *f,
+  virtual void runFunctionAsMain(llvm::Function *f,
                                  int argc,
                                  char **argv,
                                  char **envp);

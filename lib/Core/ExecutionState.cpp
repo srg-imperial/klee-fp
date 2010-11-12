@@ -38,8 +38,9 @@ namespace {
 
 /***/
 
-StackFrame::StackFrame(KInstIterator _caller, KFunction *_kf)
-  : caller(_caller), kf(_kf), callPathNode(0), 
+StackFrame::StackFrame(KInstIterator _caller, KFunction *_kf,
+                       unsigned _moduleId)
+  : caller(_caller), kf(_kf), moduleId(_moduleId), callPathNode(0), 
     minDistToUncoveredOnReturn(0), varargs(0) {
   locals = new Cell[kf->numRegisters];
 }
@@ -47,6 +48,7 @@ StackFrame::StackFrame(KInstIterator _caller, KFunction *_kf)
 StackFrame::StackFrame(const StackFrame &s) 
   : caller(s.caller),
     kf(s.kf),
+    moduleId(s.moduleId),
     callPathNode(s.callPathNode),
     allocas(s.allocas),
     minDistToUncoveredOnReturn(s.minDistToUncoveredOnReturn),
@@ -62,7 +64,7 @@ StackFrame::~StackFrame() {
 
 /***/
 
-ExecutionState::ExecutionState(KFunction *kf) 
+ExecutionState::ExecutionState(KFunction *kf, unsigned moduleId) 
   : fakeState(false),
     underConstrained(false),
     depth(0),
@@ -74,7 +76,7 @@ ExecutionState::ExecutionState(KFunction *kf)
     coveredNew(false),
     forkDisabled(false),
     ptreeNode(0) {
-  pushFrame(0, kf);
+  pushFrame(0, kf, moduleId);
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr> > &assumptions) 
@@ -102,8 +104,8 @@ ExecutionState *ExecutionState::branch() {
   return falseState;
 }
 
-void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
-  stack.push_back(StackFrame(caller,kf));
+void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf, unsigned moduleId) {
+  stack.push_back(StackFrame(caller,kf,moduleId));
 }
 
 void ExecutionState::popFrame() {
