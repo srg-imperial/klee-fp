@@ -2405,6 +2405,10 @@ void Executor::bindModuleConstants(KModule *kmodule) {
   }
 }
 
+void Executor::bindModuleConstants(unsigned moduleId) {
+  bindModuleConstants(kmodules[moduleId]);
+}
+
 void Executor::run(ExecutionState &initialState) {
   bindModuleConstants(kmodule(initialState));
 

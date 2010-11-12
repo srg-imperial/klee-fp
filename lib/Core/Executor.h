@@ -356,6 +356,7 @@ private:
 
   /// bindModuleConstants - Initialize the module constant table.
   void bindModuleConstants(KModule *kmodule);
+  void bindModuleConstants(unsigned moduleId);
 
   template <typename TypeIt>
   void computeOffsets(KModule *kmodule, KGEPInstruction *kgepi, TypeIt ib,
