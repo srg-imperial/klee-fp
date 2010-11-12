@@ -846,7 +846,8 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   Mod->dump();
 
   llvm::sys::Path LibraryDir(KLEE_DIR "/" RUNTIME_CONFIGURATION "/lib");
-  executor.addModule(Mod, Interpreter::ModuleOptions(LibraryDir.c_str(), false, true));
+  unsigned moduleId = executor.addModule(Mod, Interpreter::ModuleOptions(LibraryDir.c_str(), false, true));
+  executor.bindModuleConstants(moduleId);
 
   executor.bindLocal(target, state, 
                      ConstantExpr::create((uintptr_t) Mod,
