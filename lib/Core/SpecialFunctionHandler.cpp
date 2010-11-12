@@ -17,6 +17,7 @@
 
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
+#include "klee/Internal/Support/ModuleUtil.h"
 
 #include "Executor.h"
 #include "MemoryManager.h"
@@ -846,6 +847,10 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   Mod->dump();
 
   llvm::sys::Path LibraryDir(KLEE_DIR "/" RUNTIME_CONFIGURATION "/lib");
+  llvm::sys::Path Path(LibraryDir);
+  Path.appendComponent("libkleeRuntimeCLKernel.bca");
+  Mod = klee::linkWithLibrary(Mod, Path.c_str());
+
   unsigned moduleId = executor.addModule(Mod, Interpreter::ModuleOptions(LibraryDir.c_str(), false, true));
   executor.bindModuleConstants(moduleId);
 
