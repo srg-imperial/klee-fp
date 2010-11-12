@@ -23,6 +23,7 @@ namespace klee {
   class Expr;
   class ExecutionState;
   struct KInstruction;
+  struct KModule;
   template<typename T> class ref;
   
   class SpecialFunctionHandler {
@@ -44,11 +45,11 @@ namespace klee {
     /// prepared for execution. At the moment this involves deleting
     /// unused function bodies and marking intrinsics with appropriate
     /// flags for use in optimizations.
-    void prepare();
+    void prepare(KModule *kmodule);
 
     /// Initialize the internal handler map after the module has been
     /// prepared for execution.
-    void bind();
+    void bind(KModule *kmodule);
 
     bool handle(ExecutionState &state, 
                 llvm::Function *f,

@@ -86,10 +86,10 @@ public:
 
   /// Register the module to be executed.  
   ///
-  /// \return The final module after it has been optimized, checks
+  /// \return The module index after it has been optimized, checks
   /// inserted, and modified for interpretation.
-  virtual const llvm::Module * 
-  setModule(llvm::Module *module, 
+  virtual unsigned
+  addModule(llvm::Module *module, 
             const ModuleOptions &opts) = 0;
 
   // supply a tree stream writer which the interpreter will use
@@ -113,7 +113,8 @@ public:
   // for the search. use null to reset.
   virtual void useSeeds(const std::vector<struct KTest *> *seeds) = 0;
 
-  virtual void runFunctionAsMain(llvm::Function *f,
+  virtual void runFunctionAsMain(unsigned modIndex,
+                                 llvm::Function *f,
                                  int argc,
                                  char **argv,
                                  char **envp) = 0;

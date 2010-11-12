@@ -36,15 +36,15 @@ using namespace llvm;
 
 namespace klee {
 
-  ref<ConstantExpr> Executor::evalConstantExpr(llvm::ConstantExpr *ce) {
+  ref<ConstantExpr> Executor::evalConstantExpr(const KModule *kmodule, llvm::ConstantExpr *ce) {
     const llvm::Type *type = ce->getType();
 
     ref<ConstantExpr> op1(0), op2(0), op3(0);
     int numOperands = ce->getNumOperands();
 
-    if (numOperands > 0) op1 = evalConstant(ce->getOperand(0));
-    if (numOperands > 1) op2 = evalConstant(ce->getOperand(1));
-    if (numOperands > 2) op3 = evalConstant(ce->getOperand(2));
+    if (numOperands > 0) op1 = evalConstant(kmodule, ce->getOperand(0));
+    if (numOperands > 1) op2 = evalConstant(kmodule, ce->getOperand(1));
+    if (numOperands > 2) op3 = evalConstant(kmodule, ce->getOperand(2));
 
     switch (ce->getOpcode()) {
     default :
@@ -54,9 +54,9 @@ namespace klee {
       abort();
 
     case Instruction::Trunc: 
-      return op1->Extract(0, getWidthForLLVMType(type));
-    case Instruction::ZExt:  return op1->ZExt(getWidthForLLVMType(type));
-    case Instruction::SExt:  return op1->SExt(getWidthForLLVMType(type));
+      return op1->Extract(0, getWidthForLLVMType(kmodule, type));
+    case Instruction::ZExt:  return op1->ZExt(getWidthForLLVMType(kmodule, type));
+    case Instruction::SExt:  return op1->SExt(getWidthForLLVMType(kmodule, type));
     case Instruction::Add:   return op1->Add(op2);
     case Instruction::Sub:   return op1->Sub(op2);
     case Instruction::Mul:   return op1->Mul(op2);
@@ -73,10 +73,10 @@ namespace klee {
     case Instruction::BitCast:  return op1;
 
     case Instruction::IntToPtr:
-      return op1->ZExt(getWidthForLLVMType(type));
+      return op1->ZExt(getWidthForLLVMType(kmodule, type));
 
     case Instruction::PtrToInt:
-      return op1->ZExt(getWidthForLLVMType(type));
+      return op1->ZExt(getWidthForLLVMType(kmodule, type));
 
     case Instruction::GetElementPtr: {
       ref<ConstantExpr> base = op1->ZExt(Context::get().getPointerWidth());
@@ -96,7 +96,7 @@ namespace klee {
         } else {
           const SequentialType *set = cast<SequentialType>(*ii);
           ref<ConstantExpr> index = 
-            evalConstant(cast<Constant>(ii.getOperand()));
+            evalConstant(kmodule, cast<Constant>(ii.getOperand()));
 
           unsigned elementSize = 
             kmodule->targetData->getTypeStoreSize(set->getElementType());

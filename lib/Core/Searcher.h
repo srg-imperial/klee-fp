@@ -159,7 +159,6 @@ namespace klee {
     Executor &executor;
     std::set<ExecutionState*> statesAtMerge;
     Searcher *baseSearcher;
-    llvm::Function *mergeFunction;
 
   private:
     llvm::Instruction *getMergePoint(ExecutionState &es);
@@ -182,7 +181,6 @@ namespace klee {
     Executor &executor;
     std::map<llvm::Instruction*, ExecutionState*> statesAtMerge;
     Searcher *baseSearcher;
-    llvm::Function *mergeFunction;
 
   private:
     llvm::Instruction *getMergePoint(ExecutionState &es);

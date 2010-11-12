@@ -77,6 +77,8 @@ public:
   unsigned underConstrained;
   unsigned depth;
   
+  unsigned kmoduleIndex;
+
   // pc - pointer to current instruction stream
   KInstIterator pc, prevPC;
   stack_ty stack;

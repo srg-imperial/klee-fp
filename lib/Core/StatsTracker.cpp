@@ -165,7 +165,7 @@ StatsTracker::StatsTracker(Executor &_executor, std::string _objectFilename,
     fullBranches(0),
     partialBranches(0),
     updateMinDistToUncovered(_updateMinDistToUncovered) {
-  KModule *km = executor.kmodule;
+  KModule *km = executor.kmodules[0];
 
   sys::Path module(objectFilename);
   if (!sys::Path(objectFilename).isAbsolute()) {
@@ -404,7 +404,7 @@ void StatsTracker::updateStateStatistics(uint64_t addend) {
 }
 
 void StatsTracker::writeIStats() {
-  Module *m = executor.kmodule->module;
+  Module *m = executor.kmodules[0]->module;
   uint64_t istatsMask = 0;
   std::ostream &of = *istatsFile;
   
@@ -475,7 +475,7 @@ void StatsTracker::writeIStats() {
         for (BasicBlock::iterator it = bbIt->begin(), ie = bbIt->end(); 
              it != ie; ++it) {
           Instruction *instr = &*it;
-          const InstructionInfo &ii = executor.kmodule->infos->getInfo(instr);
+          const InstructionInfo &ii = executor.kmodules[0]->infos->getInfo(instr);
           unsigned index = ii.id;
           if (ii.file!=sourceFile) {
             of << "fl=" << ii.file << "\n";
@@ -498,7 +498,7 @@ void StatsTracker::writeIStats() {
                 Function *f = fit->first;
                 CallSiteInfo &csi = fit->second;
                 const InstructionInfo &fii = 
-                  executor.kmodule->infos->getFunctionInfo(f);
+                  executor.kmodules[0]->infos->getFunctionInfo(f);
   
                 if (fii.file!="" && fii.file!=sourceFile)
                   of << "cfl=" << fii.file << "\n";
@@ -590,7 +590,7 @@ uint64_t klee::computeMinDistToUncovered(const KInstruction *ki,
 }
 
 void StatsTracker::computeReachableUncovered() {
-  KModule *km = executor.kmodule;
+  KModule *km = executor.kmodules[0];
   Module *m = km->module;
   static bool init = true;
   const InstructionInfoTable &infos = *km->infos;

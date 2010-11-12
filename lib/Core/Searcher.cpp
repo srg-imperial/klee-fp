@@ -250,8 +250,7 @@ bool RandomPathSearcher::empty() {
 
 BumpMergingSearcher::BumpMergingSearcher(Executor &_executor, Searcher *_baseSearcher) 
   : executor(_executor),
-    baseSearcher(_baseSearcher),
-    mergeFunction(executor.kmodule->kleeMergeFn) {
+    baseSearcher(_baseSearcher) {
 }
 
 BumpMergingSearcher::~BumpMergingSearcher() {
@@ -261,6 +260,7 @@ BumpMergingSearcher::~BumpMergingSearcher() {
 ///
 
 Instruction *BumpMergingSearcher::getMergePoint(ExecutionState &es) {  
+  Function *mergeFunction = executor.kmodule(es)->kleeMergeFn;
   if (mergeFunction) {
     Instruction *i = es.pc->inst;
 
@@ -328,8 +328,7 @@ void BumpMergingSearcher::update(ExecutionState *current,
 
 MergingSearcher::MergingSearcher(Executor &_executor, Searcher *_baseSearcher) 
   : executor(_executor),
-    baseSearcher(_baseSearcher),
-    mergeFunction(executor.kmodule->kleeMergeFn) {
+    baseSearcher(_baseSearcher) {
 }
 
 MergingSearcher::~MergingSearcher() {
@@ -339,6 +338,7 @@ MergingSearcher::~MergingSearcher() {
 ///
 
 Instruction *MergingSearcher::getMergePoint(ExecutionState &es) {
+  Function *mergeFunction = executor.kmodule(es)->kleeMergeFn;
   if (mergeFunction) {
     Instruction *i = es.pc->inst;
 
