@@ -26,6 +26,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/System/Host.h"
+#include "llvm/System/Path.h"
 
 #ifdef HAVE_OPENCL
 #include "clang/CodeGen/CodeGenAction.h"
@@ -843,6 +844,9 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
 
   Module *Mod = Act->takeModule();
   Mod->dump();
+
+  llvm::sys::Path LibraryDir(KLEE_DIR "/" RUNTIME_CONFIGURATION "/lib");
+  executor.addModule(Mod, Interpreter::ModuleOptions(LibraryDir.c_str(), false, true));
 
   executor.bindLocal(target, state, 
                      ConstantExpr::create((uintptr_t) Mod,
