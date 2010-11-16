@@ -155,7 +155,7 @@ extern "C" {
   void klee_watch(void *, size_t);
 
   /* Compile the given memory block as an OpenCL code. */
-  uintptr_t klee_ocl_compile(char *);
+  uintptr_t klee_ocl_compile(const char *, const char *);
 
   /* Look up the given kernel function in the given OpenCL module. */
   void (*klee_ocl_lookup_kernel_function(uintptr_t, const char *))();

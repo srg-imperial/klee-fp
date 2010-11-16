@@ -47,7 +47,7 @@ cl_int clBuildProgram(cl_program program,
                       void *user_data) {
   cl_int result;
 
-  program->module = klee_ocl_compile(program->source);
+  program->module = klee_ocl_compile(program->source, options);
   result = program->module ? CL_SUCCESS : CL_BUILD_PROGRAM_FAILURE;
 
   if (pfn_notify)

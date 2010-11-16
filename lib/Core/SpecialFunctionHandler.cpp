@@ -22,6 +22,7 @@
 #include "Executor.h"
 #include "MemoryManager.h"
 
+#include "llvm/DerivedTypes.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/ADT/Twine.h"
@@ -819,21 +820,53 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   MemoryBuffer *buf = MemoryBuffer::getMemBuffer(code);
 
   OwningPtr<clang::CompilerInvocation> CI(new clang::CompilerInvocation);
+
+  clang::TextDiagnosticPrinter *DiagClient =
+    new clang::TextDiagnosticPrinter(errs(), clang::DiagnosticOptions());
+  clang::Diagnostic *Diag = new clang::Diagnostic(DiagClient);
+
+  SmallVector<StringRef, 8> splitArgs;
+  ref<Expr> argsExpr = executor.toUnique(state, arguments[1]);
+  if (ConstantExpr *argsCE = dyn_cast<ConstantExpr>(argsExpr)) {
+    if (!argsCE->isZero()) {
+      std::string args = readStringAtAddress(state, argsCE);
+      SplitString(args, splitArgs);
+    }
+  }
+
+  const char **argv = new const char*[splitArgs.size() + 2];
+  argv[0] = "-x";
+  argv[1] = "cl";
+
+       const char **argi = argv+2;
+  for (SmallVector<StringRef, 8>::const_iterator
+         i = splitArgs.begin(),
+         e = splitArgs.end(); i != e; ++i, ++argi) {
+    char *arg = new char[i->size() + 1];
+    memcpy(arg, i->data(), i->size());
+    arg[i->size()] = 0;
+    *argi = arg;
+  }
+
+  clang::CompilerInvocation::CreateFromArgs(*CI, argv, argv+splitArgs.size()+2, *Diag);
+
+  for (argi = argv+2; argi != argv+splitArgs.size()+2; ++argi) {
+    delete *argi;
+  }
+  delete argv;
+
+  CI->getFrontendOpts().Inputs.clear();
   CI->getFrontendOpts().Inputs.push_back(std::pair<clang::InputKind, std::string>(
     clang::IK_OpenCL, codeName));
   CI->getPreprocessorOpts().Includes.push_back(KLEE_SRC_DIR "/include/klee/clkernel.h");
   CI->getPreprocessorOpts().addRemappedFile(codeName, buf);
-  CI->setLangDefaults(clang::IK_OpenCL);
 
   CI->getTargetOpts().Triple = sys::getHostTriple();
 
   clang::CompilerInstance Clang;
   Clang.setLLVMContext(&getGlobalContext());
   Clang.setInvocation(CI.take());
-
-  clang::TextDiagnosticPrinter *DiagClient =
-    new clang::TextDiagnosticPrinter(errs(), clang::DiagnosticOptions());
-  Clang.setDiagnostics(new clang::Diagnostic(DiagClient));
+  Clang.setDiagnostics(Diag);
 
   OwningPtr<clang::CodeGenAction> Act(new clang::EmitLLVMOnlyAction);
   if (!Clang.ExecuteAction(*Act)) {
@@ -866,6 +899,7 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
 #endif
 }
 
+#ifdef HAVE_OPENCL
 static cl_intern_arg_type typeAsCLArgType(const Type *t) {
   if (t->isIntegerTy(8))
     return CL_INTERN_ARG_TYPE_I8;
@@ -883,10 +917,12 @@ static cl_intern_arg_type typeAsCLArgType(const Type *t) {
     return CL_INTERN_ARG_TYPE_MEM;
   assert(0 && "Unknown type");
 }
+#endif
 
 void SpecialFunctionHandler::handleOclGetArgType(ExecutionState &state,
                                                  KInstruction *target,
                                                  std::vector<ref<Expr> > &arguments) {
+#ifdef HAVE_OPENCL
   uintptr_t function = cast<ConstantExpr>(arguments[0])->getZExtValue();
   Function *functionPtr = (Function *) function;
 
@@ -898,6 +934,11 @@ void SpecialFunctionHandler::handleOclGetArgType(ExecutionState &state,
   executor.bindLocal(target, state, 
                      ConstantExpr::create(argCLType,
                                           sizeof(cl_intern_arg_type) * 8));
+#else
+  executor.terminateStateOnError(state, 
+                                 "OpenCL support not available", 
+                                 "opencl.err");
+#endif
 }
 
 void SpecialFunctionHandler::handleOclGetArgCount(ExecutionState &state,
