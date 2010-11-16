@@ -397,7 +397,7 @@ endif
 #--------------------------------------------------------------------
 TargetMode :=
 ifeq ($(LLVM_CROSS_COMPILING),1)
-  BuildLLVMToolDir := $(LLVM_OBJ_ROOT)/BuildTools/$(BuildMode)/bin
+  BuildLLVMToolDir := $(LLVM_OBJ_ROOT)/BuildTools/$(LLVM_BUILD_MODE)/bin
 endif
 
 ObjRootDir  := $(PROJ_OBJ_DIR)/$(BuildMode)
@@ -405,9 +405,9 @@ ObjDir      := $(ObjRootDir)
 LibDir      := $(PROJ_OBJ_ROOT)/$(BuildMode)/lib
 ToolDir     := $(PROJ_OBJ_ROOT)/$(BuildMode)/bin
 ExmplDir    := $(PROJ_OBJ_ROOT)/$(BuildMode)/examples
-LLVMLibDir  := $(LLVM_OBJ_ROOT)/$(BuildMode)/lib
-LLVMToolDir := $(LLVM_OBJ_ROOT)/$(BuildMode)/bin
-LLVMExmplDir:= $(LLVM_OBJ_ROOT)/$(BuildMode)/examples
+LLVMLibDir  := $(LLVM_OBJ_ROOT)/$(LLVM_BUILD_MODE)/lib
+LLVMToolDir := $(LLVM_OBJ_ROOT)/$(LLVM_BUILD_MODE)/bin
+LLVMExmplDir:= $(LLVM_OBJ_ROOT)/$(LLVM_BUILD_MODE)/examples
 
 #--------------------------------------------------------------------
 # Locations of shared libraries

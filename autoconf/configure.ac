@@ -139,6 +139,32 @@ AC_SUBST(LLVM_VERSION_MINOR,$llvm_version_minor)
 AC_DEFINE_UNQUOTED(LLVM_IS_RELEASE, $llvm_is_release, [LLVM version is release (instead of development)])
 AC_SUBST(LLVM_IS_RELEASE,$llvm_is_release)
 
+AC_ARG_WITH(llvm-build-mode,
+  AS_HELP_STRING([--with-llvm-build-mode],
+    [LLVM build mode (e.g. Debug or Release, default autodetect)]),,[with_llvm_build_mode=check])
+
+AC_MSG_CHECKING([llvm build mode])
+
+if test X${with_llvm_build_mode} = Xcheck ; then
+  llvm_configs="`echo $llvm_obj/*/bin/llvm-config`"
+  dnl This will be true if the user has exactly 1 build mode built
+  if test -x "$llvm_configs" ; then
+    llvm_build_mode="`$llvm_configs --build-mode`"
+  else
+    AC_MSG_ERROR([Could not autodetect build mode])
+  fi
+else
+  llvm_configs="`echo $llvm_obj/*/bin/llvm-config`"
+  if test -x "$llvm_obj/$with_llvm_build_mode/bin/llvm-config" ; then
+    llvm_build_mode=$with_llvm_build_mode
+  else
+    AC_MSG_ERROR([Invalid build mode: $llvm_build_mode])
+  fi
+fi
+
+AC_MSG_RESULT([$llvm_build_mode])
+AC_SUBST(LLVM_BUILD_MODE,$llvm_build_mode)
+
 dnl **************************************************************************
 dnl User option to enable uClibc support.
 
