@@ -157,8 +157,8 @@ extern "C" {
   /* Compile the given memory block as an OpenCL code. */
   uintptr_t klee_ocl_compile(const char *, const char *);
 
-  /* Look up the given kernel function in the given OpenCL module. */
-  void (*klee_ocl_lookup_kernel_function(uintptr_t, const char *))();
+  /* Look up the given global in the given module. */
+  void *klee_lookup_module_global(uintptr_t, const char *);
 
   /* Return the argument type for the given kernel function and arg offset. */
   int8_t klee_ocl_get_arg_type(void (*)(), size_t);

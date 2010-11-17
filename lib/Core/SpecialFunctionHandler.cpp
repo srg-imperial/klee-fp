@@ -109,7 +109,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_ocl_compile", handleOclCompile, true),
   add("klee_ocl_get_arg_type", handleOclGetArgType, true),
   add("klee_ocl_get_arg_count", handleOclGetArgCount, true),
-  add("klee_ocl_lookup_kernel_function", handleOclLookupKernelFunction, true),
+  add("klee_lookup_module_global", handleLookupModuleGlobal, true),
   add("klee_icall_create_arg_list", handleICallCreateArgList, true),
   add("klee_icall_add_arg", handleICallAddArg, false),
   add("klee_icall", handleICall, false),
@@ -955,19 +955,23 @@ void SpecialFunctionHandler::handleOclGetArgCount(ExecutionState &state,
                                           sizeof(unsigned) * 8));
 }
 
-void SpecialFunctionHandler::handleOclLookupKernelFunction(ExecutionState &state,
-                                                           KInstruction *target,
-                                                           std::vector<ref<Expr> > &arguments) {
+void SpecialFunctionHandler::handleLookupModuleGlobal(ExecutionState &state,
+                                                      KInstruction *target,
+                                                      std::vector<ref<Expr> > &arguments) {
   uintptr_t module = cast<ConstantExpr>(arguments[0])->getZExtValue();
   std::string functionName = readStringAtAddress(state, arguments[1]);
 
   Module *modulePtr = (Module *) module;
 
-  Function *function = modulePtr->getFunction(functionName);
+  GlobalValue *globalVal = modulePtr->getNamedValue(functionName);
+  if (!globalVal) {
+    executor.bindLocal(target, state, 
+                       ConstantExpr::create(0,
+                                            sizeof(uintptr_t) * 8));
+    return;
+  }
 
-  executor.bindLocal(target, state, 
-                     ConstantExpr::create((uintptr_t) function,
-                                          sizeof(uintptr_t) * 8));
+  executor.bindLocal(target, state, executor.globalAddresses.find(globalVal)->second);
 }
 
 void SpecialFunctionHandler::handleICallCreateArgList(ExecutionState &state,

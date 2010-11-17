@@ -105,7 +105,7 @@ namespace klee {
     HANDLER(handleWarning);
     HANDLER(handleWarningOnce);
     HANDLER(handleOclCompile);
-    HANDLER(handleOclLookupKernelFunction);
+    HANDLER(handleLookupModuleGlobal);
     HANDLER(handleOclGetArgType);
     HANDLER(handleOclGetArgCount);
     HANDLER(handleICallCreateArgList);
