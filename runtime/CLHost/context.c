@@ -11,6 +11,7 @@ static cl_context create_the_context(
                                              void *user_data),
                            void *user_data) {
   cl_context ctx = malloc(sizeof(struct _cl_context));
+  ctx->refCount = 1;
   ctx->pfn_notify = pfn_notify;
   ctx->user_data = user_data;
   return ctx;
@@ -79,6 +80,26 @@ cl_int clGetContextInfo(cl_context context,
       break;
     }
     default: return CL_INVALID_VALUE;
+  }
+
+  return CL_SUCCESS;
+}
+
+cl_int clRetainContext(cl_context context) {
+  if (!context)
+    return CL_INVALID_CONTEXT;
+
+  ++context->refCount;
+
+  return CL_SUCCESS;
+}
+
+cl_int clReleaseContext(cl_context context) {
+  if (!context)
+    return CL_INVALID_CONTEXT;
+
+  if (--context->refCount == 0) {
+    free(context);
   }
 
   return CL_SUCCESS;
