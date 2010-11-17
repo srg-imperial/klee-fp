@@ -21,6 +21,7 @@ cl_program clCreateProgramWithSource(cl_context context,
     progBufLen += realLengths[i] = realLength;
   }
 
+  prog->refCount = 1;
   prog->source = source = malloc(progBufLen + 1);
   prog->sourceSize = progBufLen;
   prog->module = 0;
@@ -54,4 +55,25 @@ cl_int clBuildProgram(cl_program program,
     pfn_notify(program, user_data);
 
   return result;
+}
+
+cl_int clRetainProgram(cl_program program) {
+  if (!program)
+    return CL_INVALID_PROGRAM;
+
+  ++program->refCount;
+
+  return CL_SUCCESS;
+}
+
+cl_int clReleaseProgram(cl_program program) {
+  if (!program)
+    return CL_INVALID_PROGRAM;
+
+  if (--program->refCount == 0) {
+    free(program->source);
+    free(program);
+  }
+
+  return CL_SUCCESS;
 }

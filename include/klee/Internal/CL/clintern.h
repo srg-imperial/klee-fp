@@ -11,6 +11,7 @@ struct _cl_context {
 };
 
 struct _cl_program {
+  unsigned refCount;
   char *source;
   size_t sourceSize;
   uintptr_t module;
