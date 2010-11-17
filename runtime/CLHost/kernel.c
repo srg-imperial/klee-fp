@@ -77,6 +77,17 @@ cl_int clSetKernelArg(cl_kernel kernel,
   return CL_SUCCESS;
 }
 
+static cl_uint increment_id_list(cl_uint work_dim, size_t *ids,
+                             const size_t *sizes) {
+  cl_uint i;
+  for (i = work_dim; i > 0; --i) {
+    size_t id = ids[i-1] = (ids[i-1] + 1) % sizes[i-1];
+    if (id != 0)
+      return i;
+  }
+  return 0;
+}
+
 cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
                               cl_kernel kernel,
                               cl_uint work_dim,
@@ -86,34 +97,65 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
                               cl_uint num_events_in_wait_list,
                               const cl_event *event_wait_list,
                               cl_event *event) {
-  uintptr_t argList = klee_icall_create_arg_list();
-  unsigned argCount = klee_ocl_get_arg_count(kernel->function);
-  unsigned i;
+  size_t divisors[64], ids[64], *local_ids = kernel->program->localIds, *global_ids = kernel->program->globalIds;
+  cl_uint i, last_id;
 
-  for (i = 0; i < argCount; ++i) {
-    switch (klee_ocl_get_arg_type(kernel->function, i)) {
-#define X(TYPE, FIELD) { \
-        TYPE a = kernel->args[i].FIELD; \
-        klee_icall_add_arg(argList, &a, sizeof(a)); \
-        break; \
-      }
-      case CL_INTERN_ARG_TYPE_I8: X(uint8_t, i8)
-      case CL_INTERN_ARG_TYPE_I16: X(uint16_t, i16)
-      case CL_INTERN_ARG_TYPE_I32: X(uint32_t, i32)
-      case CL_INTERN_ARG_TYPE_I64: X(uint64_t, i64)
-      case CL_INTERN_ARG_TYPE_F32: X(float, f32)
-      case CL_INTERN_ARG_TYPE_F64: X(double, f64)
-      case CL_INTERN_ARG_TYPE_MEM: {
-        void *a = kernel->args[i].mem.data;
-        klee_icall_add_arg(argList, &a, sizeof(a));
-        break;
-      }
-      default: return CL_INVALID_KERNEL;
+  if (!global_work_size)
+    return CL_INVALID_GLOBAL_WORK_SIZE;
+
+  for (i = 0; i < work_dim; ++i) {
+    if (local_work_size) {
+      if (global_work_size[i] % local_work_size[i] != 0)
+        return CL_INVALID_WORK_GROUP_SIZE;
+      divisors[i] = global_work_size[i] / local_work_size[i];
+    } else {
+      divisors[i] = 1;
     }
   }
-  
-  klee_icall(kernel->function, argList);
-  klee_icall_destroy_arg_list(argList);
+
+  memset(ids, 0, work_dim*sizeof(size_t));
+  if (global_work_offset)
+    memcpy(global_ids, global_work_offset, work_dim*sizeof(size_t));
+  else
+    memset(global_ids, 0, work_dim*sizeof(size_t));
+  memset(local_ids, 0, work_dim*sizeof(size_t));
+  last_id = work_dim+1;
+
+  do {
+    uintptr_t argList = klee_icall_create_arg_list();
+    unsigned argCount = klee_ocl_get_arg_count(kernel->function);
+    unsigned arg;
+
+    for (i = last_id-1; i < work_dim; ++i) {
+      global_ids[i] = global_work_offset ? global_work_offset[i] + ids[i] : ids[i];
+      local_ids[i] = ids[i] / divisors[i];
+    }  
+
+    for (arg = 0; arg < argCount; ++arg) {
+      switch (klee_ocl_get_arg_type(kernel->function, arg)) {
+#define X(TYPE, FIELD) { \
+          TYPE a = kernel->args[arg].FIELD; \
+          klee_icall_add_arg(argList, &a, sizeof(a)); \
+          break; \
+        }
+        case CL_INTERN_ARG_TYPE_I8: X(uint8_t, i8)
+        case CL_INTERN_ARG_TYPE_I16: X(uint16_t, i16)
+        case CL_INTERN_ARG_TYPE_I32: X(uint32_t, i32)
+        case CL_INTERN_ARG_TYPE_I64: X(uint64_t, i64)
+        case CL_INTERN_ARG_TYPE_F32: X(float, f32)
+        case CL_INTERN_ARG_TYPE_F64: X(double, f64)
+        case CL_INTERN_ARG_TYPE_MEM: {
+          void *a = kernel->args[arg].mem.data;
+          klee_icall_add_arg(argList, &a, sizeof(a));
+          break;
+        }
+        default: return CL_INVALID_KERNEL;
+      }
+    }
+
+    klee_icall(kernel->function, argList);
+    klee_icall_destroy_arg_list(argList);
+  } while ((last_id = increment_id_list(work_dim, ids, global_work_size)));
 
   return CL_SUCCESS;
 }
