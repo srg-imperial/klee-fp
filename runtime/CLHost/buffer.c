@@ -16,6 +16,15 @@ cl_mem clCreateBuffer(cl_context context,
     return NULL;
   }
 
+  if ((flags & (CL_MEM_ALLOC_HOST_PTR | CL_MEM_USE_HOST_PTR)) ==
+               (CL_MEM_ALLOC_HOST_PTR | CL_MEM_USE_HOST_PTR) ||
+      (flags & (CL_MEM_COPY_HOST_PTR | CL_MEM_USE_HOST_PTR)) ==
+               (CL_MEM_COPY_HOST_PTR | CL_MEM_USE_HOST_PTR)) {
+    if (errcode_ret)
+      *errcode_ret = CL_INVALID_VALUE;
+    return NULL;
+  }
+
   if (!!host_ptr ^ !!(flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))) {
     if (errcode_ret)
       *errcode_ret = CL_INVALID_HOST_PTR;
