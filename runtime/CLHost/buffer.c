@@ -32,6 +32,7 @@ cl_mem clCreateBuffer(cl_context context,
   }
 
   cl_mem mem = malloc(sizeof(struct _cl_mem));
+  mem->refCount = 1;
   mem->size = size;
 
   if (flags & CL_MEM_USE_HOST_PTR) {
@@ -87,6 +88,28 @@ cl_int clEnqueueWriteBuffer(cl_command_queue command_queue,
     return CL_INVALID_VALUE;
 
   memcpy(buffer->data+offset, ptr, cb);
+
+  return CL_SUCCESS;
+}
+
+cl_int clRetainMemObject(cl_mem mem) {
+  if (!mem)
+    return CL_INVALID_MEM_OBJECT;
+
+  ++mem->refCount;
+
+  return CL_SUCCESS;
+}
+
+cl_int clReleaseMemObject(cl_mem mem) {
+  if (!mem)
+    return CL_INVALID_MEM_OBJECT;
+
+  if (--mem->refCount == 0) {
+    if (mem->ownsData)
+      free(mem->data);
+    free(mem);
+  }
 
   return CL_SUCCESS;
 }

@@ -18,6 +18,7 @@ struct _cl_program {
 };
 
 struct _cl_mem {
+  unsigned refCount;
   void *data;
   uint8_t ownsData;
   size_t size;
