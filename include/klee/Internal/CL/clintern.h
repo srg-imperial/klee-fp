@@ -16,6 +16,7 @@ struct _cl_program {
   char *source;
   size_t sourceSize;
   uintptr_t module;
+  size_t *localIds, *globalIds;
 };
 
 struct _cl_mem {
