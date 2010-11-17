@@ -39,3 +39,43 @@ cl_mem clCreateBuffer(cl_context context,
     *errcode_ret = CL_SUCCESS;
   return mem;
 }
+
+cl_int clEnqueueReadBuffer(cl_command_queue command_queue,
+                           cl_mem buffer,
+                           cl_bool blocking_read,
+                           size_t offset,
+                           size_t cb,
+                           void *ptr,
+                           cl_uint num_events_in_wait_list,
+                           const cl_event *event_wait_list,
+                           cl_event *event) {
+  if (!buffer)
+    return CL_INVALID_MEM_OBJECT;
+
+  if (offset + cb > buffer->size || !ptr)
+    return CL_INVALID_VALUE;
+
+  memcpy(ptr, buffer->data+offset, cb);
+
+  return CL_SUCCESS;
+}
+
+cl_int clEnqueueWriteBuffer(cl_command_queue command_queue,
+                            cl_mem buffer,
+                            cl_bool blocking_write,
+                            size_t offset,
+                            size_t cb,
+                            const void *ptr,
+                            cl_uint num_events_in_wait_list,
+                            const cl_event *event_wait_list,
+                            cl_event *event) {
+  if (!buffer)
+    return CL_INVALID_MEM_OBJECT;
+
+  if (offset + cb > buffer->size || !ptr)
+    return CL_INVALID_VALUE;
+
+  memcpy(buffer->data+offset, ptr, cb);
+
+  return CL_SUCCESS;
+}
