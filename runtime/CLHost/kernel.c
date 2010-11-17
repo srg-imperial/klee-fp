@@ -160,6 +160,23 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
   return CL_SUCCESS;
 }
 
+cl_int clEnqueueTask(cl_command_queue command_queue,
+                     cl_kernel kernel,
+                     cl_uint num_events_in_wait_list,
+                     const cl_event *event_wait_list,
+                     cl_event *event) {
+  size_t one = 1;
+  return clEnqueueNDRangeKernel(command_queue,
+                                kernel,
+                                1,
+                                NULL,
+                                &one,
+                                NULL,
+                                num_events_in_wait_list,
+                                event_wait_list,
+                                event);
+}
+
 cl_int clRetainKernel(cl_kernel kernel) {
   if (!kernel)
     return CL_INVALID_KERNEL;
