@@ -14,8 +14,16 @@ cl_kernel clCreateKernel(cl_program program,
     *errcode_ret = function ? CL_SUCCESS : CL_INVALID_KERNEL_NAME;
 
   if (function) {
+    cl_int errcode = clRetainProgram(program);
+    if (errcode != CL_SUCCESS) {
+      if (*errcode_ret)
+        *errcode_ret = errcode;
+      return NULL;
+    }
+
     cl_kernel kernel = malloc(sizeof(struct _cl_kernel));
     kernel->refCount = 1;
+    kernel->program = program;
     kernel->function = function;
     return kernel;
   } else {
@@ -123,8 +131,10 @@ cl_int clReleaseKernel(cl_kernel kernel) {
   if (!kernel)
     return CL_INVALID_KERNEL;
 
-  if (--kernel->refCount == 0)
+  if (--kernel->refCount == 0) {
+    clReleaseProgram(kernel->program);
     free(kernel);
+  }
 
   return CL_SUCCESS;
 }

@@ -37,6 +37,7 @@ union _cl_intern_arg_data {
 
 struct _cl_kernel {
   unsigned refCount;
+  struct _cl_program *program;
   void (*function)();
   union _cl_intern_arg_data args[16];
 };
