@@ -564,8 +564,14 @@ MemoryObject * Executor::addExternalObject(ExecutionState &state,
 }
 
 void Executor::initializeGlobals(ExecutionState &state) {
-  Module *m = kmodule(state)->module;
+  initializeGlobals(state, kmodule(state)->module);
+}
 
+void Executor::initializeGlobals(ExecutionState &state, unsigned moduleId) {
+  initializeGlobals(state, kmodules[moduleId]->module);
+}
+
+void Executor::initializeGlobals(ExecutionState &state, Module *m) {
   if (m->getModuleInlineAsm() != "")
     klee_warning("executable has module level assembly (ignoring)");
 
@@ -595,34 +601,6 @@ void Executor::initializeGlobals(ExecutionState &state) {
   }
 
   // Disabled, we don't want to promote use of live externals.
-#ifdef HAVE_CTYPE_EXTERNALS
-#ifndef WINDOWS
-#ifndef DARWIN
-  /* From /usr/include/errno.h: it [errno] is a per-thread variable. */
-  int *errno_addr = __errno_location();
-  addExternalObject(state, (void *)errno_addr, sizeof *errno_addr, false);
-
-  /* from /usr/include/ctype.h:
-       These point into arrays of 384, so they can be indexed by any `unsigned
-       char' value [0,255]; by EOF (-1); or by any `signed char' value
-       [-128,-1).  ISO C requires that the ctype functions work for `unsigned */
-  const uint16_t **addr = __ctype_b_loc();
-  addExternalObject(state, (void *)(*addr-128), 
-                    384 * sizeof **addr, true);
-  addExternalObject(state, addr, sizeof(*addr), true);
-    
-  const int32_t **lower_addr = __ctype_tolower_loc();
-  addExternalObject(state, (void *)(*lower_addr-128), 
-                    384 * sizeof **lower_addr, true);
-  addExternalObject(state, lower_addr, sizeof(*lower_addr), true);
-  
-  const int32_t **upper_addr = __ctype_toupper_loc();
-  addExternalObject(state, (void *)(*upper_addr-128), 
-                    384 * sizeof **upper_addr, true);
-  addExternalObject(state, upper_addr, sizeof(*upper_addr), true);
-#endif
-#endif
-#endif
 
   // allocate and initialize globals, done in two passes since we may
   // need address of a global in order to initialize some other one.
@@ -731,6 +709,37 @@ void Executor::initializeGlobals(ExecutionState &state) {
       // if(i->isConstant()) os->setReadOnly(true);
     }
   }
+}
+
+void Executor::initializeExternals(ExecutionState &state) {
+#ifdef HAVE_CTYPE_EXTERNALS
+#ifndef WINDOWS
+#ifndef DARWIN
+  /* From /usr/include/errno.h: it [errno] is a per-thread variable. */
+  int *errno_addr = __errno_location();
+  addExternalObject(state, (void *)errno_addr, sizeof *errno_addr, false);
+
+  /* from /usr/include/ctype.h:
+       These point into arrays of 384, so they can be indexed by any `unsigned
+       char' value [0,255]; by EOF (-1); or by any `signed char' value
+       [-128,-1).  ISO C requires that the ctype functions work for `unsigned */
+  const uint16_t **addr = __ctype_b_loc();
+  addExternalObject(state, (void *)(*addr-128), 
+                    384 * sizeof **addr, true);
+  addExternalObject(state, addr, sizeof(*addr), true);
+    
+  const int32_t **lower_addr = __ctype_tolower_loc();
+  addExternalObject(state, (void *)(*lower_addr-128), 
+                    384 * sizeof **lower_addr, true);
+  addExternalObject(state, lower_addr, sizeof(*lower_addr), true);
+  
+  const int32_t **upper_addr = __ctype_toupper_loc();
+  addExternalObject(state, (void *)(*upper_addr-128), 
+                    384 * sizeof **upper_addr, true);
+  addExternalObject(state, upper_addr, sizeof(*upper_addr), true);
+#endif
+#endif
+#endif
 }
 
 void Executor::branch(ExecutionState &state, 
@@ -3289,6 +3298,7 @@ void Executor::runFunctionAsMain(Function *f,
   }
   
   initializeGlobals(*state);
+  initializeExternals(*state);
 
   processTree = new PTree(state);
   state->ptreeNode = processTree->root;

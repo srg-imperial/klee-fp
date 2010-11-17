@@ -186,7 +186,12 @@ private:
   void initializeGlobalObject(ExecutionState &state, ObjectState *os, 
 			      llvm::Constant *c,
 			      unsigned offset);
+
   void initializeGlobals(ExecutionState &state);
+  void initializeGlobals(ExecutionState &state, unsigned moduleId);
+  void initializeGlobals(ExecutionState &state, llvm::Module *m);
+
+  void initializeExternals(ExecutionState &state);
 
   void stepInstruction(ExecutionState &state);
   void updateStates(ExecutionState *current);

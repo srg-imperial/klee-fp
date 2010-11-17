@@ -885,6 +885,7 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   Mod = klee::linkWithLibrary(Mod, Path.c_str());
 
   unsigned moduleId = executor.addModule(Mod, Interpreter::ModuleOptions(LibraryDir.c_str(), false, true));
+  executor.initializeGlobals(state, moduleId);
   executor.bindModuleConstants(moduleId);
 
   executor.bindLocal(target, state, 
