@@ -15,6 +15,7 @@ cl_kernel clCreateKernel(cl_program program,
 
   if (function) {
     cl_kernel kernel = malloc(sizeof(struct _cl_kernel));
+    kernel->refCount = 1;
     kernel->function = function;
     return kernel;
   } else {
@@ -105,6 +106,25 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
   
   klee_icall(kernel->function, argList);
   klee_icall_destroy_arg_list(argList);
+
+  return CL_SUCCESS;
+}
+
+cl_int clRetainKernel(cl_kernel kernel) {
+  if (!kernel)
+    return CL_INVALID_KERNEL;
+
+  ++kernel->refCount;
+
+  return CL_SUCCESS;
+}
+
+cl_int clReleaseKernel(cl_kernel kernel) {
+  if (!kernel)
+    return CL_INVALID_KERNEL;
+
+  if (--kernel->refCount == 0)
+    free(kernel);
 
   return CL_SUCCESS;
 }

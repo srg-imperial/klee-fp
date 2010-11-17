@@ -32,6 +32,7 @@ union _cl_intern_arg_data {
 };
 
 struct _cl_kernel {
+  unsigned refCount;
   void (*function)();
   union _cl_intern_arg_data args[16];
 };
