@@ -42,6 +42,7 @@ struct _cl_kernel {
 };
 
 struct _cl_command_queue {
+  unsigned refCount;
   struct _cl_context *context;
 };
 
