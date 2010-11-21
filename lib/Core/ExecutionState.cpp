@@ -1,3 +1,14 @@
+/*******************************************************************************
+ * Copyright (C) 2010 Dependable Systems Laboratory, EPFL
+ *
+ * This file is part of the Cloud9-specific extensions to the KLEE symbolic
+ * execution engine.
+ *
+ * Do NOT distribute this file to any third party; it is part of
+ * unpublished work.
+ *
+ ******************************************************************************/
+
 //===-- ExecutionState.cpp ------------------------------------------------===//
 //
 //                     The KLEE Symbolic Virtual Machine
@@ -13,6 +24,9 @@
 #include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
+#include "klee/util/ExprPPrinter.h"
+#include "klee/ForkTag.h"
+#include "klee/AddressPool.h"
 
 #include "klee/Expr.h"
 
@@ -26,7 +40,10 @@
 #include <cassert>
 #include <map>
 #include <set>
+#include <vector>
 #include <stdarg.h>
+#include <sys/time.h>
+#include <sys/mman.h>
 
 using namespace llvm;
 using namespace klee;
@@ -36,82 +53,262 @@ namespace {
   DebugLogStateMerge("debug-log-state-merge");
 }
 
+namespace klee {
+
 /***/
 
-StackFrame::StackFrame(KInstIterator _caller, KFunction *_kf)
-  : caller(_caller), kf(_kf), callPathNode(0), 
-    minDistToUncoveredOnReturn(0), varargs(0) {
-  locals = new Cell[kf->numRegisters];
-}
 
-StackFrame::StackFrame(const StackFrame &s) 
-  : caller(s.caller),
-    kf(s.kf),
-    callPathNode(s.callPathNode),
-    allocas(s.allocas),
-    minDistToUncoveredOnReturn(s.minDistToUncoveredOnReturn),
-    varargs(s.varargs) {
-  locals = new Cell[s.kf->numRegisters];
-  for (unsigned i=0; i<s.kf->numRegisters; i++)
-    locals[i] = s.locals[i];
-}
-
-StackFrame::~StackFrame() { 
-  delete[] locals; 
-}
 
 /***/
 
 ExecutionState::ExecutionState(KFunction *kf) 
   : fakeState(false),
-    underConstrained(false),
     depth(0),
-    pc(kf->instructions),
-    prevPC(pc),
+    forkDisabled(false),
     queryCost(0.), 
     weight(1),
     instsSinceCovNew(0),
     coveredNew(false),
-    forkDisabled(false),
-    ptreeNode(0) {
-  pushFrame(0, kf);
+    ptreeNode(0),
+    crtForkReason(KLEE_FORK_DEFAULT),
+    crtSpecialFork(NULL),
+    wlistCounter(1),
+    preemptions(0) {
+
+  setupMain(kf);
+  setupTime();
+  setupAddressPool();
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr> > &assumptions) 
   : fakeState(true),
-    underConstrained(false),
-    constraints(assumptions),
     queryCost(0.),
-    ptreeNode(0) {
+    ptreeNode(0),
+    globalConstraints(assumptions),
+    wlistCounter(1),
+    preemptions(0) {
+
+  setupMain(NULL);
+
+}
+
+void ExecutionState::setupTime() {
+  stateTime = 1284138206L * 1000000L; // Yeah, ugly, but what else? :)
+}
+
+void ExecutionState::setupAddressPool() {
+  void *startAddress = mmap((void*)addressPool.getStartAddress(), addressPool.getSize(),
+      PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+  assert(startAddress != MAP_FAILED);
+
+  //CLOUD9_DEBUG("Address pool starts at " << startAddress <<
+  //   " although it was requested at " << addressPool.getStartAddress());
+
+  addressPool = AddressPool((uint64_t)startAddress, addressPool.getSize()); // Correct the address
+}
+
+void ExecutionState::setupMain(KFunction *kf) {
+  Process mainProc = Process(2, 1);
+  Thread mainThread = Thread(0, 2, kf);
+
+  mainProc.threads.insert(mainThread.tuid);
+
+  threads.insert(std::make_pair(mainThread.tuid, mainThread));
+  processes.insert(std::make_pair(mainProc.pid, mainProc));
+
+  crtThreadIt = threads.begin();
+  crtProcessIt = processes.find(crtThreadIt->second.getPid());
+
+  cowDomain.push_back(&crtProcessIt->second.addressSpace);
+
+  crtProcessIt->second.addressSpace.cowDomain = &cowDomain;
+}
+
+Thread& ExecutionState::createThread(thread_id_t tid, KFunction *kf) {
+  Thread newThread = Thread(tid, crtProcess().pid, kf);
+  crtProcess().threads.insert(newThread.tuid);
+
+  threads.insert(std::make_pair(newThread.tuid, newThread));
+
+  return threads.find(newThread.tuid)->second;
+}
+
+Process& ExecutionState::forkProcess(process_id_t pid) {
+  for (processes_ty::iterator it = processes.begin(); it != processes.end(); it++) {
+    it->second.addressSpace.cowKey++;
+  }
+
+  Process forked = Process(crtProcess());
+
+  forked.pid = pid;
+  forked.ppid = crtProcess().pid;
+  forked.threads.clear();
+  forked.children.clear();
+
+  forked.forkPath.push_back(1); // Child
+  crtProcess().forkPath.push_back(0); // Parent
+
+  Thread forkedThread = Thread(crtThread());
+  forkedThread.tuid = std::make_pair(0, forked.pid);
+
+  forked.threads.insert(forkedThread.tuid);
+
+  crtProcess().children.insert(forked.pid);
+
+  threads.insert(std::make_pair(forkedThread.tuid, forkedThread));
+  processes.insert(std::make_pair(forked.pid, forked));
+
+  cowDomain.push_back(&processes.find(forked.pid)->second.addressSpace);
+  processes.find(forked.pid)->second.addressSpace.cowDomain = &cowDomain;
+
+  return processes.find(forked.pid)->second;
+}
+
+void ExecutionState::terminateThread(threads_ty::iterator thrIt) {
+
+  Process &proc = processes.find(thrIt->second.getPid())->second;
+
+  assert(proc.threads.size() > 1);
+  assert(thrIt != crtThreadIt); // We assume the scheduler found a new thread first
+  assert(!thrIt->second.enabled);
+  assert(thrIt->second.waitingList == 0);
+
+  proc.threads.erase(thrIt->second.tuid);
+
+  threads.erase(thrIt);
+
+}
+
+void ExecutionState::terminateProcess(processes_ty::iterator procIt) {
+
+  assert(processes.size() > 1);
+
+  // Delete all process threads
+  for (std::set<thread_uid_t>::iterator it = procIt->second.threads.begin();
+      it != procIt->second.threads.end(); it++) {
+    threads_ty::iterator thrIt = threads.find(*it);
+    assert(thrIt != crtThreadIt);
+    assert(!thrIt->second.enabled);
+    assert(thrIt->second.waitingList == 0);
+
+    threads.erase(thrIt);
+  }
+
+  // Update the process hierarchy
+  if (procIt->second.ppid != 1) {
+    Process &parent = processes.find(procIt->second.ppid)->second;
+
+    parent.children.erase(procIt->second.pid);
+  }
+
+  if (procIt->second.children.size() > 0) {
+    // Reassign the children to process 1
+    for (std::set<process_id_t>::iterator it = procIt->second.children.begin();
+        it != procIt->second.children.end(); it++) {
+      processes.find(*it)->second.ppid = 1;
+    }
+  }
+
+  // Update the state COW domain
+  AddressSpace::cow_domain_t::iterator it =
+      std::find(cowDomain.begin(), cowDomain.end(), &procIt->second.addressSpace);
+  assert(it != cowDomain.end());
+  cowDomain.erase(it);
+
+  assert(procIt != crtProcessIt);
+
+  processes.erase(procIt);
+}
+
+void ExecutionState::sleepThread(wlist_id_t wlist) {
+  assert(crtThread().enabled);
+  assert(wlist > 0);
+
+  crtThread().enabled = false;
+  crtThread().waitingList = wlist;
+
+  std::set<thread_uid_t> &wl = waitingLists[wlist];
+
+  wl.insert(crtThread().tuid);
+}
+
+void ExecutionState::notifyOne(wlist_id_t wlist, thread_uid_t tuid) {
+  assert(wlist > 0);
+
+  std::set<thread_uid_t> &wl = waitingLists[wlist];
+
+  if (wl.erase(tuid) != 1) {
+    assert(0 && "thread was not waiting");
+  }
+
+  Thread &thread = threads.find(tuid)->second;
+  assert(!thread.enabled);
+  thread.enabled = true;
+  thread.waitingList = 0;
+
+  if (wl.size() == 0)
+    waitingLists.erase(wlist);
+}
+
+void ExecutionState::notifyAll(wlist_id_t wlist) {
+  assert(wlist > 0);
+
+  std::set<thread_uid_t> &wl = waitingLists[wlist];
+
+  if (wl.size() > 0) {
+    for (std::set<thread_uid_t>::iterator it = wl.begin(); it != wl.end(); it++) {
+      Thread &thread = threads.find(*it)->second;
+      thread.enabled = true;
+      thread.waitingList = 0;
+    }
+
+    wl.clear();
+  }
+
+  waitingLists.erase(wlist);
 }
 
 ExecutionState::~ExecutionState() {
-  while (!stack.empty()) popFrame();
+  for (threads_ty::iterator it = threads.begin(); it != threads.end(); it++) {
+    Thread &t = it->second;
+    while (!t.stack.empty())
+      popFrame(t);
+  }
 }
 
 ExecutionState *ExecutionState::branch() {
   depth++;
 
+  for (processes_ty::iterator it = processes.begin(); it != processes.end(); it++) {
+    it->second.addressSpace.cowKey++;
+  }
+
   ExecutionState *falseState = new ExecutionState(*this);
+  
   falseState->coveredNew = false;
   falseState->coveredLines.clear();
+
+  falseState->crtThreadIt = falseState->threads.find(crtThreadIt->second.tuid);
+  falseState->crtProcessIt = falseState->processes.find(crtProcessIt->second.pid);
+
+  falseState->cowDomain.clear();
+
+  // Rebuilding the COW domain...
+
+  for (processes_ty::iterator it = falseState->processes.begin();
+      it != falseState->processes.end(); it++) {
+    falseState->cowDomain.push_back(&it->second.addressSpace);
+  }
+
+  for (processes_ty::iterator it = falseState->processes.begin();
+      it != falseState->processes.end(); it++) {
+    it->second.addressSpace.cowDomain = &falseState->cowDomain;
+  }
 
   weight *= .5;
   falseState->weight -= weight;
 
   return falseState;
-}
-
-void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
-  stack.push_back(StackFrame(caller,kf));
-}
-
-void ExecutionState::popFrame() {
-  StackFrame &sf = stack.back();
-  for (std::vector<const MemoryObject*>::iterator it = sf.allocas.begin(), 
-         ie = sf.allocas.end(); it != ie; ++it)
-    addressSpace.unbindObject(*it);
-  stack.pop_back();
 }
 
 ///
@@ -133,7 +330,7 @@ void ExecutionState::removeFnAlias(std::string fn) {
 
 /**/
 
-std::ostream &klee::operator<<(std::ostream &os, const MemoryMap &mm) {
+std::ostream &operator<<(std::ostream &os, const MemoryMap &mm) {
   os << "{";
   MemoryMap::iterator it = mm.begin();
   MemoryMap::iterator ie = mm.end();
@@ -150,7 +347,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
   if (DebugLogStateMerge)
     std::cerr << "-- attempting merge of A:" 
                << this << " with B:" << &b << "--\n";
-  if (pc != b.pc)
+  if (pc() != b.pc())
     return false;
 
   // XXX is it even possible for these to differ? does it matter? probably
@@ -159,22 +356,22 @@ bool ExecutionState::merge(const ExecutionState &b) {
     return false;
 
   {
-    std::vector<StackFrame>::const_iterator itA = stack.begin();
-    std::vector<StackFrame>::const_iterator itB = b.stack.begin();
-    while (itA!=stack.end() && itB!=b.stack.end()) {
+    std::vector<StackFrame>::const_iterator itA = stack().begin();
+    std::vector<StackFrame>::const_iterator itB = b.stack().begin();
+    while (itA!=stack().end() && itB!=b.stack().end()) {
       // XXX vaargs?
       if (itA->caller!=itB->caller || itA->kf!=itB->kf)
         return false;
       ++itA;
       ++itB;
     }
-    if (itA!=stack.end() || itB!=b.stack.end())
+    if (itA!=stack().end() || itB!=b.stack().end())
       return false;
   }
 
-  std::set< ref<Expr> > aConstraints(constraints.begin(), constraints.end());
-  std::set< ref<Expr> > bConstraints(b.constraints.begin(), 
-                                     b.constraints.end());
+  std::set< ref<Expr> > aConstraints(constraints().begin(), constraints().end());
+  std::set< ref<Expr> > bConstraints(b.constraints().begin(),
+                                     b.constraints().end());
   std::set< ref<Expr> > commonConstraints, aSuffix, bSuffix;
   std::set_intersection(aConstraints.begin(), aConstraints.end(),
                         bConstraints.begin(), bConstraints.end(),
@@ -214,15 +411,15 @@ bool ExecutionState::merge(const ExecutionState &b) {
 
   if (DebugLogStateMerge) {
     std::cerr << "\tchecking object states\n";
-    std::cerr << "A: " << addressSpace.objects << "\n";
-    std::cerr << "B: " << b.addressSpace.objects << "\n";
+    std::cerr << "A: " << addressSpace().objects << "\n";
+    std::cerr << "B: " << b.addressSpace().objects << "\n";
   }
     
   std::set<const MemoryObject*> mutated;
-  MemoryMap::iterator ai = addressSpace.objects.begin();
-  MemoryMap::iterator bi = b.addressSpace.objects.begin();
-  MemoryMap::iterator ae = addressSpace.objects.end();
-  MemoryMap::iterator be = b.addressSpace.objects.end();
+  MemoryMap::iterator ai = addressSpace().objects.begin();
+  MemoryMap::iterator bi = b.addressSpace().objects.begin();
+  MemoryMap::iterator ae = addressSpace().objects.end();
+  MemoryMap::iterator be = b.addressSpace().objects.end();
   for (; ai!=ae && bi!=be; ++ai, ++bi) {
     if (ai->first != bi->first) {
       if (DebugLogStateMerge) {
@@ -261,9 +458,9 @@ bool ExecutionState::merge(const ExecutionState &b) {
   // it seems like it can make a difference, even though logically
   // they must contradict each other and so inA => !inB
 
-  std::vector<StackFrame>::iterator itA = stack.begin();
-  std::vector<StackFrame>::const_iterator itB = b.stack.begin();
-  for (; itA!=stack.end(); ++itA, ++itB) {
+  std::vector<StackFrame>::iterator itA = stack().begin();
+  std::vector<StackFrame>::const_iterator itB = b.stack().begin();
+  for (; itA!=stack().end(); ++itA, ++itB) {
     StackFrame &af = *itA;
     const StackFrame &bf = *itB;
     for (unsigned i=0; i<af.kf->numRegisters; i++) {
@@ -281,13 +478,13 @@ bool ExecutionState::merge(const ExecutionState &b) {
   for (std::set<const MemoryObject*>::iterator it = mutated.begin(), 
          ie = mutated.end(); it != ie; ++it) {
     const MemoryObject *mo = *it;
-    const ObjectState *os = addressSpace.findObject(mo);
-    const ObjectState *otherOS = b.addressSpace.findObject(mo);
+    const ObjectState *os = addressSpace().findObject(mo);
+    const ObjectState *otherOS = b.addressSpace().findObject(mo);
     assert(os && !os->readOnly && 
            "objects mutated but not writable in merging state");
     assert(otherOS);
 
-    ObjectState *wos = addressSpace.getWriteable(mo, os);
+    ObjectState *wos = addressSpace().getWriteable(mo, os);
     for (unsigned i=0; i<mo->size; i++) {
       ref<Expr> av = wos->read8(i);
       ref<Expr> bv = otherOS->read8(i);
@@ -295,43 +492,46 @@ bool ExecutionState::merge(const ExecutionState &b) {
     }
   }
 
-  constraints = ConstraintManager();
+  constraints() = ConstraintManager();
   for (std::set< ref<Expr> >::iterator it = commonConstraints.begin(), 
          ie = commonConstraints.end(); it != ie; ++it)
-    constraints.addConstraint(*it);
-  constraints.addConstraint(OrExpr::create(inA, inB));
+    constraints().addConstraint(*it);
+  constraints().addConstraint(OrExpr::create(inA, inB));
 
   return true;
 }
 
-void ExecutionState::dumpStack(std::ostream &out) const {
-  unsigned idx = 0;
-  const KInstruction *target = prevPC;
+/***/
+
+StackTrace ExecutionState::getStackTrace() const {
+  StackTrace result;
+
+  const KInstruction *target = prevPC();
+
   for (ExecutionState::stack_ty::const_reverse_iterator
-         it = stack.rbegin(), ie = stack.rend();
+         it = stack().rbegin(), ie = stack().rend();
        it != ie; ++it) {
+
     const StackFrame &sf = *it;
+
+    StackTrace::position_t position = std::make_pair(sf.kf, target);
+    std::vector<ref<Expr> > arguments;
+
     Function *f = sf.kf->function;
-    const InstructionInfo &ii = *target->info;
-    out << "\t#" << idx++ 
-        << " " << std::setw(8) << std::setfill('0') << ii.assemblyLine
-        << " in " << f->getNameStr() << " (";
-    // Yawn, we could go up and print varargs if we wanted to.
     unsigned index = 0;
     for (Function::arg_iterator ai = f->arg_begin(), ae = f->arg_end();
          ai != ae; ++ai) {
-      if (ai!=f->arg_begin()) out << ", ";
 
-      out << ai->getNameStr();
-      // XXX should go through function
-      ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value; 
-      if (isa<ConstantExpr>(value))
-        out << "=" << value;
+      ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
+      arguments.push_back(value);
     }
-    out << ")";
-    if (ii.file != "")
-      out << " at " << ii.file << ":" << ii.line;
-    out << "\n";
+
+    result.contents.push_back(std::make_pair(position, arguments));
+
     target = sf.caller;
   }
+
+  return result;
+}
+
 }

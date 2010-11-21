@@ -1,3 +1,14 @@
+/*******************************************************************************
+ * Copyright (C) 2010 Dependable Systems Laboratory, EPFL
+ *
+ * This file is part of the Cloud9-specific extensions to the KLEE symbolic
+ * execution engine.
+ *
+ * Do NOT distribute this file to any third party; it is part of
+ * unpublished work.
+ *
+ ******************************************************************************/
+
 //===-- SpecialFunctionHandler.h --------------------------------*- C++ -*-===//
 //
 //                     The KLEE Symbolic Virtual Machine
@@ -33,6 +44,8 @@ namespace klee {
                                                       &arguments);
     typedef std::map<const llvm::Function*, 
                      std::pair<Handler,bool> > handlers_ty;
+    typedef std::vector< std::pair<std::pair<const MemoryObject*, const ObjectState*>,
+        ExecutionState*> > resolutions_ty;
 
     handlers_ty handlers;
     class Executor &executor;
@@ -57,6 +70,13 @@ namespace klee {
 
     /* Convenience routines */
 
+    void processMemoryLocation(ExecutionState &state,
+        ref<Expr> address, ref<Expr> size,
+        const std::string &name, resolutions_ty &resList);
+
+    bool writeConcreteValue(ExecutionState &state,
+        ref<Expr> address, uint64_t value, Expr::Width width);
+
     std::string readStringAtAddress(ExecutionState &state, ref<Expr> address);
     
     /* Handlers */
@@ -64,22 +84,29 @@ namespace klee {
 #define HANDLER(name) void name(ExecutionState &state, \
                                 KInstruction *target, \
                                 std::vector< ref<Expr> > &arguments)
+
     HANDLER(handleAbort);
+    HANDLER(handleAliasFunction);
     HANDLER(handleAssert);
     HANDLER(handleAssertFail);
     HANDLER(handleAssume);
+    HANDLER(handleBranch);
     HANDLER(handleCalloc);
     HANDLER(handleCheckMemoryAccess);
+    HANDLER(handleDebug);
     HANDLER(handleDefineFixedObject);
     HANDLER(handleDelete);    
     HANDLER(handleDeleteArray);
-    HANDLER(handleExit);
-    HANDLER(handleAliasFunction);
+    HANDLER(handleFork);
     HANDLER(handleFree);
+    HANDLER(handleGetContext);
     HANDLER(handleGetErrno);
     HANDLER(handleGetObjSize);
+    HANDLER(handleGetTime);
     HANDLER(handleGetValue);
+    HANDLER(handleGetWList);
     HANDLER(handleIsSymbolic);
+    HANDLER(handleMakeShared);
     HANDLER(handleMakeSymbolic);
     HANDLER(handleMalloc);
     HANDLER(handleMarkGlobal);
@@ -89,14 +116,24 @@ namespace klee {
     HANDLER(handlePreferCex);
     HANDLER(handlePrintExpr);
     HANDLER(handlePrintRange);
+    HANDLER(handleProcessFork);
+    HANDLER(handleProcessTerminate);
     HANDLER(handleRange);
     HANDLER(handleRealloc);
     HANDLER(handleReportError);
     HANDLER(handleRevirtObjects);
     HANDLER(handleSetForking);
+    HANDLER(handleSetTime);
     HANDLER(handleSilentExit);
     HANDLER(handleStackTrace);
+    HANDLER(handleSyscall);
+    HANDLER(handleThreadCreate);
+    HANDLER(handleThreadNotify);
+    HANDLER(handleThreadPreempt);
+    HANDLER(handleThreadSleep);
+    HANDLER(handleThreadTerminate);
     HANDLER(handleUnderConstrained);
+    HANDLER(handleValloc);
     HANDLER(handleWarning);
     HANDLER(handleWarningOnce);
 #undef HANDLER

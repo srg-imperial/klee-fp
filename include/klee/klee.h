@@ -1,3 +1,14 @@
+/*******************************************************************************
+ * Copyright (C) 2010 Dependable Systems Laboratory, EPFL
+ *
+ * This file is part of the Cloud9-specific extensions to the KLEE symbolic
+ * execution engine.
+ *
+ * Do NOT distribute this file to any third party; it is part of
+ * unpublished work.
+ *
+ ******************************************************************************/
+
 //===-- klee.h --------------------------------------------------*- C++ -*-===//
 //
 //                     The KLEE Symbolic Virtual Machine
@@ -10,8 +21,12 @@
 #ifndef __KLEE_H__
 #define __KLEE_H__
 
-#include "stdint.h"
-#include "stddef.h"
+#include <stdint.h>
+#include <stddef.h>
+#include <stdarg.h>
+
+#define __KLEE_FORK_DEFAULT       0
+#define __KLEE_FORK_FAULTINJ      1
 
 #ifdef __cplusplus
 extern "C" {
@@ -141,6 +156,56 @@ extern "C" {
 
   /* Print stack trace. */
   void klee_stack_trace(void);
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Shared Memory Management
+  //////////////////////////////////////////////////////////////////////////////
+
+  /* Marks a private memory object shared between processes (if they know
+   * the address) */
+  void klee_make_shared(void *addr, size_t nbytes);
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Thread Scheduling Management
+  //////////////////////////////////////////////////////////////////////////////
+
+  void klee_thread_create(uint64_t tid, void *(*start_routine)(void*), void *arg);
+  void klee_thread_terminate() __attribute__ ((__noreturn__));
+
+  int klee_process_fork(int32_t pid);
+  void klee_process_terminate() __attribute__ ((__noreturn__));
+
+  void klee_get_context(uint64_t *tid, int32_t *pid);
+
+  uint64_t klee_get_wlist(void);
+
+  void klee_thread_preempt(int yield);
+
+  void klee_thread_sleep(uint64_t wlist);
+
+  void klee_thread_notify(uint64_t wlist, int all);
+
+  static inline void klee_thread_notify_one(uint64_t wlist) {
+    klee_thread_notify(wlist, 0);
+  }
+
+  static inline void klee_thread_notify_all(uint64_t wlist) {
+    klee_thread_notify(wlist, 1);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Misc
+  //////////////////////////////////////////////////////////////////////////////
+
+  uint64_t klee_get_time(void);
+  void klee_set_time(uint64_t value);
+
+  uintptr_t klee_branch(uintptr_t expr, int reason);
+  int klee_fork(int reason);
+
+  // Because of limited support for calling external variadic functions,
+  // klee_debug accepts either a set of 32-bit integers, or a single 64-bit value (char*).
+  void klee_debug(const char *format, ...);
 
 #ifdef __cplusplus
 }

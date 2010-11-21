@@ -1,3 +1,14 @@
+/*******************************************************************************
+ * Copyright (C) 2010 Dependable Systems Laboratory, EPFL
+ *
+ * This file is part of the Cloud9-specific extensions to the KLEE symbolic
+ * execution engine.
+ *
+ * Do NOT distribute this file to any third party; it is part of
+ * unpublished work.
+ *
+ ******************************************************************************/
+
 //===-- ExecutionState.h ----------------------------------------*- C++ -*-===//
 //
 //                     The KLEE Symbolic Virtual Machine
@@ -18,9 +29,22 @@
 #include "../../lib/Core/AddressSpace.h"
 #include "klee/Internal/Module/KInstIterator.h"
 
+#include "llvm/System/TimeValue.h"
+
+#include "klee/Threading.h"
+#include "klee/MultiProcess.h"
+#include "klee/AddressPool.h"
+#include "klee/StackTrace.h"
+
 #include <map>
 #include <set>
 #include <vector>
+
+using namespace llvm;
+
+namespace llvm {
+class Instruction;
+}
 
 namespace klee {
   class Array;
@@ -34,83 +58,136 @@ namespace klee {
 
 std::ostream &operator<<(std::ostream &os, const MemoryMap &mm);
 
-struct StackFrame {
-  KInstIterator caller;
-  KFunction *kf;
-  CallPathNode *callPathNode;
-
-  std::vector<const MemoryObject*> allocas;
-  Cell *locals;
-
-  /// Minimum distance to an uncovered instruction once the function
-  /// returns. This is not a good place for this but is used to
-  /// quickly compute the context sensitive minimum distance to an
-  /// uncovered instruction. This value is updated by the StatsTracker
-  /// periodically.
-  unsigned minDistToUncoveredOnReturn;
-
-  // For vararg functions: arguments not passed via parameter are
-  // stored (packed tightly) in a local (alloca) memory object. This
-  // is setup to match the way the front-end generates vaarg code (it
-  // does not pass vaarg through as expected). VACopy is lowered inside
-  // of intrinsic lowering.
-  MemoryObject *varargs;
-
-  StackFrame(KInstIterator caller, KFunction *kf);
-  StackFrame(const StackFrame &s);
-  ~StackFrame();
-};
+typedef uint64_t wlist_id_t;
 
 class ExecutionState {
+	friend class ObjectState;
+
 public:
   typedef std::vector<StackFrame> stack_ty;
+
+  typedef std::map<thread_uid_t, Thread> threads_ty;
+  typedef std::map<process_id_t, Process> processes_ty;
+  typedef std::map<wlist_id_t, std::set<thread_uid_t> > wlists_ty;
 
 private:
   // unsupported, use copy constructor
   ExecutionState &operator=(const ExecutionState&); 
   std::map< std::string, std::string > fnAliases;
 
+  void setupMain(KFunction *kf);
+  void setupTime();
+  void setupAddressPool();
 public:
+
   bool fakeState;
   // Are we currently underconstrained?  Hack: value is size to make fake
   // objects.
-  unsigned underConstrained;
   unsigned depth;
-  
-  // pc - pointer to current instruction stream
-  KInstIterator pc, prevPC;
-  stack_ty stack;
-  ConstraintManager constraints;
-  mutable double queryCost;
-  double weight;
-  AddressSpace addressSpace;
-  TreeOStream pathOS, symPathOS;
-  unsigned instsSinceCovNew;
-  bool coveredNew;
 
   /// Disables forking, set by user code.
   bool forkDisabled;
 
+
+  mutable double queryCost;
+  double weight;
+
+  TreeOStream pathOS, symPathOS;
+  unsigned instsSinceCovNew;
+  bool coveredNew;
+
   std::map<const std::string*, std::set<unsigned> > coveredLines;
+
   PTreeNode *ptreeNode;
+
+  int crtForkReason;
+  Instruction *crtSpecialFork;
+
 
   /// ordered list of symbolics: used to generate test cases. 
   //
   // FIXME: Move to a shared list structure (not critical).
   std::vector< std::pair<const MemoryObject*, const Array*> > symbolics;
 
-  // Used by the checkpoint/rollback methods for fake objects.
-  // FIXME: not freeing things on branch deletion.
-  MemoryMap shadowObjects;
+  ConstraintManager globalConstraints;
 
-  unsigned incomingBBIndex;
+
+  // For a multi threaded ExecutionState
+  threads_ty threads;
+  processes_ty processes;
+
+  wlists_ty waitingLists;
+  wlist_id_t wlistCounter;
+
+  uint64_t stateTime;
+
+  AddressPool addressPool;
+  AddressSpace::cow_domain_t cowDomain;
+
+  Thread& createThread(thread_id_t tid, KFunction *kf);
+  Process& forkProcess(process_id_t pid);
+  void terminateThread(threads_ty::iterator it);
+  void terminateProcess(processes_ty::iterator it);
+
+  threads_ty::iterator nextThread(threads_ty::iterator it) {
+    if (it == threads.end())
+      it = threads.begin();
+    else {
+      it++;
+      if (it == threads.end())
+        it = threads.begin();
+    }
+
+    crtProcessIt = processes.find(crtThreadIt->second.getPid());
+
+    return it;
+  }
+
+  void scheduleNext(threads_ty::iterator it) {
+    //CLOUD9_DEBUG("New thread scheduled: " << it->second.tid << " (pid: " << it->second.pid << ")");
+    assert(it != threads.end());
+
+    crtThreadIt = it;
+    crtProcessIt = processes.find(crtThreadIt->second.getPid());
+  }
+
+  wlist_id_t getWaitingList() { return wlistCounter++; }
+  void sleepThread(wlist_id_t wlist);
+  void notifyOne(wlist_id_t wlist, thread_uid_t tid);
+  void notifyAll(wlist_id_t wlist);
+
+  threads_ty::iterator crtThreadIt;
+  processes_ty::iterator crtProcessIt;
+
+  unsigned int preemptions;
+
+
+  /* Shortcut methods */
+
+  Thread &crtThread() { return crtThreadIt->second; }
+  const Thread &crtThread() const { return crtThreadIt->second; }
+
+  Process &crtProcess() { return crtProcessIt->second; }
+  const Process &crtProcess() const { return crtProcessIt->second; }
+
+  ConstraintManager &constraints() { return globalConstraints; }
+  const ConstraintManager &constraints() const { return globalConstraints; }
+
+  AddressSpace &addressSpace() { return crtProcess().addressSpace; }
+  const AddressSpace &addressSpace() const { return crtProcess().addressSpace; }
+
+  KInstIterator& pc() { return crtThread().pc; }
+  const KInstIterator& pc() const { return crtThread().pc; }
+
+  KInstIterator& prevPC() { return crtThread().prevPC; }
+  const KInstIterator& prevPC() const { return crtThread().prevPC; }
+
+  stack_ty& stack() { return crtThread().stack; }
+  const stack_ty& stack() const { return crtThread().stack; }
 
   std::string getFnAlias(std::string fn);
   void addFnAlias(std::string old_fn, std::string new_fn);
   void removeFnAlias(std::string fn);
-  
-private:
-  ExecutionState() : fakeState(false), underConstrained(0), ptreeNode(0) {}
 
 public:
   ExecutionState(KFunction *kf);
@@ -123,18 +200,34 @@ public:
   
   ExecutionState *branch();
 
-  void pushFrame(KInstIterator caller, KFunction *kf);
-  void popFrame();
+  void pushFrame(Thread &t, KInstIterator caller, KFunction *kf) {
+    t.stack.push_back(StackFrame(caller,kf));
+  }
+  void pushFrame(KInstIterator caller, KFunction *kf) {
+    pushFrame(crtThread(), caller, kf);
+  }
+
+  void popFrame(Thread &t) {
+    StackFrame &sf = t.stack.back();
+    for (std::vector<const MemoryObject*>::iterator it = sf.allocas.begin(),
+           ie = sf.allocas.end(); it != ie; ++it)
+      processes.find(t.getPid())->second.addressSpace.unbindObject(*it);
+    t.stack.pop_back();
+  }
+  void popFrame() {
+    popFrame(crtThread());
+  }
 
   void addSymbolic(const MemoryObject *mo, const Array *array) { 
     symbolics.push_back(std::make_pair(mo, array));
   }
   void addConstraint(ref<Expr> e) { 
-    constraints.addConstraint(e); 
+    constraints().addConstraint(e);
   }
 
   bool merge(const ExecutionState &b);
-  void dumpStack(std::ostream &out) const;
+
+  StackTrace getStackTrace() const;
 };
 
 }

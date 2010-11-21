@@ -19,6 +19,7 @@ namespace llvm {
 
 namespace klee {
   class MemoryObject;
+  class ExecutionState;
 
   class MemoryManager {
   private:
@@ -29,7 +30,7 @@ namespace klee {
     MemoryManager() {}
     ~MemoryManager();
 
-    MemoryObject *allocate(uint64_t size, bool isLocal, bool isGlobal,
+    MemoryObject *allocate(ExecutionState *state, uint64_t size, bool isLocal, bool isGlobal,
                            const llvm::Value *allocSite);
     MemoryObject *allocateFixed(uint64_t address, uint64_t size,
                                 const llvm::Value *allocSite);

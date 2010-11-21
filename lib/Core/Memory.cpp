@@ -99,7 +99,8 @@ ObjectState::ObjectState(const MemoryObject *mo)
     knownSymbolics(0),
     updates(0, 0),
     size(mo->size),
-    readOnly(false) {
+    readOnly(false),
+    isShared(false) {
   if (!UseConstantArrays) {
     // FIXME: Leaked.
     static unsigned id = 0;
@@ -119,7 +120,8 @@ ObjectState::ObjectState(const MemoryObject *mo, const Array *array)
     knownSymbolics(0),
     updates(array, 0),
     size(mo->size),
-    readOnly(false) {
+    readOnly(false),
+    isShared(false) {
   makeSymbolic();
 }
 
@@ -133,7 +135,8 @@ ObjectState::ObjectState(const ObjectState &os)
     knownSymbolics(0),
     updates(os.updates),
     size(os.size),
-    readOnly(false) {
+    readOnly(false),
+    isShared(os.isShared) {
   assert(!os.readOnly && "no need to copy read only object?");
 
   if (os.knownSymbolics) {

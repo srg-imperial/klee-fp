@@ -10,24 +10,81 @@ def isLinkCommand():
 
 def main():
     if not isLinkCommand():
-        os.execvp("llvm-gcc", ["llvm-gcc", "-emit-llvm"] + sys.argv[1:])
-        return 1
+	command = " -emit-llvm"
+        is_cpp = False
+
+        for arg in sys.argv[1:]:
+            if arg.startswith("-W"):
+                continue
+
+            if modify_next_param:
+                command += " a.out -c"
+                modify_next_param = False
+            else:
+                command += " " 
+		if arg.startswith("-D"):
+			arg=arg.replace('"', '\\""')
+			arg=arg.replace('=\\""', '="\\"')
+                command += arg
+        
+            if arg.endswith(".C") or arg.endswith(".cpp") or arg.endswith(".cc") or arg.endswith(".CC"):
+                is_cpp = True
+
+            if arg == '-o' and "-c" not in sys.argv[1:]:
+                # We need to link the file
+                do_linking = True
+                modify_next_param = True
+
+        command = ["llvm-gcc","llvm-g++"][is_cpp] + command
+
+	print "Compiling with command:", command
+        proc = subprocess.Popen(command, shell = True, stdout = None, stderr = None)
+        proc.communicate()
+        rproc = proc.returncode
+
+        if not do_linking or proc.returncode != 0:
+            return proc.returncode
 
     # Otherwise, strip out arguments that llvm-ld doesn't understand. I don't
     # want my previous explicit declaration of hackyness to imply that this bit
     # of code here is not also a complete and total hack, it is.
     args = sys.argv[1:]
     linkArgs = []
+    skipNext = False
     for a in args:
-        if a in ('-g', '-W', '-O', '-D', '-f',
-                 '-fnested-functions', '-pthread'):
-            continue
-        elif a.startswith('-Wl,'):
+        if skipNext:
+            skipNext = False
             continue
 
-        linkArgs.append(a)
+    	skip = False
+        for prefix in ('-emit-llvm', '-I', '-D', '-g', '-W', '-O', '-D', '-f', '-fnested-functions', '-pthread', '-std', '-Wl,', '-pedantic', '-nostdlib', '--disable-optcru', "-rdynamic", "-static"): 
+            if a.startswith(prefix):
+            	skip = True
+                break
+
+	if a == '--param':
+            skipNext = True
+            continue
+
+        if a == '-shared':
+            linkArgs.append('-r')
+            continue
+
+	if a.endswith(".c") or a.endswith(".cpp") or a.endswith(".cc") or a.endswith(".CC"):
+	    continue    	
+	   	
+        if not skip:
+            linkArgs.append(a)
+
+    if do_linking:
+    	linkArgs.append("a.out")
+ 
+    #linkArgs.append("-lrrd")
+    print "Linking with command: llvm-ld --disable-opt " + " ".join(linkArgs)
     
-    os.execvp("llvm-ld", ["llvm-ld", "--disable-opt"] + linkArgs)
+    proc = subprocess.Popen("llvm-ld --disable-opt " + " ".join(linkArgs), shell = True, stdout = None, stderr = None)
+    proc.communicate()
+    
     return 1
 
 if __name__ == '__main__':

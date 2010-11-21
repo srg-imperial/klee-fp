@@ -20,7 +20,7 @@ PARALLEL_DIRS=klee kleaver ktest-tool gen-random-bout klee-stats
 include $(LEVEL)/Makefile.config
 
 ifeq ($(ENABLE_POSIX_RUNTIME),1)
-PARALLEL_DIRS += klee-replay
+#PARALLEL_DIRS += klee-replay
 endif
 
 include $(LEVEL)/Makefile.common

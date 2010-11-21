@@ -42,6 +42,7 @@ namespace klee {
     /// Destination register index.
     unsigned dest;
 
+    bool originallyCovered;
   public:
     virtual ~KInstruction(); 
   };
@@ -56,6 +57,11 @@ namespace klee {
     /// offset - A constant offset to add to the pointer operand to execute the
     /// insturction.
     uint64_t offset;
+  };
+
+  struct KCallInstruction: KInstruction {
+    bool vulnerable;    // Whether the result of this call is unchecked, and
+                        // thus may lead to further errors
   };
 }
 
