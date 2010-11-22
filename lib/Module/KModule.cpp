@@ -543,7 +543,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
       ki->info = &infos->getInfo(ki->inst);
 
       if (ki->inst->getOpcode() == Instruction::Call) {
-        KCallInstruction* kCallI = dynamic_cast<KCallInstruction*>(ki);
+        KCallInstruction* kCallI = static_cast<KCallInstruction*>(ki);
         kCallI->vulnerable = isVulnerablePoint(ki);
       }
 

@@ -19,6 +19,7 @@
 #include <iostream>
 #include <fstream>
 #include <cerrno>
+#include <iterator>
 
 #include <sys/types.h>
 #include <sys/stat.h>

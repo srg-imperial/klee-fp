@@ -40,6 +40,7 @@
 #endif
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/LLVMContext.h"
 
 #include <iostream>
 #include <map>

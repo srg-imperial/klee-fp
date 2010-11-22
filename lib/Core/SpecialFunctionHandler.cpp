@@ -37,6 +37,7 @@
 #include "llvm/Type.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/InstrTypes.h"
+#include "llvm/LLVMContext.h"
 
 #include <errno.h>
 #include <stdarg.h>

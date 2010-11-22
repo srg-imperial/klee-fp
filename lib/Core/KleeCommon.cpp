@@ -23,6 +23,14 @@
 
 using llvm::sys::Path;
 
+static const std::string &PathToString(Path &path) {
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+  return path.toString();
+#else
+  return path.str();
+#endif
+}
+
 std::string getKleePath() {
 	// First look for $KLEE_ROOT, then KLEE_DIR
 	char *kleePathName = std::getenv(KLEE_ROOT_VAR);
@@ -35,13 +43,13 @@ std::string getKleePath() {
 		if (kleePath.isValid()) {
 			// The path exists, so we return it
 			kleePath.makeAbsolute();
-			return kleePath.toString();
+			return PathToString(kleePath);
 		}
 	}
 
 	kleePath = Path(KLEE_DIR);
 	kleePath.makeAbsolute();
-	return kleePath.toString();
+	return PathToString(kleePath);
 }
 
 std::string getKleeLibraryPath() {
@@ -51,7 +59,7 @@ std::string getKleeLibraryPath() {
 	libraryPath.appendComponent(RUNTIME_CONFIGURATION);
 	libraryPath.appendComponent("lib");
 
-	return libraryPath.toString();
+	return PathToString(libraryPath);
 }
 
 std::string getUclibcPath() {
@@ -63,12 +71,12 @@ std::string getUclibcPath() {
 
 		if (uclibcPath.isValid()) {
 			uclibcPath.makeAbsolute();
-			return uclibcPath.toString();
+			return PathToString(uclibcPath);
 		}
 	}
 
 	uclibcPath = Path(KLEE_UCLIBC);
 	uclibcPath.makeAbsolute();
 
-	return uclibcPath.toString();
+	return PathToString(uclibcPath);
 }

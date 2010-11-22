@@ -962,7 +962,7 @@ ForkTag Executor::getForkTag(ExecutionState &current, int reason) {
       if (!it->caller)
         continue;
 
-      KCallInstruction *callInst = dynamic_cast<KCallInstruction*>((KInstruction*)it->caller);
+      KCallInstruction *callInst = static_cast<KCallInstruction*>((KInstruction*)it->caller);
       assert(callInst);
 
       if (callInst->vulnerable) {
