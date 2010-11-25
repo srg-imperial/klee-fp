@@ -1,3 +1,14 @@
+/*******************************************************************************
+ * Copyright (C) 2010 Dependable Systems Laboratory, EPFL
+ *
+ * This file is part of the Cloud9-specific extensions to the KLEE symbolic
+ * execution engine.
+ *
+ * Do NOT distribute this file to any third party; it is part of
+ * unpublished work.
+ *
+ ******************************************************************************/
+
 //===-- Executor.h ----------------------------------------------*- C++ -*-===//
 //
 //                     The KLEE Symbolic Virtual Machine
@@ -17,6 +28,9 @@
 
 #include "klee/ExecutionState.h"
 #include "klee/Interpreter.h"
+#include "klee/Expr.h"
+#include "klee/ForkTag.h"
+#include "klee/util/Ref.h"
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
@@ -64,7 +78,8 @@ namespace klee {
   class StatsTracker;
   class TimingSolver;
   class TreeStreamWriter;
-  template<class T> class ref;
+
+  enum ESD_LOCK_TYPE {LOCK, UNLOCK};
 
   /// \todo Add a context object to keep track of data only live
   /// during an instruction step. Should contain addedStates,
@@ -168,7 +183,7 @@ private:
   bool ivcEnabled;
 
   /// The maximum time to allow for a single stp query.
-  double stpTimeout;  
+  double stpTimeout; 
 
   llvm::Function* getCalledFunction(llvm::CallSite &cs, ExecutionState &state);
   
@@ -204,6 +219,11 @@ private:
                             llvm::Function *function,
                             std::vector< ref<Expr> > &arguments);
 
+  void callUnmodelledFunction(ExecutionState &state,
+                            KInstruction *target,
+                            llvm::Function *function,
+                            std::vector<ref<Expr> > &arguments);
+
   ObjectState *bindObjectInState(ExecutionState &state, const MemoryObject *mo,
                                  bool isLocal, const Array *array = 0);
 
@@ -217,6 +237,7 @@ private:
   /// beginning of.
   typedef std::vector< std::pair<std::pair<const MemoryObject*, const ObjectState*>, 
                                  ExecutionState*> > ExactResolutionList;
+
   void resolveExact(ExecutionState &state,
                     ref<Expr> p,
                     ExactResolutionList &results,
@@ -268,7 +289,8 @@ private:
                               ref<Expr> value /* undef if read */,
                               KInstruction *target /* undef if write */);
 
-  void executeMakeSymbolic(ExecutionState &state, const MemoryObject *mo);
+  void executeMakeSymbolic(ExecutionState &state, const MemoryObject *mo,
+      bool shared=false);
 
   /// Create a new state where each input condition has been added as
   /// a constraint and return the results. The input state is included
@@ -276,12 +298,14 @@ private:
   /// NULL pointers for states which were unable to be created.
   void branch(ExecutionState &state, 
               const std::vector< ref<Expr> > &conditions,
-              std::vector<ExecutionState*> &result);
+              std::vector<ExecutionState*> &result, int reason);
 
   // Fork current and return states in which condition holds / does
   // not hold, respectively. One of the states is necessarily the
   // current state, and one of the states may be null.
-  StatePair fork(ExecutionState &current, ref<Expr> condition, bool isInternal);
+  StatePair fork(ExecutionState &current, ref<Expr> condition, bool isInternal, int reason);
+  StatePair fork(ExecutionState &current, int reason);
+  ForkTag getForkTag(ExecutionState &current, int reason);
 
   /// Add the given (boolean) condition as a constraint on state. This
   /// function is a wrapper around the state's addConstraint function
@@ -299,12 +323,18 @@ private:
   Cell& getArgumentCell(ExecutionState &state,
                         KFunction *kf,
                         unsigned index) {
-    return state.stack.back().locals[kf->getArgRegister(index)];
+    return state.stack().back().locals[kf->getArgRegister(index)];
+  }
+
+  Cell& getArgumentCell(StackFrame &sf, 
+			KFunction *kf, 
+			unsigned index) {
+    return sf.locals[kf->getArgRegister(index)];
   }
 
   Cell& getDestCell(ExecutionState &state,
                     KInstruction *target) {
-    return state.stack.back().locals[target->dest];
+    return state.stack().back().locals[target->dest];
   }
 
   void bindLocal(KInstruction *target, 
@@ -391,6 +421,28 @@ private:
 
   KModule *kmodule(const ExecutionState &state) const;
                 
+  /// Pthread create needs a specific StackFrame instead of the one of the current state
+  void bindArgumentToPthreadCreate(KFunction *kf, unsigned index, 
+				   StackFrame &sf, ref<Expr> value);
+
+
+  //pthread handlers
+  void executeThreadCreate(ExecutionState &state, thread_id_t tid,
+      ref<Expr> start_function, ref<Expr> arg);
+
+  void executeThreadExit(ExecutionState &state);
+  
+  void executeProcessExit(ExecutionState &state);
+  
+  void executeProcessFork(ExecutionState &state, KInstruction *ki,
+      process_id_t pid);
+  
+  bool schedule(ExecutionState &state, bool yield);
+  
+  void executeThreadNotifyOne(ExecutionState &state, wlist_id_t wlist);
+
+  void executeFork(ExecutionState &state, KInstruction *ki, int reason);
+
 public:
   Executor(const InterpreterOptions &opts, InterpreterHandler *ie);
   virtual ~Executor();
@@ -400,7 +452,7 @@ public:
   }
 
   // XXX should just be moved out to utility module
-  ref<klee::ConstantExpr> evalConstant(const KModule *kmodule, llvm::Constant *c);
+  ref<ConstantExpr> evalConstant(const KModule *kmodule, llvm::Constant *c);
 
   virtual void setPathWriter(TreeStreamWriter *tsw) {
     pathWriter = tsw;

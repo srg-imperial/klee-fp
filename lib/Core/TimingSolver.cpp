@@ -34,9 +34,9 @@ bool TimingSolver::evaluate(const ExecutionState& state, ref<Expr> expr,
   sys::Process::GetTimeUsage(now,user,sys);
 
   if (simplifyExprs)
-    expr = state.constraints.simplifyExpr(expr);
+    expr = state.constraints().simplifyExpr(expr);
 
-  bool success = solver->evaluate(Query(state.constraints, expr), result);
+  bool success = solver->evaluate(Query(state.constraints(), expr), result);
 
   sys::Process::GetTimeUsage(delta,user,sys);
   delta -= now;
@@ -58,9 +58,9 @@ bool TimingSolver::mustBeTrue(const ExecutionState& state, ref<Expr> expr,
   sys::Process::GetTimeUsage(now,user,sys);
 
   if (simplifyExprs)
-    expr = state.constraints.simplifyExpr(expr);
+    expr = state.constraints().simplifyExpr(expr);
 
-  bool success = solver->mustBeTrue(Query(state.constraints, expr), result);
+  bool success = solver->mustBeTrue(Query(state.constraints(), expr), result);
 
   sys::Process::GetTimeUsage(delta,user,sys);
   delta -= now;
@@ -105,9 +105,9 @@ bool TimingSolver::getValue(const ExecutionState& state, ref<Expr> expr,
   sys::Process::GetTimeUsage(now,user,sys);
 
   if (simplifyExprs)
-    expr = state.constraints.simplifyExpr(expr);
+    expr = state.constraints().simplifyExpr(expr);
 
-  bool success = solver->getValue(Query(state.constraints, expr), result);
+  bool success = solver->getValue(Query(state.constraints(), expr), result);
 
   sys::Process::GetTimeUsage(delta,user,sys);
   delta -= now;
@@ -129,7 +129,7 @@ TimingSolver::getInitialValues(const ExecutionState& state,
   sys::TimeValue now(0,0),user(0,0),delta(0,0),sys(0,0);
   sys::Process::GetTimeUsage(now,user,sys);
 
-  bool success = solver->getInitialValues(Query(state.constraints,
+  bool success = solver->getInitialValues(Query(state.constraints(),
                                                 ConstantExpr::alloc(0, Expr::Bool)), 
                                           objects, result);
   
@@ -143,5 +143,5 @@ TimingSolver::getInitialValues(const ExecutionState& state,
 
 std::pair< ref<Expr>, ref<Expr> >
 TimingSolver::getRange(const ExecutionState& state, ref<Expr> expr) {
-  return solver->getRange(Query(state.constraints, expr));
+  return solver->getRange(Query(state.constraints(), expr));
 }

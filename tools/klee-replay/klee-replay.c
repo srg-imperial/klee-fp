@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
+#include <pthread.h>
 
 static void __emit_error(const char *msg);
 
@@ -343,6 +344,10 @@ void klee_prefer_cex(void *buffer, uintptr_t condition) {
   ;
 }
 
+void klee_silent_exit(int x) {
+  exit(x);
+}
+
 void klee_make_symbolic(void *addr, size_t nbytes, const char *name) {
   /* XXX remove model version code once new tests gen'd */
   if (obj_index >= input->numObjects) {
@@ -371,6 +376,22 @@ void klee_make_symbolic(void *addr, size_t nbytes, const char *name) {
     }
   }
 }
+
+void klee_make_shared(void *addr, size_t nbytes) {
+  fprintf(stderr, "klee_make_shared\n");
+}
+
+
+void klee_bind_shared(void *addr, size_t nbytes) {
+  fprintf(stderr, "klee_bind_shared\n");
+}
+
+uint64_t klee_get_wlist(void) {
+  static uint64_t counter = 0;
+
+  return counter++;
+}
+
 
 /* Redefined here so that we can check the value read. */
 int klee_range(int start, int end, const char* name) {

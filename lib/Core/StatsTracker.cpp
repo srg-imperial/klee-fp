@@ -181,7 +181,7 @@ StatsTracker::StatsTracker(Executor &_executor, std::string _objectFilename,
   for (std::vector<KFunction*>::iterator it = km->functions.begin(), 
          ie = km->functions.end(); it != ie; ++it) {
     KFunction *kf = *it;
-    kf->trackCoverage = 1;
+    //kf->trackCoverage = 1;
 
     for (unsigned i=0; i<kf->numInstructions; ++i) {
       KInstruction *ki = kf->instructions[i];
@@ -236,42 +236,40 @@ void StatsTracker::done() {
 }
 
 void StatsTracker::stepInstruction(ExecutionState &es) {
-  if (OutputIStats) {
-    if (TrackInstructionTime) {
-      static sys::TimeValue lastNowTime(0,0),lastUserTime(0,0);
-    
-      if (lastUserTime.seconds()==0 && lastUserTime.nanoseconds()==0) {
-        sys::TimeValue sys(0,0);
-        sys::Process::GetTimeUsage(lastNowTime,lastUserTime,sys);
-      } else {
-        sys::TimeValue now(0,0),user(0,0),sys(0,0);
-        sys::Process::GetTimeUsage(now,user,sys);
-        sys::TimeValue delta = user - lastUserTime;
-        sys::TimeValue deltaNow = now - lastNowTime;
-        stats::instructionTime += delta.usec();
-        stats::instructionRealTime += deltaNow.usec();
-        lastUserTime = user;
-        lastNowTime = now;
-      }
-    }
+	if (OutputIStats) {
+		if (TrackInstructionTime) {
+			static sys::TimeValue lastNowTime(0, 0), lastUserTime(0, 0);
 
-    Instruction *inst = es.pc->inst;
-    const InstructionInfo &ii = *es.pc->info;
-    StackFrame &sf = es.stack.back();
-    theStatisticManager->setIndex(ii.id);
-    if (UseCallPaths)
-      theStatisticManager->setContext(&sf.callPathNode->statistics);
+			if (lastUserTime.seconds() == 0 && lastUserTime.nanoseconds() == 0) {
+				sys::TimeValue sys(0, 0);
+				sys::Process::GetTimeUsage(lastNowTime, lastUserTime, sys);
+			} else {
+				sys::TimeValue now(0, 0), user(0, 0), sys(0, 0);
+				sys::Process::GetTimeUsage(now, user, sys);
+				sys::TimeValue delta = user - lastUserTime;
+				sys::TimeValue deltaNow = now - lastNowTime;
+				stats::instructionTime += delta.usec();
+				stats::instructionRealTime += deltaNow.usec();
+				lastUserTime = user;
+				lastNowTime = now;
+			}
+		}
 
-    if (es.instsSinceCovNew)
-      ++es.instsSinceCovNew;
+		Instruction *inst = es.pc()->inst;
+		const InstructionInfo &ii = *es.pc()->info;
+		StackFrame &sf = es.stack().back();
+		theStatisticManager->setIndex(ii.id);
+		if (UseCallPaths)
+			theStatisticManager->setContext(&sf.callPathNode->statistics);
 
-    if (sf.kf->trackCoverage && instructionIsCoverable(inst)) {
-      if (!theStatisticManager->getIndexedValue(stats::coveredInstructions, ii.id)) {
-        // Checking for actual stoppoints avoids inconsistencies due
-        // to line number propogation.
-        //
-        // FIXME: This trick no longer works, we should fix this in the line
-        // number propogation.
+		if (es.instsSinceCovNew)
+			++es.instsSinceCovNew;
+
+		if (sf.kf->trackCoverage && instructionIsCoverable(inst)) {
+			if (!theStatisticManager->getIndexedValue(
+					stats::coveredInstructions, ii.id)) {
+				// Checking for actual stoppoints avoids inconsistencies due
+				// to line number propogation.
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
         if (isa<DbgStopPointInst>(inst))
 #endif
@@ -285,19 +283,15 @@ void StatsTracker::stepInstruction(ExecutionState &es) {
   }
 }
 
-///
-
-/* Should be called _after_ the es->pushFrame() */
-void StatsTracker::framePushed(ExecutionState &es, StackFrame *parentFrame) {
+void StatsTracker::framePushed(StackFrame *frame, StackFrame *parentFrame) {
   if (OutputIStats) {
-    StackFrame &sf = es.stack.back();
 
     if (UseCallPaths) {
       CallPathNode *parent = parentFrame ? parentFrame->callPathNode : 0;
-      CallPathNode *cp = callPathManager.getCallPath(parent, 
-                                                     sf.caller ? sf.caller->inst : 0, 
-                                                     sf.kf->function);
-      sf.callPathNode = cp;
+      CallPathNode *cp = callPathManager.getCallPath(parent,
+                                                     frame->caller ? frame->caller->inst : 0,
+                                                     frame->kf->function);
+      frame->callPathNode = cp;
       cp->count++;
     }
 
@@ -305,11 +299,16 @@ void StatsTracker::framePushed(ExecutionState &es, StackFrame *parentFrame) {
       uint64_t minDistAtRA = 0;
       if (parentFrame)
         minDistAtRA = parentFrame->minDistToUncoveredOnReturn;
-      
-      sf.minDistToUncoveredOnReturn = sf.caller ?
-        computeMinDistToUncovered(sf.caller, minDistAtRA) : 0;
+
+      frame->minDistToUncoveredOnReturn = frame->caller ?
+        computeMinDistToUncovered(frame->caller, minDistAtRA) : 0;
     }
   }
+}
+
+/* Should be called _after_ the es->pushFrame() */
+void StatsTracker::framePushed(ExecutionState &es, StackFrame *parentFrame) {
+  framePushed(&es.stack().back(), parentFrame);
 }
 
 /* Should be called _after_ the es->popFrame() */
@@ -396,10 +395,10 @@ void StatsTracker::updateStateStatistics(uint64_t addend) {
   for (std::set<ExecutionState*>::iterator it = executor.states.begin(),
          ie = executor.states.end(); it != ie; ++it) {
     ExecutionState &state = **it;
-    const InstructionInfo &ii = *state.pc->info;
+    const InstructionInfo &ii = *state.pc()->info;
     theStatisticManager->incrementIndexedValue(stats::states, ii.id, addend);
     if (UseCallPaths)
-      state.stack.back().callPathNode->statistics.incrementValue(stats::states, addend);
+      state.stack().back().callPathNode->statistics.incrementValue(stats::states, addend);
   }
 }
 
@@ -800,13 +799,13 @@ void StatsTracker::computeReachableUncovered() {
          ie = executor.states.end(); it != ie; ++it) {
     ExecutionState *es = *it;
     uint64_t currentFrameMinDist = 0;
-    for (ExecutionState::stack_ty::iterator sfIt = es->stack.begin(),
-           sf_ie = es->stack.end(); sfIt != sf_ie; ++sfIt) {
+    for (ExecutionState::stack_ty::iterator sfIt = es->stack().begin(),
+           sf_ie = es->stack().end(); sfIt != sf_ie; ++sfIt) {
       ExecutionState::stack_ty::iterator next = sfIt + 1;
       KInstIterator kii;
 
-      if (next==es->stack.end()) {
-        kii = es->pc;
+      if (next==es->stack().end()) {
+        kii = es->pc();
       } else {
         kii = next->caller;
         ++kii;

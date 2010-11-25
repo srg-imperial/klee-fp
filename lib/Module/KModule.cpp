@@ -39,9 +39,14 @@
 #include "llvm/Transforms/Scalar.h"
 
 #include <sstream>
+#include <fstream>
+#include <string>
+#include <cstdlib>
 
 using namespace llvm;
 using namespace klee;
+
+using llvm::sys::Path;
 
 namespace {
   enum SwitchImplType {
@@ -88,6 +93,104 @@ namespace {
                  cl::init(false));
 }
 
+void KModule::readVulnerablePoints(std::istream &is) {
+  std::string fnName;
+  std::string callSite;
+
+  while (!is.eof()) {
+    is >> fnName >> callSite;
+
+    if (is.eof() && (fnName.length() == 0 || (callSite.length() == 0)))
+      break;
+
+    size_t splitPoint = callSite.find(':');
+    assert(splitPoint != std::string::npos);
+
+    std::string fileName = callSite.substr(0, splitPoint);
+    std::string lineNoStr = callSite.substr(splitPoint+1);
+    unsigned lineNo = atoi(lineNoStr.c_str());
+
+    if (lineNo == 0) {
+      // Skipping this
+      continue;
+
+    }
+
+    vulnerablePoints[fnName].insert(std::make_pair(fileName, lineNo));
+  }
+}
+
+bool KModule::isVulnerablePoint(KInstruction *kinst) {
+  CallInst *callInst = dyn_cast<CallInst>(kinst->inst);
+  assert(callInst);
+
+  Function *target = callInst->getCalledFunction();
+  if (!target)
+    return false;
+
+  std::string targetName = target->getNameStr();
+
+  if (targetName.find("__klee_model_") == 0)
+    targetName = targetName.substr(strlen("__klee_model_"));
+
+  if (vulnerablePoints.count(target->getNameStr()) == 0)
+    return false;
+
+  Path sourceFile(kinst->info->file);
+  program_point_t cpoint = std::make_pair(sourceFile.getLast(), kinst->info->line);
+
+  if (vulnerablePoints[target->getNameStr()].count(cpoint) == 0)
+    return false;
+
+  return true;
+}
+
+void KModule::readCoverableFiles(std::istream &is) {
+  std::string fileName;
+
+  while (!is.eof()) {
+    is >> fileName;
+
+    if (is.eof() && fileName.length() == 0)
+      break;
+
+    coverableFiles.insert(fileName);
+  }
+}
+
+bool KModule::isFunctionCoverable(KFunction *kf) {
+  Path fileName;
+
+  for (unsigned int i = 0; i < kf->numInstructions; i++) {
+    if (kf->instructions[i]->info->file.empty())
+      continue;
+
+    fileName = Path(kf->instructions[i]->info->file);
+  }
+
+  if (fileName.isEmpty())
+    return false;
+
+  if (coverableFiles.count(fileName.getLast()) == 0)
+    return false;
+
+  return true;
+}
+
+void KModule::readInitialCoverage(std::istream &is) {
+  std::string sourceFile;
+  int lineNo;
+
+  while (!is.eof()) {
+    is >> sourceFile >> lineNo;
+
+    if (is.eof() && sourceFile.length() == 0)
+      break;
+
+    coveredLines.insert(std::make_pair(sourceFile, lineNo));
+  }
+}
+
 KModule::KModule(Module *_module) 
   : module(_module),
     targetData(new TargetData(module)),
@@ -95,6 +198,7 @@ KModule::KModule(Module *_module)
     kleeMergeFn(0),
     infos(0),
     constantTable(0) {
+
 }
 
 KModule::~KModule() {
@@ -425,22 +529,44 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   /* Build shadow structures */
 
-  infos = new InstructionInfoTable(module);  
+  infos = new InstructionInfoTable(module);
+
+  std::map<std::string, Function*> fnList;
   
   for (Module::iterator it = module->begin(), ie = module->end();
-       it != ie; ++it) {
+         it != ie; ++it) {
     if (it->isDeclaration())
       continue;
 
-    KFunction *kf = new KFunction(it, this);
+    fnList[it->getNameStr()] = it;
+  }
+
+  for (std::map<std::string, Function*>::iterator it = fnList.begin();
+      it != fnList.end(); it++) {
+    Function *fn = it->second;
     
+    KFunction *kf = new KFunction(fn, this);
+
     for (unsigned i=0; i<kf->numInstructions; ++i) {
       KInstruction *ki = kf->instructions[i];
       ki->info = &infos->getInfo(ki->inst);
+
+      if (ki->inst->getOpcode() == Instruction::Call) {
+        KCallInstruction* kCallI = static_cast<KCallInstruction*>(ki);
+        kCallI->vulnerable = isVulnerablePoint(ki);
+      }
+
+      Path sourceFile(ki->info->file);
+      program_point_t pPoint = std::make_pair(sourceFile.getLast(),
+          ki->info->line);
+
+      ki->originallyCovered = coveredLines.count(pPoint) > 0;
     }
 
+    kf->trackCoverage = isFunctionCoverable(kf);
+
     functions.push_back(kf);
-    functionMap.insert(std::make_pair(it, kf));
+    functionMap.insert(std::make_pair(fn, kf));
   }
 
   /* Compute various interesting properties */
@@ -548,6 +674,9 @@ KFunction::KFunction(llvm::Function *_function,
       case Instruction::InsertValue:
       case Instruction::ExtractValue:
         ki = new KGEPInstruction(); break;
+      case Instruction::Call:
+        ki = new KCallInstruction();
+        break;
       default:
         ki = new KInstruction(); break;
       }

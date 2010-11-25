@@ -66,6 +66,7 @@ public:
   MemoryObject &operator=(const MemoryObject &b);
 
 public:
+
   // XXX this is just a temp hack, should be removed
   explicit
   MemoryObject(uint64_t _address) 
@@ -75,6 +76,7 @@ public:
       isFixed(true),
       allocSite(0) {
   }
+
 
   MemoryObject(uint64_t _address, unsigned _size, 
                bool _isLocal, bool _isGlobal, bool _isFixed,
@@ -161,6 +163,8 @@ public:
   unsigned size;
 
   bool readOnly;
+
+  bool isShared; // The object is shared among addr. spaces within the same state
 
 public:
   /// Create a new object state for the given memory object with concrete
