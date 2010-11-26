@@ -580,7 +580,7 @@ MemoryObject * Executor::addExternalObject(ExecutionState &state,
                                            bool isReadOnly) {
   MemoryObject *mo = memory->allocateFixed((uint64_t) (unsigned long) addr, 
                                            size, 0);
-  ObjectState *os = bindObjectInState(state, mo, false);
+  ObjectState *os = bindObjectInState(state, 0, mo, false);
   for(unsigned i = 0; i < size; i++)
     os->write8(i, ((uint8_t*)addr)[i]);
   if(isReadOnly)
@@ -641,6 +641,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
       // hack where we check the object file information.
 
       const Type *ty = i->getType()->getElementType();
+      unsigned addrspace = i->getType()->getAddressSpace();
       uint64_t size = kmodule(state)->targetData->getTypeStoreSize(ty);
 
       // XXX - DWD - hardcode some things until we decide how to fix.
@@ -661,7 +662,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
       }
 
       MemoryObject *mo = memory->allocate(&state, size, false, true, i);
-      ObjectState *os = bindObjectInState(state, mo, false);
+      ObjectState *os = bindObjectInState(state, addrspace, mo, false);
       globalObjects.insert(std::make_pair(i, mo));
       globalAddresses.insert(std::make_pair(i, mo->getBaseExpr()));
 
@@ -684,6 +685,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
       }
     } else {
       const Type *ty = i->getType()->getElementType();
+      unsigned addrspace = i->getType()->getAddressSpace();
       uint64_t size = kmodule(state)->targetData->getTypeStoreSize(ty);
       MemoryObject *mo = 0;
 
@@ -705,7 +707,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
       if(!mo)
 	klee_message("cannot allocate memory for global %s", i->getNameStr().c_str());
       assert(mo && "out of memory");
-      ObjectState *os = bindObjectInState(state, mo, false);
+      ObjectState *os = bindObjectInState(state, addrspace, mo, false);
       globalObjects.insert(std::make_pair(i, mo));
       globalAddresses.insert(std::make_pair(i, mo->getBaseExpr()));
 
@@ -1382,7 +1384,7 @@ void Executor::executeCall(ExecutionState &state,
       // size. This happens to work fir x86-32 and x86-64, however.
       Expr::Width WordSize = Context::get().getPointerWidth();
       if (WordSize == Expr::Int32) {
-        executeMemoryOperation(state, true, arguments[0], 
+        executeMemoryOperation(state, true, 0, arguments[0], 
                                sf.varargs->getBaseExpr(), 0);
       } else {
         assert(WordSize == Expr::Int64 && "Unknown word size!");
@@ -1390,17 +1392,17 @@ void Executor::executeCall(ExecutionState &state,
         // X86-64 has quite complicated calling convention. However,
         // instead of implementing it, we can do a simple hack: just
         // make a function believe that all varargs are on stack.
-        executeMemoryOperation(state, true, arguments[0],
+        executeMemoryOperation(state, true, 0, arguments[0],
                                ConstantExpr::create(48, 32), 0); // gp_offset
-        executeMemoryOperation(state, true,
+        executeMemoryOperation(state, true, 0,
                                AddExpr::create(arguments[0], 
                                                ConstantExpr::create(4, 64)),
                                ConstantExpr::create(304, 32), 0); // fp_offset
-        executeMemoryOperation(state, true,
+        executeMemoryOperation(state, true, 0,
                                AddExpr::create(arguments[0], 
                                                ConstantExpr::create(8, 64)),
                                sf.varargs->getBaseExpr(), 0); // overflow_arg_area
-        executeMemoryOperation(state, true,
+        executeMemoryOperation(state, true, 0,
                                AddExpr::create(arguments[0], 
                                                ConstantExpr::create(16, 64)),
                                ConstantExpr::create(0, 64), 0); // reg_save_area
@@ -1481,7 +1483,7 @@ void Executor::executeCall(ExecutionState &state,
         terminateStateOnExecError(state, "out of memory (varargs)");
         return;
       }
-      ObjectState *os = bindObjectInState(state, mo, true);
+      ObjectState *os = bindObjectInState(state, 0, mo, true);
       unsigned offset = 0;
       for (unsigned i = funcArgs; i < callingArgs; i++) {
         // FIXME: This is really specific to the architecture, not the pointer
@@ -2186,14 +2188,18 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 #endif
 
   case Instruction::Load: {
+    LoadInst *li = cast<LoadInst>(i);
+    unsigned addrspace = li->getPointerAddressSpace();
     ref<Expr> base = eval(ki, 0, state).value;
-    executeMemoryOperation(state, false, base, 0, ki);
+    executeMemoryOperation(state, false, addrspace, base, 0, ki);
     break;
   }
   case Instruction::Store: {
+    StoreInst *si = cast<StoreInst>(i);
+    unsigned addrspace = si->getPointerAddressSpace();
     ref<Expr> base = eval(ki, 1, state).value;
     ref<Expr> value = eval(ki, 0, state).value;
-    executeMemoryOperation(state, true, base, value, 0);
+    executeMemoryOperation(state, true, addrspace, base, value, 0);
     break;
   }
 
@@ -2962,11 +2968,12 @@ ref<Expr> Executor::replaceReadWithSymbolic(ExecutionState &state,
 }
 
 ObjectState *Executor::bindObjectInState(ExecutionState &state, 
+                                         unsigned addrspace,
                                          const MemoryObject *mo,
                                          bool isLocal,
                                          const Array *array) {
   ObjectState *os = array ? new ObjectState(mo, array) : new ObjectState(mo);
-  state.addressSpace().bindObject(mo, os);
+  state.addressSpace(addrspace).bindObject(mo, os);
 
   // Its possible that multiple bindings of the same mo in the state
   // will put multiple copies on this list, but it doesn't really
@@ -2992,7 +2999,7 @@ void Executor::executeAlloc(ExecutionState &state,
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
     } else {
-      ObjectState *os = bindObjectInState(state, mo, isLocal);
+      ObjectState *os = bindObjectInState(state, 0, mo, isLocal);
       if (zeroMemory) {
         os->initializeToZero();
       } else {
@@ -3369,6 +3376,7 @@ void Executor::executeThreadNotifyOne(ExecutionState &state, wlist_id_t wlist) {
 
 void Executor::executeMemoryOperation(ExecutionState &state,
                                       bool isWrite,
+                                      unsigned addrspace,
                                       ref<Expr> address,
                                       ref<Expr> value /* undef if read */,
                                       KInstruction *target /* undef if write */) {
@@ -3515,7 +3523,7 @@ void Executor::executeMakeSymbolic(ExecutionState &state,
     static unsigned id = 0;
     const Array *array = new Array("arr" + llvm::utostr(++id),
                                    mo->size);
-    ObjectState *os = bindObjectInState(state, mo, false, array);
+    ObjectState *os = bindObjectInState(state, 0, mo, false, array);
     os->isShared = shared;
 
     state.addSymbolic(mo, array);
@@ -3567,7 +3575,7 @@ void Executor::executeMakeSymbolic(ExecutionState &state,
       }
     }
   } else {
-    ObjectState *os = bindObjectInState(state, mo, false);
+    ObjectState *os = bindObjectInState(state, 0, mo, false);
     if (replayPosition >= replayOut->numObjects) {
       terminateStateOnError(state, "replay count mismatch", "user.err");
     } else {
@@ -3645,7 +3653,7 @@ void Executor::runFunctionAsMain(Function *f,
 		bindArgument(kf, i, *state, arguments[i]);
 
 	if (argvMO) {
-		ObjectState *argvOS = bindObjectInState(*state, argvMO, false);
+		ObjectState *argvOS = bindObjectInState(*state, 0, argvMO, false);
 
 		for (int i = 0; i < argc + 1 + envc + 1 + 1; i++) {
 			MemoryObject *arg;
@@ -3657,7 +3665,7 @@ void Executor::runFunctionAsMain(Function *f,
 				int j, len = strlen(s);
 
 				arg = memory->allocate(state, len + 1, false, true, state->pc()->inst);
-				ObjectState *os = bindObjectInState(*state, arg, false);
+				ObjectState *os = bindObjectInState(*state, 0, arg, false);
 				for (j = 0; j < len + 1; j++)
 					os->write8(j, s[j]);
 			}

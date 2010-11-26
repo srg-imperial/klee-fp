@@ -173,8 +173,10 @@ public:
   ConstraintManager &constraints() { return globalConstraints; }
   const ConstraintManager &constraints() const { return globalConstraints; }
 
-  AddressSpace &addressSpace() { return crtProcess().addressSpace; }
-  const AddressSpace &addressSpace() const { return crtProcess().addressSpace; }
+  AddressSpace &addressSpace(unsigned addrspace = 0);
+  const AddressSpace &addressSpace(unsigned addrspace = 0) const {
+    return const_cast<ExecutionState *>(this)->addressSpace(addrspace);
+  }
 
   KInstIterator& pc() { return crtThread().pc; }
   const KInstIterator& pc() const { return crtThread().pc; }

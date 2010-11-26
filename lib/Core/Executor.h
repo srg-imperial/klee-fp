@@ -224,7 +224,8 @@ private:
                             llvm::Function *function,
                             std::vector<ref<Expr> > &arguments);
 
-  ObjectState *bindObjectInState(ExecutionState &state, const MemoryObject *mo,
+  ObjectState *bindObjectInState(ExecutionState &state, unsigned addrspace,
+                                 const MemoryObject *mo,
                                  bool isLocal, const Array *array = 0);
 
   /// Resolve a pointer to the memory objects it could point to the
@@ -285,6 +286,7 @@ private:
   // and perform the operation
   void executeMemoryOperation(ExecutionState &state,
                               bool isWrite,
+                              unsigned addrspace,
                               ref<Expr> address,
                               ref<Expr> value /* undef if read */,
                               KInstruction *target /* undef if write */);

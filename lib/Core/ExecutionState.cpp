@@ -550,4 +550,11 @@ StackTrace ExecutionState::getStackTrace() const {
   return result;
 }
 
+AddressSpace &ExecutionState::addressSpace(unsigned addrspace) {
+  switch (addrspace) {
+    case 0: return crtProcess().addressSpace;
+    default: assert(0 && "Unsupported address space");
+  }
+}
+
 }
