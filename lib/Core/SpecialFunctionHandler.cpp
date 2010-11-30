@@ -1220,7 +1220,12 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
 
   clang::TextDiagnosticPrinter *DiagClient =
     new clang::TextDiagnosticPrinter(errs(), clang::DiagnosticOptions());
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR <= 8)
   clang::Diagnostic *Diag = new clang::Diagnostic(DiagClient);
+#else
+  IntrusiveRefCntPtr<clang::DiagnosticIDs> DiagID(new clang::DiagnosticIDs());
+  clang::Diagnostic *Diag = new clang::Diagnostic(DiagID, DiagClient);
+#endif
 
   SmallVector<StringRef, 8> splitArgs;
   ref<Expr> argsExpr = executor.toUnique(state, arguments[1]);
