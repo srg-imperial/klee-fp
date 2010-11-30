@@ -14,7 +14,11 @@
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
 #include "llvm/Support/DataTypes.h"
 #else
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
 #include "llvm/System/DataTypes.h"
+#else
+#include "llvm/Support/DataTypes.h"
+#endif
 #endif
 
 namespace klee {

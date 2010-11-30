@@ -41,8 +41,16 @@
 #include "llvm/ADT/Twine.h"
 
 #include "llvm/Support/MemoryBuffer.h"
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
 #include "llvm/System/Host.h"
+#else
+#include "llvm/Support/Host.h"
+#endif
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
 #include "llvm/System/Path.h"
+#else
+#include "llvm/Support/Path.h"
+#endif
 
 #ifdef HAVE_OPENCL
 #include "clang/CodeGen/CodeGenAction.h"

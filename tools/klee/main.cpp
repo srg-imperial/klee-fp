@@ -35,7 +35,11 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 #include "llvm/Target/TargetSelect.h"
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
 #include "llvm/System/Signals.h"
+#else
+#include "llvm/Support/Signals.h"
+#endif
 #include <iostream>
 #include <fstream>
 #include <cerrno>

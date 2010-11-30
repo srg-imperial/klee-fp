@@ -16,7 +16,11 @@
 #endif
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR >= 9)
 #include "llvm/Support/raw_ostream.h"
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
 #include "llvm/System/Host.h"
+#else
+#include "llvm/Support/Host.h"
+#endif
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetRegistry.h"
 #endif

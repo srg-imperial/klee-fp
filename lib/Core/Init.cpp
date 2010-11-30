@@ -29,7 +29,11 @@
 #undef PACKAGE_VERSION
 
 #include "llvm/Support/CommandLine.h"
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
 #include "llvm/System/Path.h"
+#else
+#include "llvm/Support/Path.h"
+#endif
 #include "llvm/Module.h"
 #include "llvm/Type.h"
 #include "llvm/InstrTypes.h"

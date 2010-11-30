@@ -17,7 +17,11 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
 #include "llvm/System/Signals.h"
+#else
+#include "llvm/Support/Signals.h"
+#endif
 
 using namespace llvm;
 using namespace klee;
