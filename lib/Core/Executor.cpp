@@ -3409,9 +3409,9 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   ObjectPair op;
   bool success;
   solver->setTimeout(stpTimeout);
-  if (!state.addressSpace().resolveOne(state, solver, address, op, success)) {
+  if (!state.addressSpace(addrspace).resolveOne(state, solver, address, op, success)) {
     address = toConstant(state, address, "resolveOne failure");
-    success = state.addressSpace().resolveOne(cast<ConstantExpr>(address), op);
+    success = state.addressSpace(addrspace).resolveOne(cast<ConstantExpr>(address), op);
   }
   solver->setTimeout(0);
 
@@ -3444,7 +3444,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                                 "memory error: object read only",
                                 "readonly.err");
         } else {
-          ObjectState *wos = state.addressSpace().getWriteable(mo, os);
+          ObjectState *wos = state.addressSpace(addrspace).getWriteable(mo, os);
           wos->write(offset, value);
 
 	}          
@@ -3466,7 +3466,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   
   ResolutionList rl;  
   solver->setTimeout(stpTimeout);
-  bool incomplete = state.addressSpace().resolve(state, solver, address, rl,
+  bool incomplete = state.addressSpace(addrspace).resolve(state, solver, address, rl,
                                                0, stpTimeout);
   solver->setTimeout(0);
   
@@ -3489,7 +3489,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                                 "memory error: object read only",
                                 "readonly.err");
         } else {
-          ObjectState *wos = bound->addressSpace().getWriteable(mo, os);
+          ObjectState *wos = bound->addressSpace(addrspace).getWriteable(mo, os);
           wos->write(mo->getOffsetExpr(address), value);
         }
       } else {
