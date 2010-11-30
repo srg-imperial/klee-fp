@@ -2992,6 +2992,8 @@ void Executor::executeAlloc(ExecutionState &state,
                             bool zeroMemory,
                             const ObjectState *reallocFrom) {
   size = toUnique(state, size);
+  assert(isa<PointerType>(target->inst->getType()) && "alloc nonpointer type?");
+  unsigned addrspace = cast<PointerType>(target->inst->getType())->getAddressSpace();
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
     MemoryObject *mo = memory->allocate(&state, CE->getZExtValue(), isLocal, false,
                                         state.prevPC()->inst);
@@ -2999,7 +3001,7 @@ void Executor::executeAlloc(ExecutionState &state,
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
     } else {
-      ObjectState *os = bindObjectInState(state, 0, mo, isLocal);
+      ObjectState *os = bindObjectInState(state, addrspace, mo, isLocal);
       if (zeroMemory) {
         os->initializeToZero();
       } else {
@@ -3011,7 +3013,7 @@ void Executor::executeAlloc(ExecutionState &state,
         unsigned count = std::min(reallocFrom->size, os->size);
         for (unsigned i=0; i<count; i++)
           os->write(i, reallocFrom->read8(i));
-        state.addressSpace().unbindObject(reallocFrom->getObject());
+        state.addressSpace(addrspace).unbindObject(reallocFrom->getObject());
       }
     }
   } else {

@@ -243,6 +243,16 @@ extern "C" {
   // klee_debug accepts either a set of 32-bit integers, or a single 64-bit value (char*).
   void klee_debug(const char *format, ...);
 
+  //////////////////////////////////////////////////////////////////////////////
+  // Address spaces
+  //////////////////////////////////////////////////////////////////////////////
+
+  // Multiple address space support is implemented by making the builtin
+  // functions polymorphic over address spaces and casting the function
+  // (not the arguments or the result) to an address-space augmented type
+
+#define klee_asmalloc(AS) ((void __attribute__((address_space(AS))) *(*)(size_t))malloc)
+
 #ifdef __cplusplus
 }
 #endif
