@@ -122,6 +122,9 @@ void ExecutionState::setupMain(KFunction *kf, unsigned moduleId) {
   cowDomain.push_back(&crtProcessIt->second.addressSpace);
 
   crtProcessIt->second.addressSpace.cowDomain = &cowDomain;
+
+  thrCowDomain.push_back(&crtThreadIt->second.threadLocalAddressSpace);
+  crtThreadIt->second.threadLocalAddressSpace.cowDomain = &thrCowDomain;
 }
 
 Thread& ExecutionState::createThread(thread_id_t tid, KFunction *kf, unsigned moduleId) {
@@ -130,12 +133,18 @@ Thread& ExecutionState::createThread(thread_id_t tid, KFunction *kf, unsigned mo
 
   threads.insert(std::make_pair(newThread.tuid, newThread));
 
+  thrCowDomain.push_back(&threads.find(newThread.tuid)->second.threadLocalAddressSpace);
+  threads.find(newThread.tuid)->second.threadLocalAddressSpace.cowDomain = &thrCowDomain;
+
   return threads.find(newThread.tuid)->second;
 }
 
 Process& ExecutionState::forkProcess(process_id_t pid) {
   for (processes_ty::iterator it = processes.begin(); it != processes.end(); it++) {
     it->second.addressSpace.cowKey++;
+  }
+  for (threads_ty::iterator it = threads.begin(); it != threads.end(); it++) {
+    it->second.threadLocalAddressSpace.cowKey++;
   }
 
   Process forked = Process(crtProcess());
@@ -160,6 +169,9 @@ Process& ExecutionState::forkProcess(process_id_t pid) {
 
   cowDomain.push_back(&processes.find(forked.pid)->second.addressSpace);
   processes.find(forked.pid)->second.addressSpace.cowDomain = &cowDomain;
+
+  thrCowDomain.push_back(&threads.find(forkedThread.tuid)->second.threadLocalAddressSpace);
+  threads.find(forkedThread.tuid)->second.threadLocalAddressSpace.cowDomain = &thrCowDomain;
 
   return processes.find(forked.pid)->second;
 }
@@ -553,6 +565,7 @@ StackTrace ExecutionState::getStackTrace() const {
 AddressSpace &ExecutionState::addressSpace(unsigned addrspace) {
   switch (addrspace) {
     case 0: return crtProcess().addressSpace;
+    case 4: return crtThread().threadLocalAddressSpace;
     default: assert(0 && "Unsupported address space");
   }
 }

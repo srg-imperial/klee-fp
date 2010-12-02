@@ -80,6 +80,8 @@ private:
 
   std::vector<StackFrame> stack;
 
+  AddressSpace threadLocalAddressSpace;
+
   bool enabled;
   wlist_id_t waitingList;
 

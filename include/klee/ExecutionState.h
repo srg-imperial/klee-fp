@@ -126,7 +126,7 @@ public:
   uint64_t stateTime;
 
   AddressPool addressPool;
-  AddressSpace::cow_domain_t cowDomain;
+  AddressSpace::cow_domain_t cowDomain, thrCowDomain;
 
   Thread& createThread(thread_id_t tid, KFunction *kf, unsigned moduleId);
   Process& forkProcess(process_id_t pid);
