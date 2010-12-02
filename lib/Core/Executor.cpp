@@ -733,10 +733,11 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
          e = m->global_end();
        i != e; ++i) {
     if (i->hasInitializer()) {
+      unsigned addrspace = i->getType()->getAddressSpace();
       MemoryObject *mo = globalObjects.find(i)->second;
-      const ObjectState *os = state.addressSpace().findObject(mo);
+      const ObjectState *os = state.addressSpace(addrspace).findObject(mo);
       assert(os);
-      ObjectState *wos = state.addressSpace().getWriteable(mo, os);
+      ObjectState *wos = state.addressSpace(addrspace).getWriteable(mo, os);
       
       initializeGlobalObject(state, wos, i->getInitializer(), 0);
       // if(i->isConstant()) os->setReadOnly(true);
