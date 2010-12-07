@@ -208,6 +208,9 @@ private:
 
   void initializeExternals(ExecutionState &state);
 
+  void bindGlobalsInNewAddressSpace(ExecutionState &state,
+                                    unsigned addrspace, AddressSpace &as);
+
   void stepInstruction(ExecutionState &state);
   void updateStates(ExecutionState *current);
   void transferToBasicBlock(llvm::BasicBlock *dst, 

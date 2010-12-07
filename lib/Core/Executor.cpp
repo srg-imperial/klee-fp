@@ -745,6 +745,27 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
   }
 }
 
+// TODO: merge with Executor::initializeGlobals?
+void Executor::bindGlobalsInNewAddressSpace(ExecutionState &state, unsigned addrspace, AddressSpace &as) {
+  for (std::vector<KModule*>::iterator mi = kmodules.begin(),
+       me = kmodules.end(); mi != me; ++mi) {
+    Module *m = (*mi)->module;
+    for (Module::const_global_iterator i = m->global_begin(),
+           e = m->global_end();
+         i != e; ++i) {
+      unsigned objAS = i->getType()->getAddressSpace();
+      if (addrspace != objAS) continue;
+   
+      MemoryObject *mo = globalObjects.find(i)->second;
+      ObjectState *os = new ObjectState(mo);
+      as.bindObject(mo, os);
+   
+      if (i->hasInitializer())
+        initializeGlobalObject(state, os, i->getInitializer(), 0);
+    }
+  }
+}
+
 void Executor::initializeExternals(ExecutionState &state) {
 #ifdef HAVE_CTYPE_EXTERNALS
 #ifndef WINDOWS
@@ -3176,6 +3197,7 @@ void Executor::executeThreadCreate(ExecutionState &state, thread_id_t tid,
   assert(kf && "cannot resolve thread start function");
 
   Thread &t = state.createThread(tid, kf, moduleId);
+  bindGlobalsInNewAddressSpace(state, 4, t.threadLocalAddressSpace);
  
   bindArgumentToPthreadCreate(kf, 0, t.stack.back(), arg);
 
