@@ -1,6 +1,7 @@
 #define __local __attribute__((address_space(1)))
-#define __constant __attribute__((address_space(2)))
-#define __global __attribute__((address_space(3)))
+#define __constant
+#define __global
+#define __klee_thrlocal __attribute__((address_space(4)))
 
 #define __kernel
 
