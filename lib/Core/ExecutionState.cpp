@@ -78,6 +78,11 @@ ExecutionState::ExecutionState(KFunction *kf, unsigned moduleId)
   setupMain(kf, moduleId);
   setupTime();
   setupAddressPool();
+
+  AddressSpace *wgAS0 = new AddressSpace;
+  wgAddressSpaces.push_back(wgAS0);
+  wgAS0->cowDomain = &wgCowDomain;
+  wgCowDomain.push_back(wgAS0);
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr> > &assumptions) 
@@ -285,6 +290,10 @@ ExecutionState::~ExecutionState() {
     Thread &t = it->second;
     while (!t.stack.empty())
       popFrame(t);
+  }
+  for (std::vector<AddressSpace *>::iterator i = wgAddressSpaces.begin(),
+       e = wgAddressSpaces.end(); i != e; ++i) {
+    delete *i;
   }
 }
 
@@ -565,6 +574,13 @@ StackTrace ExecutionState::getStackTrace() const {
 AddressSpace &ExecutionState::addressSpace(unsigned addrspace) {
   switch (addrspace) {
     case 0: return crtProcess().addressSpace;
+    case 1: {
+      unsigned wgId = crtThread().workgroupId;
+      assert(wgId < wgAddressSpaces.size() && "Workgroup id out of bounds");
+      AddressSpace *wgAddrSpace = wgAddressSpaces[wgId];
+      assert(wgAddrSpace && "Workgroup non-existent");
+      return *wgAddrSpace;
+    }
     case 4: return crtThread().threadLocalAddressSpace;
     default: assert(0 && "Unsupported address space");
   }

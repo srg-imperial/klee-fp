@@ -81,6 +81,7 @@ private:
   std::vector<StackFrame> stack;
 
   AddressSpace threadLocalAddressSpace;
+  unsigned workgroupId;
 
   bool enabled;
   wlist_id_t waitingList;

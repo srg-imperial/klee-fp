@@ -107,6 +107,7 @@ public:
   int crtForkReason;
   Instruction *crtSpecialFork;
 
+  std::vector<AddressSpace *> wgAddressSpaces;
 
   /// ordered list of symbolics: used to generate test cases. 
   //
@@ -126,7 +127,7 @@ public:
   uint64_t stateTime;
 
   AddressPool addressPool;
-  AddressSpace::cow_domain_t cowDomain, thrCowDomain;
+  AddressSpace::cow_domain_t cowDomain, thrCowDomain, wgCowDomain;
 
   Thread& createThread(thread_id_t tid, KFunction *kf, unsigned moduleId);
   Process& forkProcess(process_id_t pid);
