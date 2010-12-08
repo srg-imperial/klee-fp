@@ -201,6 +201,9 @@ extern "C" {
    * the address) */
   void klee_make_shared(void *addr, size_t nbytes);
 
+  /* Create a new workgroup shared address space. */
+  unsigned klee_create_work_group(void);
+
   //////////////////////////////////////////////////////////////////////////////
   // Thread Scheduling Management
   //////////////////////////////////////////////////////////////////////////////

@@ -149,6 +149,7 @@ namespace klee {
     HANDLER(handleICallAddArg);
     HANDLER(handleICall);
     HANDLER(handleICallDestroyArgList);
+    HANDLER(handleCreateWorkGroup);
 #undef HANDLER
   };
 } // End klee namespace

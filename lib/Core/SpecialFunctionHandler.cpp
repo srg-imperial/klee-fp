@@ -138,6 +138,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_icall_add_arg", handleICallAddArg, false),
   add("klee_icall", handleICall, false),
   add("klee_icall_destroy_arg_list", handleICallDestroyArgList, false),
+  add("klee_create_work_group", handleCreateWorkGroup, true),
 
   add("klee_make_shared", handleMakeShared, false),
   add("klee_get_context", handleGetContext, false),
@@ -1442,6 +1443,23 @@ void SpecialFunctionHandler::handleICallDestroyArgList(ExecutionState &state,
   std::vector< ref<Expr> > *argsPtr = (std::vector< ref<Expr> > *) args;
 
   delete argsPtr;
+}
+
+void SpecialFunctionHandler::handleCreateWorkGroup(ExecutionState &state,
+                                                   KInstruction *target,
+                                                   std::vector<ref<Expr> > &arguments) {
+  unsigned workgroupId = state.wgAddressSpaces.size();
+
+  AddressSpace *wgAddrSpace = new AddressSpace;
+
+  wgAddrSpace->cowDomain = &state.wgCowDomain;
+  state.wgCowDomain.push_back(wgAddrSpace);
+
+  executor.bindGlobalsInNewAddressSpace(state, 1, *wgAddrSpace);
+  state.wgAddressSpaces.push_back(wgAddrSpace);
+
+  executor.bindLocal(target, state, 
+                     ConstantExpr::create(workgroupId, sizeof(unsigned) * 8));
 }
 
 void SpecialFunctionHandler::handleSyscall(ExecutionState &state,

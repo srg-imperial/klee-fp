@@ -37,6 +37,7 @@ namespace klee {
   class AddressSpace {
     friend class ObjectState;
     friend class ExecutionState;
+    friend class SpecialFunctionHandler;
   private:
 	  typedef std::vector<AddressSpace*> cow_domain_t;
 
