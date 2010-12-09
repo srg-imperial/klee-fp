@@ -88,6 +88,13 @@ static cl_uint increment_id_list(cl_uint work_dim, size_t *ids,
   return 0;
 }
 
+static void invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
+                             size_t global_ids[], size_t local_ids[]) {
+  memcpy(kern->program->globalIds, global_ids, sizeof(size_t)*work_dim);
+  memcpy(kern->program->localIds, local_ids, sizeof(size_t)*work_dim);
+  klee_icall(kern->function, args);
+}
+
 cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
                               cl_kernel kernel,
                               cl_uint work_dim,
@@ -97,8 +104,9 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
                               cl_uint num_events_in_wait_list,
                               const cl_event *event_wait_list,
                               cl_event *event) {
-  size_t divisors[64], ids[64], *local_ids = kernel->program->localIds, *global_ids = kernel->program->globalIds;
+  size_t divisors[64], ids[64], local_ids[64], global_ids[64];
   cl_uint i, last_id;
+  uintptr_t argList;
 
   if (!global_work_size)
     return CL_INVALID_GLOBAL_WORK_SIZE;
@@ -121,15 +129,10 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
   memset(local_ids, 0, work_dim*sizeof(size_t));
   last_id = work_dim+1;
 
-  do {
-    uintptr_t argList = klee_icall_create_arg_list();
+  {
+    argList = klee_icall_create_arg_list();
     unsigned argCount = klee_ocl_get_arg_count(kernel->function);
     unsigned arg;
-
-    for (i = last_id-1; i < work_dim; ++i) {
-      global_ids[i] = global_work_offset ? global_work_offset[i] + ids[i] : ids[i];
-      local_ids[i] = ids[i] / divisors[i];
-    }  
 
     for (arg = 0; arg < argCount; ++arg) {
       switch (klee_ocl_get_arg_type(kernel->function, arg)) {
@@ -152,10 +155,18 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
         default: return CL_INVALID_KERNEL;
       }
     }
+  }
 
-    klee_icall(kernel->function, argList);
-    klee_icall_destroy_arg_list(argList);
+  do {
+    for (i = last_id-1; i < work_dim; ++i) {
+      global_ids[i] = global_work_offset ? global_work_offset[i] + ids[i] : ids[i];
+      local_ids[i] = ids[i] / divisors[i];
+    }  
+
+    invoke_work_item(kernel, argList, work_dim, global_ids, local_ids);
   } while ((last_id = increment_id_list(work_dim, ids, global_work_size)));
+
+  klee_icall_destroy_arg_list(argList);
 
   return CL_SUCCESS;
 }
