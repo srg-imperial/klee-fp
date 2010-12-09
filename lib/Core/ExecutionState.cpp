@@ -97,6 +97,44 @@ ExecutionState::ExecutionState(const std::vector<ref<Expr> > &assumptions)
 
 }
 
+ExecutionState::ExecutionState(const ExecutionState &that)
+  : fnAliases(that.fnAliases),
+    fakeState(that.fakeState),
+    depth(that.depth),
+    forkDisabled(that.forkDisabled),
+    queryCost(that.queryCost),
+    weight(that.weight),
+    pathOS(that.pathOS),
+    symPathOS(that.symPathOS),
+    instsSinceCovNew(that.instsSinceCovNew),
+    coveredNew(that.coveredNew),
+    coveredLines(that.coveredLines),
+    ptreeNode(that.ptreeNode),
+    crtForkReason(that.crtForkReason),
+    crtSpecialFork(that.crtSpecialFork),
+    wgAddressSpaces(),
+    symbolics(that.symbolics),
+    globalConstraints(that.globalConstraints),
+    threads(that.threads),
+    processes(that.processes),
+    waitingLists(that.waitingLists),
+    wlistCounter(that.wlistCounter),
+    stateTime(that.stateTime),
+    addressPool(that.addressPool),
+    cowDomain(that.cowDomain),
+    thrCowDomain(that.thrCowDomain),
+    wgCowDomain(that.wgCowDomain),
+    crtThreadIt(that.crtThreadIt),
+    crtProcessIt(that.crtProcessIt),
+    preemptions(that.preemptions),
+    watchpoint(that.watchpoint),
+    watchpointSize(that.watchpointSize) {
+  for(std::vector<AddressSpace*>::const_iterator i=that.wgAddressSpaces.begin(),
+      e = that.wgAddressSpaces.end(); i != e; ++i) {
+    wgAddressSpaces.push_back(new AddressSpace(**i));
+  }
+}
+
 void ExecutionState::setupTime() {
   stateTime = 1284138206L * 1000000L; // Yeah, ugly, but what else? :)
 }
