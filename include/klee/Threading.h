@@ -93,6 +93,7 @@ public:
 
   thread_id_t getTid() const { return tuid.first; }
   process_id_t getPid() const { return tuid.second; }
+  void setWorkgroupId(unsigned wgid) { workgroupId = wgid; }
 };
 
 }

@@ -139,6 +139,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_icall", handleICall, false),
   add("klee_icall_destroy_arg_list", handleICallDestroyArgList, false),
   add("klee_create_work_group", handleCreateWorkGroup, true),
+  add("klee_set_work_group_id", handleSetWorkGroupId, false),
 
   add("klee_make_shared", handleMakeShared, false),
   add("klee_get_context", handleGetContext, false),
@@ -1460,6 +1461,14 @@ void SpecialFunctionHandler::handleCreateWorkGroup(ExecutionState &state,
 
   executor.bindLocal(target, state, 
                      ConstantExpr::create(workgroupId, sizeof(unsigned) * 8));
+}
+
+void SpecialFunctionHandler::handleSetWorkGroupId(ExecutionState &state,
+                                                  KInstruction *target,
+                                                  std::vector<ref<Expr> > &arguments) {
+  unsigned workgroupId = cast<ConstantExpr>(arguments[0])->getZExtValue();
+
+  state.crtThread().setWorkgroupId(workgroupId);
 }
 
 void SpecialFunctionHandler::handleSyscall(ExecutionState &state,

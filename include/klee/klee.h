@@ -204,6 +204,9 @@ extern "C" {
   /* Create a new workgroup shared address space. */
   unsigned klee_create_work_group(void);
 
+  /* Set the work group id for this thread to the given id. */
+  void klee_set_work_group_id(unsigned wgid);
+
   //////////////////////////////////////////////////////////////////////////////
   // Thread Scheduling Management
   //////////////////////////////////////////////////////////////////////////////
