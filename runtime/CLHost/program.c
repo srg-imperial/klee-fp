@@ -52,8 +52,8 @@ cl_int clBuildProgram(cl_program program,
   result = program->module ? CL_SUCCESS : CL_BUILD_PROGRAM_FAILURE;
 
   if (program->module) {
-    program->localIds = (size_t *) klee_lookup_module_global(program->module, "_local_ids");
-    program->globalIds = (size_t *) klee_lookup_module_global(program->module, "_global_ids");
+    program->localIds = (__attribute__((address_space(4))) size_t *) klee_lookup_module_global(program->module, "_local_ids");
+    program->globalIds = (__attribute__((address_space(4))) size_t *) klee_lookup_module_global(program->module, "_global_ids");
   }
 
   if (pfn_notify)

@@ -1,4 +1,5 @@
 #include <string.h>
+#include <pthread.h>
 
 #include <CL/cl.h>
 
@@ -88,11 +89,51 @@ static cl_uint increment_id_list(cl_uint work_dim, size_t *ids,
   return 0;
 }
 
+typedef struct _cl_intern_work_item_params {
+  cl_kernel kernel;
+  uintptr_t args;
+  cl_uint work_dim;
+  size_t global_ids[64], local_ids[64];
+} cl_intern_work_item_params;
+
+static __attribute((address_space(4))) void *memcpy40(
+  __attribute((address_space(4))) void *destaddr, void const *srcaddr,
+  size_t len) {
+  __attribute((address_space(4))) char *dest = destaddr;
+  char const *src = srcaddr;
+
+  while (len-- > 0)
+    *dest++ = *src++;
+  return destaddr;
+}
+
+static void *work_item_thread(void *arg) {
+  cl_intern_work_item_params *params = arg;
+  uintptr_t args = params->args;
+  cl_kernel kern = params->kernel;
+  cl_program prog = kern->program;
+
+  memcpy40(prog->globalIds, params->global_ids, sizeof(size_t)*params->work_dim);
+  memcpy40(prog->localIds, params->local_ids, sizeof(size_t)*params->work_dim);
+
+  free(arg);
+  
+  klee_icall(kern->function, args);
+
+  return 0;
+}
+
 static void invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
                              size_t global_ids[], size_t local_ids[]) {
-  memcpy(kern->program->globalIds, global_ids, sizeof(size_t)*work_dim);
-  memcpy(kern->program->localIds, local_ids, sizeof(size_t)*work_dim);
-  klee_icall(kern->function, args);
+  cl_intern_work_item_params *params = malloc(sizeof(cl_intern_work_item_params));
+  pthread_t pt;
+
+  params->kernel = kern;
+  params->work_dim = work_dim;
+  memcpy(params->global_ids, global_ids, sizeof(size_t)*work_dim);
+  memcpy(params->local_ids, local_ids, sizeof(size_t)*work_dim);
+
+  pthread_create(&pt, NULL, work_item_thread, params);
 }
 
 cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
@@ -166,7 +207,7 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
     invoke_work_item(kernel, argList, work_dim, global_ids, local_ids);
   } while ((last_id = increment_id_list(work_dim, ids, global_work_size)));
 
-  klee_icall_destroy_arg_list(argList);
+  // klee_icall_destroy_arg_list(argList);
 
   return CL_SUCCESS;
 }
