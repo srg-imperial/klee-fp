@@ -21,6 +21,7 @@
 #include "llvm/System/Signals.h"
 #else
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/system_error.h"
 #endif
 
 using namespace llvm;
@@ -273,7 +274,14 @@ int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
   std::string ErrorStr;
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
   MemoryBuffer *MB = MemoryBuffer::getFileOrSTDIN(InputFile.c_str(), &ErrorStr);
+#else
+  error_code EC;
+  MemoryBuffer *MB = MemoryBuffer::getFileOrSTDIN(InputFile.c_str(), EC);
+  if (!MB)
+    ErrorStr = EC.message();
+#endif
   if (!MB) {
     std::cerr << argv[0] << ": error: " << ErrorStr << "\n";
     return 1;

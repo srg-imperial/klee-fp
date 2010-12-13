@@ -33,6 +33,7 @@
 #include "llvm/System/Path.h"
 #else
 #include "llvm/Support/Path.h"
+#include "llvm/Support/system_error.h"
 #endif
 #include "llvm/Module.h"
 #include "llvm/Type.h"
@@ -638,7 +639,14 @@ Module* loadByteCode() {
 #else
   std::string ErrorMsg;
   Module *mainModule = 0;
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
   MemoryBuffer *Buffer = MemoryBuffer::getFileOrSTDIN(InputFile, &ErrorMsg);
+#else
+  error_code EC;
+  MemoryBuffer *Buffer = MemoryBuffer::getFileOrSTDIN(InputFile, EC);
+  if (!Buffer)
+    ErrorMsg = EC.message();
+#endif
   if (Buffer) {
     mainModule = getLazyBitcodeModule(Buffer, getGlobalContext(), &ErrorMsg);
     if (!mainModule) delete Buffer;
