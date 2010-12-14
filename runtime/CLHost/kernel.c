@@ -126,18 +126,19 @@ static void *work_item_thread(void *arg) {
   return 0;
 }
 
-static void invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
-                             unsigned wgid, size_t global_ids[], size_t local_ids[]) {
+static int invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
+                            unsigned wgid, size_t global_ids[], size_t local_ids[],
+                            pthread_t *pt) {
   cl_intern_work_item_params *params = malloc(sizeof(cl_intern_work_item_params));
-  pthread_t pt;
 
   params->kernel = kern;
+  params->args = args;
   params->work_dim = work_dim;
   params->wgid = wgid;
   memcpy(params->global_ids, global_ids, sizeof(size_t)*work_dim);
   memcpy(params->local_ids, local_ids, sizeof(size_t)*work_dim);
 
-  pthread_create(&pt, NULL, work_item_thread, params);
+  return pthread_create(pt, NULL, work_item_thread, params);
 }
 
 cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
@@ -149,10 +150,12 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
                               cl_uint num_events_in_wait_list,
                               const cl_event *event_wait_list,
                               cl_event *event) {
-  size_t divisors[64], ids[64], local_ids[64], global_ids[64], workgroup_count;
+  size_t divisors[64], ids[64], local_ids[64], global_ids[64], workgroup_count,
+         work_item_count;
   cl_uint i, last_id;
   uintptr_t argList;
   unsigned *workgroups;
+  pthread_t *work_items, *cur_work_item;
 
   if (!global_work_size)
     return CL_INVALID_GLOBAL_WORK_SIZE;
@@ -174,6 +177,12 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
     memset(global_ids, 0, work_dim*sizeof(size_t));
   memset(local_ids, 0, work_dim*sizeof(size_t));
   last_id = work_dim+1;
+
+  work_item_count = 1;
+  for (i = 0; i < work_dim; ++i)
+    work_item_count *= global_work_size[i];
+
+  cur_work_item = work_items = malloc(sizeof(pthread_t) * work_item_count);
 
   workgroup_count = 1;
   if (local_work_size)
@@ -225,8 +234,13 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
         wgid = wgid*local_work_size[i] + local_ids[i];
 
     invoke_work_item(kernel, argList, work_dim, workgroups[wgid], global_ids,
-        local_ids);
+        local_ids, cur_work_item++);
   } while ((last_id = increment_id_list(work_dim, ids, global_work_size)));
+
+  if (event)
+    *event = create_pthread_event(work_items, work_item_count);
+  else
+    free(work_items);
 
   // klee_icall_destroy_arg_list(argList);
 

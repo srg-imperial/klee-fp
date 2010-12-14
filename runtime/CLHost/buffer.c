@@ -69,6 +69,9 @@ cl_int clEnqueueReadBuffer(cl_command_queue command_queue,
 
   memcpy(ptr, buffer->data+offset, cb);
 
+  if (event)
+    *event = create_pthread_event(0, 0);
+
   return CL_SUCCESS;
 }
 
@@ -88,6 +91,9 @@ cl_int clEnqueueWriteBuffer(cl_command_queue command_queue,
     return CL_INVALID_VALUE;
 
   memcpy(buffer->data+offset, ptr, cb);
+
+  if (event)
+    *event = create_pthread_event(0, 0);
 
   return CL_SUCCESS;
 }

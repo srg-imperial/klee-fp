@@ -48,6 +48,14 @@ struct _cl_command_queue {
   struct _cl_context *context;
 };
 
+struct _cl_event {
+  unsigned refCount;
+  pthread_t *threads;
+  size_t threadCount;
+};
+
+cl_event create_pthread_event(pthread_t *threads, size_t threadCount);
+
 typedef int8_t cl_intern_arg_type;
 
 #define CL_INTERN_ARG_TYPE_I8  0
