@@ -53,6 +53,7 @@
 #endif
 
 #ifdef HAVE_OPENCL
+#include "clang/Basic/Version.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
@@ -1267,6 +1268,7 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   }
   delete argv;
 
+  CI->getHeaderSearchOpts().ResourceDir = LLVM_PREFIX "/lib/clang/" CLANG_VERSION_STRING;
   CI->getFrontendOpts().Inputs.clear();
   CI->getFrontendOpts().Inputs.push_back(std::pair<clang::InputKind, std::string>(
     clang::IK_OpenCL, codeName));

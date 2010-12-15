@@ -37,6 +37,7 @@ else
   CXX.Flags += -I$(PROJ_SRC_ROOT)/stp/include
 endif
 CXX.Flags += -DKLEE_SRC_DIR=\"$(PROJ_SRC_ROOT)\" -DKLEE_DIR=\"$(PROJ_OBJ_ROOT)\"
+CXX.Flags += -DLLVM_PREFIX=\"$(LLVM_OBJ_ROOT)/$(LLVM_BUILD_MODE)\"
 
 # For STP.
 CXX.Flags += -DEXT_HASH_MAP
