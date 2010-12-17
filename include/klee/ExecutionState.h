@@ -74,6 +74,8 @@ public:
   typedef std::map<process_id_t, Process> processes_ty;
   typedef std::map<wlist_id_t, std::set<thread_uid_t> > wlists_ty;
 
+  typedef std::vector<AddressSpace *>::iterator wg_addrspace_iterator;
+
 private:
   // unsupported, use copy constructor
   ExecutionState &operator=(const ExecutionState&); 
@@ -240,6 +242,15 @@ public:
   bool merge(const ExecutionState &b);
 
   StackTrace getStackTrace() const;
+
+  wg_addrspace_iterator wg_addrspace_begin() {
+    return wgAddressSpaces.begin();
+  }
+
+  wg_addrspace_iterator wg_addrspace_end() {
+    return wgAddressSpaces.end();
+  }
+
 };
 
 }
