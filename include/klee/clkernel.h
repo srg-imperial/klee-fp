@@ -66,6 +66,7 @@ typedef __attribute__((ext_vector_type(4))) float float4;
 typedef __attribute__((ext_vector_type(8))) float float8;
 typedef __attribute__((ext_vector_type(16))) float float16;
 
+/* 6.11.1 Work-Item Functions */
 uint get_work_dim(void);
 size_t get_global_size(uint dimindx);
 size_t get_global_id(uint dimindx);
@@ -74,3 +75,12 @@ size_t get_local_id(uint dimindx);
 size_t get_num_groups(uint dimindx);
 size_t get_group_id(uint dimindx);
 size_t get_global_offset(uint dimindx);
+
+/* 6.11.9 Explicit Memory Fence Functions */
+
+typedef enum {
+  CLK_LOCAL_MEM_FENCE = 1,
+  CLK_GLOBAL_MEM_FENCE = 2
+} cl_mem_fence_flags;
+
+void mem_fence(cl_mem_fence_flags flags);
