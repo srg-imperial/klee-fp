@@ -138,6 +138,54 @@ public:
   }
 };
 
+struct MemoryLogEntry {
+  // The id of the thread which initially read from or wrote to this
+  // memory location.
+  unsigned threadId : 28;
+
+  // Set if readWrite=1 and a thread whose id != threadId reads from
+  // this memory location.
+  unsigned manyRead : 1;
+
+  // Set if a read is issued on this memory location.  A write from a
+  // thread whose id != threadId (or if manyRead is set, any write) will
+  // trigger a race diagnostic.
+  unsigned readWrite : 1;
+
+  // Set if a write is issued on this memory location.  A read from a
+  // thread whose id != threadId will trigger a race diagnostic.
+  unsigned writeRead : 1;
+
+  // Set if a write is issued on this memory location.  A write from a
+  // thread whose id != threadId will trigger a race diagnostic.
+  // Encountering a write barrier will reset this flag to 0.
+  unsigned writeWrite : 1;
+};
+
+struct MemoryRace {
+  enum RaceType {
+    RT_readwrite, RT_writewrite
+  };
+
+  RaceType raceType;
+  thread_id_t op1ThreadId, op2ThreadId;
+};
+
+class MemoryLog {
+public:
+  MemoryLog();
+  MemoryLog(const MemoryLog &that);
+  ~MemoryLog();
+
+  std::vector<MemoryLogEntry> concreteEntries;
+
+  bool logRead(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo);
+  bool logWrite(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo);
+
+  bool logRead(thread_id_t threadId, ref<Expr> offset, MemoryRace &raceInfo);
+  bool logWrite(thread_id_t threadId, ref<Expr> offset, MemoryRace &raceInfo);
+};
+
 class ObjectState {
 private:
   friend class AddressSpace;

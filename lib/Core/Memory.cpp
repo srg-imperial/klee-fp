@@ -89,6 +89,51 @@ void MemoryObject::getAllocInfo(std::string &result) const {
 
 /***/
 
+MemoryLog::MemoryLog() {}
+MemoryLog::MemoryLog(const MemoryLog &that) : concreteEntries(that.concreteEntries) {}
+MemoryLog::~MemoryLog() {}
+
+bool MemoryLog::logRead(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo) {
+  MemoryLogEntry &entry = concreteEntries[offset];
+
+  if (entry.writeRead && entry.threadId != threadId) {
+    raceInfo.raceType = MemoryRace::RT_readwrite;
+    raceInfo.op1ThreadId = threadId;
+    raceInfo.op2ThreadId = entry.threadId;
+    return true;
+  }
+
+  if (entry.readWrite) {
+    if (entry.threadId != threadId)
+      entry.manyRead = 1;
+  } else {
+    entry.threadId = threadId;
+    entry.readWrite = 1;
+  }
+  
+  return false;
+}
+
+bool MemoryLog::logWrite(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo) {
+  MemoryLogEntry &entry = concreteEntries[offset];
+
+  if ((entry.readWrite || entry.writeWrite) && entry.threadId != threadId) {
+    raceInfo.raceType = entry.readWrite ? MemoryRace::RT_readwrite : MemoryRace::RT_writewrite;
+    raceInfo.op1ThreadId = entry.threadId;
+    raceInfo.op2ThreadId = threadId;
+    return true;
+  }
+
+  if (!(entry.writeRead || entry.writeWrite)) {
+    entry.threadId = threadId;
+    entry.writeRead = entry.writeWrite = 1;
+  }
+
+  return false;
+}
+
+/***/
+
 ObjectState::ObjectState(const MemoryObject *mo)
   : copyOnWriteOwner(0),
     refCount(0),
