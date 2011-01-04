@@ -208,6 +208,9 @@ private:
   // mutable because we may need flush during read of const
   mutable UpdateList updates;
 
+  // mutable because we log reads as well as writes
+  mutable MemoryLog memoryLog;
+
 public:
   unsigned size;
 

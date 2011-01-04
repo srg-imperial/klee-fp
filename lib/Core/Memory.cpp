@@ -410,6 +410,11 @@ void ObjectState::setKnownSymbolic(unsigned offset,
 /***/
 
 ref<Expr> ObjectState::read8(thread_id_t threadId, unsigned offset) const {
+  MemoryRace race;
+  if (memoryLog.logRead(threadId, offset, race)) {
+    llvm::errs() << "memory read: race detected\n";
+  }
+
   if (isByteConcrete(offset)) {
     return ConstantExpr::create(concreteStore[offset], Expr::Int8);
   } else if (isByteKnownSymbolic(offset)) {
@@ -441,6 +446,11 @@ ref<Expr> ObjectState::read8(thread_id_t threadId, ref<Expr> offset) const {
 
 void ObjectState::write8(thread_id_t threadId, unsigned offset, uint8_t value) {
   //assert(read_only == false && "writing to read-only object!");
+  MemoryRace race;
+  if (memoryLog.logWrite(threadId, offset, race)) {
+    llvm::errs() << "memory write: race detected\n";
+  }
+
   concreteStore[offset] = value;
   setKnownSymbolic(offset, 0);
 
