@@ -139,6 +139,9 @@ public:
 };
 
 struct MemoryLogEntry {
+  MemoryLogEntry() : threadId(0), manyRead(0), readWrite(0), writeRead(0),
+                     writeWrite(0) {}
+
   // The id of the thread which initially read from or wrote to this
   // memory location.
   unsigned threadId : 28;

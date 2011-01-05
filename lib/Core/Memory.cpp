@@ -94,7 +94,8 @@ MemoryLog::MemoryLog(const MemoryLog &that) : concreteEntries(that.concreteEntri
 MemoryLog::~MemoryLog() {}
 
 bool MemoryLog::logRead(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo) {
-  concreteEntries.reserve(offset+1);
+  if (concreteEntries.size() < offset+1)
+    concreteEntries.resize(offset+1);
   MemoryLogEntry &entry = concreteEntries[offset];
 
   if (entry.writeRead && entry.threadId != threadId) {
@@ -116,7 +117,8 @@ bool MemoryLog::logRead(thread_id_t threadId, unsigned offset, MemoryRace &raceI
 }
 
 bool MemoryLog::logWrite(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo) {
-  concreteEntries.reserve(offset+1);
+  if (concreteEntries.size() < offset+1)
+    concreteEntries.resize(offset+1);
   MemoryLogEntry &entry = concreteEntries[offset];
 
   if ((entry.readWrite || entry.writeWrite) && entry.threadId != threadId) {
