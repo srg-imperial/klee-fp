@@ -163,6 +163,8 @@ public:
   void notifyOne(wlist_id_t wlist, thread_uid_t tid);
   void notifyAll(wlist_id_t wlist);
 
+  bool barrierThread(wlist_id_t wlist, unsigned threadCount, unsigned addrSpace);
+
   threads_ty::iterator crtThreadIt;
   processes_ty::iterator crtProcessIt;
 

@@ -641,3 +641,7 @@ void ObjectState::print() {
     std::cerr << "\t\t[" << un->index << "] = " << un->value << "\n";
   }
 }
+
+void ObjectState::resetMemoryLog() {
+  memoryLog = MemoryLog();
+}

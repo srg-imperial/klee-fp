@@ -148,6 +148,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_thread_preempt", handleThreadPreempt, false),
   add("klee_thread_sleep", handleThreadSleep, false),
   add("klee_thread_notify", handleThreadNotify, false),
+  add("klee_thread_barrier", handleThreadBarrier, false),
   add("klee_warning", handleWarning, false),
   add("klee_warning_once", handleWarningOnce, false),
   add("klee_alias_function", handleAliasFunction, false),
@@ -1000,6 +1001,30 @@ void SpecialFunctionHandler::handleThreadNotify(ExecutionState &state,
     // It's simple enough such that it can be handled by the state class itself
     state.notifyAll(cast<ConstantExpr>(wlist)->getZExtValue());
   }
+}
+
+void SpecialFunctionHandler::handleThreadBarrier(ExecutionState &state,
+                    KInstruction *target,
+                    std::vector<ref<Expr> > &arguments) {
+
+  assert(arguments.size() == 3 && "invalid number of arguments to klee_thread_barrier");
+
+  ref<Expr> barrierIdX = executor.toUnique(state, arguments[0]);
+  ref<Expr> threadCountX = executor.toUnique(state, arguments[1]);
+  ref<Expr> addrSpaceX = executor.toUnique(state, arguments[2]);
+
+  if (!isa<ConstantExpr>(barrierIdX) || !isa<ConstantExpr>(threadCountX)
+   || !isa<ConstantExpr>(addrSpaceX)) {
+    executor.terminateStateOnError(state, "klee_thread_barrier", "user.err");
+    return;
+  }
+
+  wlist_id_t barrierId = cast<ConstantExpr>(barrierIdX)->getZExtValue();
+  unsigned threadCount = cast<ConstantExpr>(threadCountX)->getZExtValue();
+  unsigned addrSpace = cast<ConstantExpr>(addrSpaceX)->getZExtValue();
+
+  if (state.barrierThread(barrierId, threadCount, addrSpace))
+    executor.schedule(state, false);
 }
 
 void SpecialFunctionHandler::handleThreadCreate(ExecutionState &state,

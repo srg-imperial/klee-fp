@@ -136,6 +136,7 @@ namespace klee {
     HANDLER(handleThreadNotify);
     HANDLER(handleThreadPreempt);
     HANDLER(handleThreadSleep);
+    HANDLER(handleThreadBarrier);
     HANDLER(handleThreadTerminate);
     HANDLER(handleUnderConstrained);
     HANDLER(handleValloc);

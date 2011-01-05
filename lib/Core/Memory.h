@@ -256,6 +256,8 @@ public:
   void write32(thread_id_t threadId, unsigned offset, uint32_t value);
   void write64(thread_id_t threadId, unsigned offset, uint64_t value);
 
+  void resetMemoryLog();
+
 private:
   const UpdateList &getUpdates() const;
 

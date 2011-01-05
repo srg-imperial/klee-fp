@@ -227,6 +227,8 @@ extern "C" {
 
   void klee_thread_notify(uint64_t wlist, int all);
 
+  void klee_thread_barrier(uint64_t wlist, unsigned tcount, unsigned addrspace);
+
   static inline void klee_thread_notify_one(uint64_t wlist) {
     klee_thread_notify(wlist, 0);
   }

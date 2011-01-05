@@ -287,6 +287,31 @@ void ExecutionState::sleepThread(wlist_id_t wlist) {
   wl.insert(crtThread().tuid);
 }
 
+bool ExecutionState::barrierThread(wlist_id_t wlist, unsigned threadCount,  unsigned addrSpace) {
+  assert(crtThread().enabled);
+  assert(wlist > 0);
+
+  std::set<thread_uid_t> &wl = waitingLists[wlist];
+  if (wl.size() == threadCount-1) {
+    AddressSpace &as = addressSpace(addrSpace);
+    for (MemoryMap::iterator it = as.objects.begin(), ie = as.objects.end(); 
+         it != ie; ++it) {
+      (*it->second).resetMemoryLog();
+    }
+
+    notifyAll(wlist);
+
+    return false;
+  } else {
+    crtThread().enabled = false;
+    crtThread().waitingList = wlist;
+
+    wl.insert(crtThread().tuid);
+
+    return true;
+  }
+}
+
 void ExecutionState::notifyOne(wlist_id_t wlist, thread_uid_t tuid) {
   assert(wlist > 0);
 
