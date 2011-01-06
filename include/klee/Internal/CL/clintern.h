@@ -17,6 +17,8 @@ struct _cl_program {
   size_t sourceSize;
   uintptr_t module;
   __attribute__((address_space(4))) size_t *localIds, *globalIds;
+  __attribute__((address_space(4))) uint64_t *wgBarrierWlist;
+  unsigned *wgBarrierSize;
 };
 
 struct _cl_mem {

@@ -54,6 +54,8 @@ cl_int clBuildProgram(cl_program program,
   if (program->module) {
     program->localIds = (__attribute__((address_space(4))) size_t *) klee_lookup_module_global(program->module, "_local_ids");
     program->globalIds = (__attribute__((address_space(4))) size_t *) klee_lookup_module_global(program->module, "_global_ids");
+    program->wgBarrierWlist = (__attribute__((address_space(4))) uint64_t *) klee_lookup_module_global(program->module, "_wg_barrier_wlist");
+    program->wgBarrierSize = (unsigned *) klee_lookup_module_global(program->module, "_wg_barrier_size");
   }
 
   if (pfn_notify)
