@@ -475,6 +475,11 @@ void ObjectState::write8(thread_id_t threadId, unsigned offset, ref<Expr> value)
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
     write8(threadId, offset, (uint8_t) CE->getZExtValue(8));
   } else {
+    MemoryRace race;
+    if (memoryLog.logWrite(threadId, offset, race)) {
+      llvm::errs() << "memory write: race detected\n";
+    }
+
     setKnownSymbolic(offset, value.get());
       
     markByteSymbolic(offset);
