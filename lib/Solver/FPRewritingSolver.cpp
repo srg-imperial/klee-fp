@@ -15,6 +15,8 @@
 
 #include "klee/util/ExprUtil.h"
 
+#include "llvm/Support/CommandLine.h"
+
 #include <map>
 #include <vector>
 #include <ostream>
@@ -22,6 +24,13 @@
 
 using namespace klee;
 using namespace llvm;
+
+namespace {
+  cl::opt<bool>
+  AssumeOrdered("assume-ordered", 
+                   llvm::cl::desc("Assume all operands to floating point expressions are ordered"),
+                   llvm::cl::init(false));
+}
 
 
 class FPRewritingSolver : public SolverImpl {
@@ -89,8 +98,13 @@ bool collectFMinMax(ref<Expr> &e, std::set<ref<Expr> > &ops, MinMax &mm) {
     return false;
 
   FCmpExpr::Predicate p = cmp->getPredicate();
-  if ((p & (FCmpExpr::OLT | FCmpExpr::OGT | FCmpExpr::UNO)) != FCmpExpr::OLT)
-    return false;
+  if (AssumeOrdered) {
+    if ((p & (FCmpExpr::OLT | FCmpExpr::OGT)) != FCmpExpr::OLT)
+      return false;
+  } else {
+    if ((p & (FCmpExpr::OLT | FCmpExpr::OGT | FCmpExpr::UNO)) != FCmpExpr::OLT)
+      return false;
+  }
 
   ref<Expr> e0 = se->getKid(1);
   ref<Expr> e1 = se->getKid(2);
@@ -99,7 +113,12 @@ bool collectFMinMax(ref<Expr> &e, std::set<ref<Expr> > &ops, MinMax &mm) {
     if (mm == mmMax)
       return false;
     mm = mmMin;
-    if (!collectFMinMax(e1, ops, mm)) return false;
+    if (!collectFMinMax(e1, ops, mm)) {
+      if (AssumeOrdered)
+        ops.insert(e1);
+      else
+        return false;
+    }
     if (!collectFMinMax(e0, ops, mm)) ops.insert(e0);
     return true;
   }
@@ -108,7 +127,12 @@ bool collectFMinMax(ref<Expr> &e, std::set<ref<Expr> > &ops, MinMax &mm) {
     if (mm == mmMin)
       return false;
     mm = mmMax;
-    if (!collectFMinMax(e1, ops, mm)) return false;
+    if (!collectFMinMax(e1, ops, mm)) {
+      if (AssumeOrdered)
+        ops.insert(e1);
+      else
+        return false;
+    }
     if (!collectFMinMax(e0, ops, mm)) ops.insert(e0);
     return true;
   }
