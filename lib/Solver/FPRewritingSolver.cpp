@@ -197,18 +197,21 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs, boo
       }
       std::set<ref<Expr> > lhsOps, rhsOps;
       MinMax lhsMM = mmUnknown, rhsMM = mmUnknown;
-      if (isUnordered &&
-          collectFMinMax(lhs, lhsOps, lhsMM) &&
-          collectFMinMax(rhs, rhsOps, rhsMM) &&
-          lhsMM == rhsMM && lhsOps == rhsOps) {
+      if (collectFMinMax(lhs, lhsOps, lhsMM) &&
+          collectFMinMax(rhs, rhsOps, rhsMM)) {
 #if 0
-        std::cerr << "collectFMinMax matched min/max exprs: mm = " << lhsMM << ", ops = {" << std::endl;
+        std::cerr << "collectFMinMax found min/max exprs: lhs mm = " << lhsMM << ", lhs ops = {" << std::endl;
         for (std::set<ref<Expr> >::iterator i = lhsOps.begin(), e = lhsOps.end(); i != e; ++i) {
+          (*i)->dump();
+        }
+        std::cerr << "}, rhs mm = " << rhsMM << ", rhs ops = {" << std::endl;
+        for (std::set<ref<Expr> >::iterator i = rhsOps.begin(), e = rhsOps.end(); i != e; ++i) {
           (*i)->dump();
         }
         std::cerr << "}" << std::endl;
 #endif
-        return ConstantExpr::alloc(1, Expr::Bool);
+        if (lhsMM == rhsMM && lhsOps == rhsOps)
+          return ConstantExpr::alloc(1, Expr::Bool);
       }
       return ConstantExpr::alloc(0, Expr::Bool);
     }
