@@ -15,6 +15,8 @@
 
 #include "klee/util/ExprUtil.h"
 
+#include "llvm/Support/CommandLine.h"
+
 #include <map>
 #include <vector>
 #include <ostream>
@@ -22,6 +24,13 @@
 
 using namespace klee;
 using namespace llvm;
+
+namespace {
+  cl::opt<bool>
+  AssumeOrdered("assume-ordered", 
+                   llvm::cl::desc("Assume all operands to floating point expressions are ordered"),
+                   llvm::cl::init(false));
+}
 
 
 class FPRewritingSolver : public SolverImpl {
@@ -50,6 +59,86 @@ public:
                             std::vector< std::vector<unsigned char> > &values,
                             bool &hasSolution);
 };
+
+enum MinMax { mmUnknown, mmMin, mmMax };
+
+// Given an expression, if that expression represents a commutative
+// floating point min or max operation over any number of operands,
+// return true.
+//
+// Commutative min and max operations look like this:
+//   min(a, min(b, min(c, +Inf))) -> {a, b, c}
+// or
+//   max(a, max(b, max(c, -Inf))) -> {a, b, c}
+//
+// Any operand to a commutative min or max operation may also itself be
+// a commutative min or max operation, in which case all operands are
+// included in the operand set.
+// E.g.
+//   min(min(min(a, +Inf), min(b, +Inf)), min(c, +Inf)) -> {a, b, c}
+//
+// The list of operands is returned through ops and the type of
+// operation (min or max) through mm.
+bool collectFMinMax(ref<Expr> &e, std::set<ref<Expr> > &ops, MinMax &mm) {
+  if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e)) {
+    APFloat apf = ce->getAPFloatValue();
+    if (mm == mmMin && apf.isInfinity() && !apf.isNegative())
+      return true;
+    if (mm == mmMax && apf.isInfinity() && apf.isNegative())
+      return true;
+    return false;
+  }
+
+  SelectExpr *se = dyn_cast<SelectExpr>(e);
+  if (!se)
+    return false;
+
+  FCmpExpr *cmp = dyn_cast<FCmpExpr>(se->getKid(0));
+  if (!cmp)
+    return false;
+
+  FCmpExpr::Predicate p = cmp->getPredicate();
+  if (AssumeOrdered) {
+    if ((p & (FCmpExpr::OLT | FCmpExpr::OGT)) != FCmpExpr::OLT)
+      return false;
+  } else {
+    if ((p & (FCmpExpr::OLT | FCmpExpr::OGT | FCmpExpr::UNO)) != FCmpExpr::OLT)
+      return false;
+  }
+
+  ref<Expr> e0 = se->getKid(1);
+  ref<Expr> e1 = se->getKid(2);
+
+  if (e0 == cmp->getKid(0) && e1 == cmp->getKid(1)) {
+    if (mm == mmMax)
+      return false;
+    mm = mmMin;
+    if (!collectFMinMax(e1, ops, mm)) {
+      if (AssumeOrdered)
+        ops.insert(e1);
+      else
+        return false;
+    }
+    if (!collectFMinMax(e0, ops, mm)) ops.insert(e0);
+    return true;
+  }
+
+  if (e0 == cmp->getKid(1) && e1 == cmp->getKid(0)) {
+    if (mm == mmMin)
+      return false;
+    mm = mmMax;
+    if (!collectFMinMax(e1, ops, mm)) {
+      if (AssumeOrdered)
+        ops.insert(e1);
+      else
+        return false;
+    }
+    if (!collectFMinMax(e0, ops, mm)) ops.insert(e0);
+    return true;
+  }
+
+  return false;
+}
 
 /* Given a pair of floating point expressions lhs and rhs, return an expression
  * which is a sufficient condition for lhs == rhs (unordered or bitwise
@@ -128,6 +217,24 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs, boo
       if (lhs->getKid(1) == rhs->getKid(2) && lhs->getKid(2) == rhs->getKid(1)) {
         rhsCond = Expr::createIsZero(rhsCond);
         if (lhsCond == rhsCond)
+          return ConstantExpr::alloc(1, Expr::Bool);
+      }
+      std::set<ref<Expr> > lhsOps, rhsOps;
+      MinMax lhsMM = mmUnknown, rhsMM = mmUnknown;
+      if (collectFMinMax(lhs, lhsOps, lhsMM) &&
+          collectFMinMax(rhs, rhsOps, rhsMM)) {
+#if 0
+        std::cerr << "collectFMinMax found min/max exprs: lhs mm = " << lhsMM << ", lhs ops = {" << std::endl;
+        for (std::set<ref<Expr> >::iterator i = lhsOps.begin(), e = lhsOps.end(); i != e; ++i) {
+          (*i)->dump();
+        }
+        std::cerr << "}, rhs mm = " << rhsMM << ", rhs ops = {" << std::endl;
+        for (std::set<ref<Expr> >::iterator i = rhsOps.begin(), e = rhsOps.end(); i != e; ++i) {
+          (*i)->dump();
+        }
+        std::cerr << "}" << std::endl;
+#endif
+        if (lhsMM == rhsMM && lhsOps == rhsOps)
           return ConstantExpr::alloc(1, Expr::Bool);
       }
       return ConstantExpr::alloc(0, Expr::Bool);
