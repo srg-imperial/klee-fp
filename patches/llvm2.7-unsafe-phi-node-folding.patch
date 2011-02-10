@@ -1,5 +1,5 @@
---- lib/Transforms/Utils/SimplifyCFG.cpp.orig	2010-08-13 21:30:40.000000000 +0100
-+++ lib/Transforms/Utils/SimplifyCFG.cpp	2010-08-13 21:31:49.000000000 +0100
+--- a/lib/Transforms/Utils/SimplifyCFG.cpp.orig	2010-08-13 21:30:40.000000000 +0100
++++ b/lib/Transforms/Utils/SimplifyCFG.cpp	2010-08-13 21:31:49.000000000 +0100
 @@ -42,6 +42,10 @@
  PHINodeFoldingThreshold("phi-node-folding-threshold", cl::Hidden, cl::init(2),
     cl::desc("Control the amount of phi node folding to perform (default = 2)"));
