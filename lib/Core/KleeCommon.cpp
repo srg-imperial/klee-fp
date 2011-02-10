@@ -19,7 +19,9 @@
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
 #include "llvm/System/Path.h"
 #else
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/FileSystem.h"
 #endif
 
 #include <string>
@@ -27,11 +29,26 @@
 
 using llvm::sys::Path;
 
+#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+using namespace llvm::sys::fs;
+using llvm::SmallString;
+#endif
+
 static const std::string &PathToString(Path &path) {
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
   return path.toString();
 #else
   return path.str();
+#endif
+}
+
+static void MakeAbsolute(Path &path) {
+#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+  path.makeAbsolute();
+#else
+  SmallString<64> pathStr(llvm::StringRef(path.str()));
+  make_absolute(pathStr);
+  path = pathStr;
 #endif
 }
 
@@ -46,13 +63,13 @@ std::string getKleePath() {
 
 		if (kleePath.isValid()) {
 			// The path exists, so we return it
-			kleePath.makeAbsolute();
+			MakeAbsolute(kleePath);
 			return PathToString(kleePath);
 		}
 	}
 
 	kleePath = Path(KLEE_DIR);
-	kleePath.makeAbsolute();
+        MakeAbsolute(kleePath);
 	return PathToString(kleePath);
 }
 
@@ -74,13 +91,13 @@ std::string getUclibcPath() {
 		uclibcPath = Path(uclibcPathName);
 
 		if (uclibcPath.isValid()) {
-			uclibcPath.makeAbsolute();
+			MakeAbsolute(uclibcPath);
 			return PathToString(uclibcPath);
 		}
 	}
 
 	uclibcPath = Path(KLEE_UCLIBC);
-	uclibcPath.makeAbsolute();
+        MakeAbsolute(uclibcPath);
 
 	return PathToString(uclibcPath);
 }

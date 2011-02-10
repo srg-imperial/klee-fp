@@ -53,18 +53,18 @@ int main(int argc, char **argv) {
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
   if (MemoryBuffer *Buffer
          = MemoryBuffer::getFileOrSTDIN(InputFilename, &ErrorMessage)) {
-#else
-  error_code EC;
-  if (MemoryBuffer *Buffer
-         = MemoryBuffer::getFileOrSTDIN(InputFilename, EC)) {
-#endif
     M.reset(ParseBitcodeFile(Buffer, Context, &ErrorMessage));
     delete Buffer;
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
-  } else {
-    ErrorMessage = EC.message();
-#endif
   }
+#else
+  OwningPtr<MemoryBuffer> Buffer;
+  if (error_code EC
+         = MemoryBuffer::getFileOrSTDIN(InputFilename, Buffer)) {
+    ErrorMessage = EC.message();
+  } else {
+    M.reset(ParseBitcodeFile(Buffer.get(), Context, &ErrorMessage));
+  }
+#endif
 
   if (M.get() == 0) {
     errs() << argv[0] << ": ";

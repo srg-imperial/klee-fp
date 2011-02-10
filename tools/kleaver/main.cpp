@@ -274,11 +274,11 @@ int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
   std::string ErrorStr;
+  OwningPtr<MemoryBuffer> MB;
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
-  MemoryBuffer *MB = MemoryBuffer::getFileOrSTDIN(InputFile.c_str(), &ErrorStr);
+  MB.reset(MemoryBuffer::getFileOrSTDIN(InputFile.c_str(), &ErrorStr));
 #else
-  error_code EC;
-  MemoryBuffer *MB = MemoryBuffer::getFileOrSTDIN(InputFile.c_str(), EC);
+  error_code EC = MemoryBuffer::getFileOrSTDIN(InputFile.c_str(), MB);
   if (!MB)
     ErrorStr = EC.message();
 #endif
@@ -305,22 +305,21 @@ int main(int argc, char **argv) {
 
   switch (ToolAction) {
   case PrintTokens:
-    PrintInputTokens(MB);
+    PrintInputTokens(MB.get());
     break;
   case PrintAST:
-    success = PrintInputAST(InputFile=="-" ? "<stdin>" : InputFile.c_str(), MB,
+    success = PrintInputAST(InputFile=="-" ? "<stdin>" : InputFile.c_str(), MB.get(),
                             Builder);
     break;
   case Evaluate:
     success = EvaluateInputAST(InputFile=="-" ? "<stdin>" : InputFile.c_str(),
-                               MB, Builder);
+                               MB.get(), Builder);
     break;
   default:
     std::cerr << argv[0] << ": error: Unknown program action!\n";
   }
 
   delete Builder;
-  delete MB;
 
   llvm::llvm_shutdown();
   return success ? 0 : 1;

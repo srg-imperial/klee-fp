@@ -639,17 +639,17 @@ Module* loadByteCode() {
 #else
   std::string ErrorMsg;
   Module *mainModule = 0;
+  OwningPtr<MemoryBuffer> Buffer;
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
-  MemoryBuffer *Buffer = MemoryBuffer::getFileOrSTDIN(InputFile, &ErrorMsg);
+  Buffer.reset(MemoryBuffer::getFileOrSTDIN(InputFile, &ErrorMsg));
 #else
-  error_code EC;
-  MemoryBuffer *Buffer = MemoryBuffer::getFileOrSTDIN(InputFile, EC);
+  error_code EC = MemoryBuffer::getFileOrSTDIN(InputFile, Buffer);
   if (!Buffer)
     ErrorMsg = EC.message();
 #endif
   if (Buffer) {
-    mainModule = getLazyBitcodeModule(Buffer, getGlobalContext(), &ErrorMsg);
-    if (!mainModule) delete Buffer;
+    mainModule = getLazyBitcodeModule(Buffer.get(), getGlobalContext(),
+                                      &ErrorMsg);
   }
   if (mainModule) {
     if (mainModule->MaterializeAllPermanently(&ErrorMsg)) {
