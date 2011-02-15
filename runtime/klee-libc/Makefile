@@ -21,3 +21,6 @@ NO_PEDANTIC=1
 C.Flags += -D__NO_INLINE__
 
 include $(LEVEL)/Makefile.common
+
+C.Flags += -fno-builtin
+LOPT.Flags += -disable-simplify-libcalls

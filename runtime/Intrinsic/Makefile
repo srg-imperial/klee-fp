@@ -18,3 +18,6 @@ DEBUG_RUNTIME=1
 NO_PEDANTIC=1
 
 include $(LEVEL)/Makefile.common
+
+C.Flags += -fno-builtin
+LOPT.Flags += -disable-simplify-libcalls
