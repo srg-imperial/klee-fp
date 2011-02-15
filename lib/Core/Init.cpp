@@ -660,6 +660,7 @@ Module* loadByteCode() {
   if (!mainModule)
     klee_error("error loading program '%s': %s", InputFile.c_str(),
                ErrorMsg.c_str());
+  Buffer.take();
 #endif
 
   return mainModule;
