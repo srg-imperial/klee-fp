@@ -164,6 +164,9 @@ HandlerInfo handlerInfo[] = {
   add("klee_get_time", handleGetTime, true),
   add("klee_set_time", handleSetTime, false),
 
+  add("klee_sqrt", handleSqrt, true),
+  add("klee_sqrtf", handleSqrt, true),
+
   add("malloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
   add("valloc", handleValloc, true),
@@ -1527,4 +1530,11 @@ void SpecialFunctionHandler::handleSyscall(ExecutionState &state,
   } else {
     executor.terminateStateOnError(state, "syscall requires a concrete syscall number", "user.err");
   }
+}
+
+void SpecialFunctionHandler::handleSqrt(ExecutionState &state,
+                                        KInstruction *target,
+                                        std::vector<ref<Expr> > &arguments) {
+  executor.bindLocal(target, state, 
+                     FSqrtExpr::create(arguments[0], false));
 }

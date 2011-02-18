@@ -251,6 +251,9 @@ extern "C" {
   // klee_debug accepts either a set of 32-bit integers, or a single 64-bit value (char*).
   void klee_debug(const char *format, ...);
 
+  float klee_sqrtf(float);
+  double klee_sqrt(double);
+
   //////////////////////////////////////////////////////////////////////////////
   // Address spaces
   //////////////////////////////////////////////////////////////////////////////

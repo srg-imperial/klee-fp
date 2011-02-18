@@ -152,6 +152,7 @@ namespace klee {
     HANDLER(handleICallDestroyArgList);
     HANDLER(handleCreateWorkGroup);
     HANDLER(handleSetWorkGroupId);
+    HANDLER(handleSqrt);
 #undef HANDLER
   };
 } // End klee namespace
