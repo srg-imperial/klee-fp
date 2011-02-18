@@ -77,6 +77,18 @@ size_t get_num_groups(uint dimindx);
 size_t get_group_id(uint dimindx);
 size_t get_global_offset(uint dimindx);
 
+/* 6.11.2 Math Functions */
+
+#define DECLARE_NATIVE_DIVIDE(__gentype) \
+__attribute__((overloadable)) __gentype native_divide(__gentype x, __gentype y);
+
+DECLARE_NATIVE_DIVIDE(float)
+DECLARE_NATIVE_DIVIDE(float2)
+DECLARE_NATIVE_DIVIDE(float3)
+DECLARE_NATIVE_DIVIDE(float4)
+DECLARE_NATIVE_DIVIDE(float8)
+DECLARE_NATIVE_DIVIDE(float16)
+
 /* 6.11.9 Explicit Memory Fence Functions */
 
 typedef enum {
