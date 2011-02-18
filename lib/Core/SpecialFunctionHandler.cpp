@@ -1306,15 +1306,13 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   CI->getTargetOpts().Triple = sys::getHostTriple();
 
   clang::CompilerInstance Clang;
-  Clang.setLLVMContext(&getGlobalContext());
   Clang.setInvocation(CI.take());
   Clang.setDiagnostics(Diag);
 
-  OwningPtr<clang::CodeGenAction> Act(new clang::EmitLLVMOnlyAction);
+  OwningPtr<clang::CodeGenAction> Act(new clang::EmitLLVMOnlyAction(&getGlobalContext()));
   if (!Clang.ExecuteAction(*Act)) {
     executor.bindLocal(target, state, 
                        ConstantExpr::create(0, sizeof(uintptr_t) * 8));
-    Clang.takeLLVMContext();
     return;
   }
 
@@ -1334,7 +1332,6 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
                      ConstantExpr::create((uintptr_t) Mod,
                                           sizeof(uintptr_t) * 8));
 
-  Clang.takeLLVMContext();
 #else
   executor.terminateStateOnError(state, 
                                  "OpenCL support not available", 
