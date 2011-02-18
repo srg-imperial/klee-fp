@@ -2926,7 +2926,11 @@ void Executor::callUnmodelledFunction(ExecutionState &state,
     }
   }
 
-  state.addressSpace().copyOutConcretes(&state.addressPool);
+  bool isReadNone = function->hasFnAttr(Attribute::ReadNone),
+       isReadOnly = function->hasFnAttr(Attribute::ReadOnly);
+
+  if (!isReadNone)
+    state.addressSpace().copyOutConcretes(&state.addressPool);
 
   if (!SuppressExternalWarnings) {
     std::ostringstream os;
@@ -2951,10 +2955,12 @@ void Executor::callUnmodelledFunction(ExecutionState &state,
     return;
   }
 
-  if (!state.addressSpace().copyInConcretes(&state.addressPool)) {
-    terminateStateOnError(state, "external modified read-only object",
-                          "external.err");
-    return;
+  if (!isReadNone && !isReadOnly) {
+    if (!state.addressSpace().copyInConcretes(&state.addressPool)) {
+      terminateStateOnError(state, "external modified read-only object",
+                            "external.err");
+      return;
+    }
   }
 
   const Type *resultType = target->inst->getType();
