@@ -38,14 +38,13 @@ cl_mem clCreateBuffer(cl_context context,
   if (flags & CL_MEM_USE_HOST_PTR) {
     mem->data = host_ptr;
     mem->ownsData = 0;
-  }
-
-  if (flags & (CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR)) {
+  } else {
     mem->data = malloc(size);
     mem->ownsData = 1;
-    if (flags & CL_MEM_COPY_HOST_PTR)
-      memcpy(mem->data, host_ptr, size);
   }
+
+  if (flags & CL_MEM_COPY_HOST_PTR)
+    memcpy(mem->data, host_ptr, size);
 
   if (errcode_ret)
     *errcode_ret = CL_SUCCESS;
