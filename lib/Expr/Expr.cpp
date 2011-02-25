@@ -121,6 +121,8 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(FPToSI);
     X(FOrd1);
     X(FSqrt);
+    X(FCos);
+    X(FSin);
     X(Add);
     X(Sub);
     X(Mul);
@@ -626,6 +628,30 @@ ref<ConstantExpr> ConstantExpr::FSqrt(bool isIEEE) {
     return ConstantExpr::create(APFloat(sqrt(d)));
   } else {
     assert(0 && "Unknown bitwidth for sqrt");
+  }
+}
+
+ref<ConstantExpr> ConstantExpr::FCos(bool isIEEE) {
+  if (getWidth() == 32) {
+    float f = getAPFloatValue(isIEEE).convertToFloat();
+    return ConstantExpr::create(APFloat(cosf(f)));
+  } else if (getWidth() == 64) {
+    double d = getAPFloatValue(isIEEE).convertToDouble();
+    return ConstantExpr::create(APFloat(cos(d)));
+  } else {
+    assert(0 && "Unknown bitwidth for cos");
+  }
+}
+
+ref<ConstantExpr> ConstantExpr::FSin(bool isIEEE) {
+  if (getWidth() == 32) {
+    float f = getAPFloatValue(isIEEE).convertToFloat();
+    return ConstantExpr::create(APFloat(sinf(f)));
+  } else if (getWidth() == 64) {
+    double d = getAPFloatValue(isIEEE).convertToDouble();
+    return ConstantExpr::create(APFloat(sin(d)));
+  } else {
+    assert(0 && "Unknown bitwidth for sin");
   }
 }
 
@@ -1954,6 +1980,20 @@ ref<Expr> FSqrtExpr::create(const ref<Expr> &e, bool isIEEE) {
   return FSqrtExpr::alloc(e, isIEEE);
 }
 
+ref<Expr> FCosExpr::create(const ref<Expr> &e, bool isIEEE) {
+  if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
+    return ce->FCos(isIEEE);
+
+  return FCosExpr::alloc(e, isIEEE);
+}
+
+ref<Expr> FSinExpr::create(const ref<Expr> &e, bool isIEEE) {
+  if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
+    return ce->FSin(isIEEE);
+
+  return FSinExpr::alloc(e, isIEEE);
+}
+
 Expr::FPCategories FSqrtExpr::getCategories(bool isIEEE) const {
   FPCategories cat = src->getCategories(isIEEE);
 
@@ -1961,6 +2001,14 @@ Expr::FPCategories FSqrtExpr::getCategories(bool isIEEE) const {
     return fcAll;
   else
     return cat;
+}
+
+Expr::FPCategories FCosExpr::getCategories(bool isIEEE) const {
+  return fcAll;
+}
+
+Expr::FPCategories FSinExpr::getCategories(bool isIEEE) const {
+  return fcAll;
 }
 
 ref<Expr> FPToUIExpr::create(const ref<Expr> &e, Width W, bool isIEEE) {

@@ -17,3 +17,19 @@ float sqrtf(float f) {
 #endif
   return klee_sqrtf(f);
 }
+
+double cos(double d) {
+  return klee_cos(d);
+}
+
+float cosf(float f) {
+  return klee_cosf(f);
+}
+
+double sin(double d) {
+  return klee_sin(d);
+}
+
+float sinf(float f) {
+  return klee_sinf(f);
+}

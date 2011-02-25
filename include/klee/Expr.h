@@ -138,8 +138,10 @@ public:
     // Unary NaN check
     FOrd1,
 
-    // Square root
+    // Unary FP
     FSqrt,
+    FCos,
+    FSin,
 
     // All subsequent kinds are binary.
 
@@ -190,7 +192,7 @@ public:
     FConvertKindFirst=UIToFP,
     FConvertKindLast=FPTrunc,
     FUnaryKindFirst=FSqrt,
-    FUnaryKindLast=FSqrt,
+    FUnaryKindLast=FSin,
     F2FConvertKindFirst=FPExt,
     F2FConvertKindLast=FPTrunc,
     F2IConvertKindFirst=FPToUI,
@@ -521,7 +523,8 @@ public:
   typedef ref<ConstantExpr> F2FConvertOp(const llvm::fltSemantics *sem, bool isIEEE);
   F2FConvertOp FPExt, FPTrunc;
 
-  ref<ConstantExpr> FSqrt(bool isIEEE);
+  typedef ref<ConstantExpr> FUnaryOp(bool isIEEE);
+  FUnaryOp FSqrt, FCos, FSin;
 private:
   ref<ConstantExpr> IToFP(const llvm::fltSemantics *sem, bool isSigned);
   ref<ConstantExpr> FPToI(Width W, bool isIEEE, bool isSigned);
@@ -1309,6 +1312,8 @@ public:
  };
 
 FUNARY_EXPR_CLASS(FSqrt)
+FUNARY_EXPR_CLASS(FCos)
+FUNARY_EXPR_CLASS(FSin)
   
 // Arithmetic/Bit Exprs
 

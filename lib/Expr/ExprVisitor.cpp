@@ -70,6 +70,8 @@ ref<Expr> ExprVisitor::visitActual(const ref<Expr> &e) {
     case Expr::FPToSI: res = visitFPToSI(static_cast<FPToSIExpr&>(ep)); break;
     case Expr::FOrd1: res = visitFOrd1(static_cast<FOrd1Expr&>(ep)); break;
     case Expr::FSqrt: res = visitFSqrt(static_cast<FSqrtExpr&>(ep)); break;
+    case Expr::FCos: res = visitFCos(static_cast<FCosExpr&>(ep)); break;
+    case Expr::FSin: res = visitFSin(static_cast<FSinExpr&>(ep)); break;
     case Expr::Add: res = visitAdd(static_cast<AddExpr&>(ep)); break;
     case Expr::Sub: res = visitSub(static_cast<SubExpr&>(ep)); break;
     case Expr::Mul: res = visitMul(static_cast<MulExpr&>(ep)); break;
@@ -203,6 +205,14 @@ ExprVisitor::Action ExprVisitor::visitFOrd1(const FOrd1Expr&) {
 }
 
 ExprVisitor::Action ExprVisitor::visitFSqrt(const FSqrtExpr&) {
+  return Action::doChildren(); 
+}
+
+ExprVisitor::Action ExprVisitor::visitFCos(const FCosExpr&) {
+  return Action::doChildren(); 
+}
+
+ExprVisitor::Action ExprVisitor::visitFSin(const FSinExpr&) {
   return Action::doChildren(); 
 }
 

@@ -167,6 +167,12 @@ HandlerInfo handlerInfo[] = {
   add("klee_sqrt", handleSqrt, true),
   add("klee_sqrtf", handleSqrt, true),
 
+  add("klee_cos", handleCos, true),
+  add("klee_cosf", handleCos, true),
+
+  add("klee_sin", handleSin, true),
+  add("klee_sinf", handleSin, true),
+
   add("malloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
   add("valloc", handleValloc, true),
@@ -1534,4 +1540,18 @@ void SpecialFunctionHandler::handleSqrt(ExecutionState &state,
                                         std::vector<ref<Expr> > &arguments) {
   executor.bindLocal(target, state, 
                      FSqrtExpr::create(arguments[0], false));
+}
+
+void SpecialFunctionHandler::handleCos(ExecutionState &state,
+                                        KInstruction *target,
+                                        std::vector<ref<Expr> > &arguments) {
+  executor.bindLocal(target, state, 
+                     FCosExpr::create(arguments[0], false));
+}
+
+void SpecialFunctionHandler::handleSin(ExecutionState &state,
+                                        KInstruction *target,
+                                        std::vector<ref<Expr> > &arguments) {
+  executor.bindLocal(target, state, 
+                     FSinExpr::create(arguments[0], false));
 }

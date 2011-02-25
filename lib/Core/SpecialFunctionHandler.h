@@ -153,6 +153,8 @@ namespace klee {
     HANDLER(handleCreateWorkGroup);
     HANDLER(handleSetWorkGroupId);
     HANDLER(handleSqrt);
+    HANDLER(handleCos);
+    HANDLER(handleSin);
 #undef HANDLER
   };
 } // End klee namespace
