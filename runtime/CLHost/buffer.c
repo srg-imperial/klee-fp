@@ -60,16 +60,22 @@ cl_int clEnqueueReadBuffer(cl_command_queue command_queue,
                            cl_uint num_events_in_wait_list,
                            const cl_event *event_wait_list,
                            cl_event *event) {
+  cl_int rv;
+
   if (!buffer)
     return CL_INVALID_MEM_OBJECT;
 
   if (offset + cb > buffer->size || !ptr)
     return CL_INVALID_VALUE;
 
+  rv = kcl_wait_for_queue(command_queue);
+  if (rv != CL_SUCCESS)
+    return rv;
+  
   memcpy(ptr, buffer->data+offset, cb);
 
   if (event)
-    *event = create_pthread_event(0, 0);
+    *event = kcl_create_pthread_event(0, 0);
 
   return CL_SUCCESS;
 }
@@ -83,16 +89,22 @@ cl_int clEnqueueWriteBuffer(cl_command_queue command_queue,
                             cl_uint num_events_in_wait_list,
                             const cl_event *event_wait_list,
                             cl_event *event) {
+  cl_int rv;
+
   if (!buffer)
     return CL_INVALID_MEM_OBJECT;
 
   if (offset + cb > buffer->size || !ptr)
     return CL_INVALID_VALUE;
 
+  rv = kcl_wait_for_queue(command_queue);
+  if (rv != CL_SUCCESS)
+    return rv;
+  
   memcpy(buffer->data+offset, ptr, cb);
 
   if (event)
-    *event = create_pthread_event(0, 0);
+    *event = kcl_create_pthread_event(0, 0);
 
   return CL_SUCCESS;
 }

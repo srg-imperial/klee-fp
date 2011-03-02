@@ -6,9 +6,10 @@
 #include <klee/klee.h>
 #include <klee/Internal/CL/clintern.h>
 
-cl_event create_pthread_event(pthread_t *threads, size_t threadCount) {
+cl_event kcl_create_pthread_event(pthread_t *threads, size_t threadCount) {
   cl_event event = malloc(sizeof(struct _cl_event));
   event->refCount = 1;
+  event->nextEvent = 0;
   event->threads = threads;
   event->threadCount = threadCount;
   return event;
@@ -35,11 +36,22 @@ cl_int clWaitForEvents(cl_uint num_events, const cl_event *event_list) {
   return CL_SUCCESS;
 }
 
+cl_int clRetainEvent(cl_event event) {
+  if (!event)
+    return CL_INVALID_EVENT;
+
+  ++event->refCount;
+
+  return CL_SUCCESS;
+}
+
 cl_int clReleaseEvent(cl_event event) {
   if (!event)
     return CL_INVALID_EVENT;
 
   if (--event->refCount == 0) {
+    if (event->nextEvent)
+      clReleaseEvent(event->nextEvent);
     free(event->threads);
     free(event);
   }

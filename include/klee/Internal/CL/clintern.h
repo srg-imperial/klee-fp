@@ -48,15 +48,19 @@ struct _cl_kernel {
 struct _cl_command_queue {
   unsigned refCount;
   struct _cl_context *context;
+  struct _cl_event *event;
 };
 
 struct _cl_event {
   unsigned refCount;
   pthread_t *threads;
   size_t threadCount;
+  struct _cl_event *nextEvent;
 };
 
-cl_event create_pthread_event(pthread_t *threads, size_t threadCount);
+cl_event kcl_create_pthread_event(pthread_t *threads, size_t threadCount);
+void kcl_add_event_to_queue(cl_command_queue queue, cl_event event);
+cl_int kcl_wait_for_queue(cl_command_queue queue);
 
 typedef int8_t cl_intern_arg_type;
 

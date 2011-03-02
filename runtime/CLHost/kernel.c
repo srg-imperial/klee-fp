@@ -249,9 +249,10 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
         wg_wlists[wgid], global_ids, local_ids, cur_work_item++);
   } while ((last_id = increment_id_list(work_dim, ids, global_work_size)));
 
-  if (event)
-    *event = create_pthread_event(work_items, work_item_count);
-  else
+  if (event) {
+    *event = kcl_create_pthread_event(work_items, work_item_count);
+    kcl_add_event_to_queue(command_queue, *event);
+  } else
     free(work_items);
 
   // klee_icall_destroy_arg_list(argList);
