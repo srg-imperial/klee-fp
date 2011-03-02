@@ -89,6 +89,9 @@ DECLARE_NATIVE_DIVIDE(float4)
 DECLARE_NATIVE_DIVIDE(float8)
 DECLARE_NATIVE_DIVIDE(float16)
 
+float native_cos(float);
+float native_sin(float);
+
 /* 6.11.9 Explicit Memory Fence Functions */
 
 typedef enum {
