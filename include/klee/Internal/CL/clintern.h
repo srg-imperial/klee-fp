@@ -60,7 +60,6 @@ struct _cl_event {
 
 cl_event kcl_create_pthread_event(pthread_t *threads, size_t threadCount);
 void kcl_add_event_to_queue(cl_command_queue queue, cl_event event);
-cl_int kcl_wait_for_queue(cl_command_queue queue);
 
 typedef int8_t cl_intern_arg_type;
 

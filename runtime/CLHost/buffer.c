@@ -68,7 +68,7 @@ cl_int clEnqueueReadBuffer(cl_command_queue command_queue,
   if (offset + cb > buffer->size || !ptr)
     return CL_INVALID_VALUE;
 
-  rv = kcl_wait_for_queue(command_queue);
+  rv = clFinish(command_queue);
   if (rv != CL_SUCCESS)
     return rv;
   
@@ -97,7 +97,7 @@ cl_int clEnqueueWriteBuffer(cl_command_queue command_queue,
   if (offset + cb > buffer->size || !ptr)
     return CL_INVALID_VALUE;
 
-  rv = kcl_wait_for_queue(command_queue);
+  rv = clFinish(command_queue);
   if (rv != CL_SUCCESS)
     return rv;
   

@@ -13,7 +13,7 @@ void kcl_add_event_to_queue(cl_command_queue queue, cl_event event) {
   clRetainEvent(event);
 }
 
-cl_int kcl_wait_for_queue(cl_command_queue queue) {
+cl_int clFinish(cl_command_queue queue) {
   unsigned event_count = 0;
   cl_event event = queue->event;
   while (event) {
