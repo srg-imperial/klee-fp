@@ -95,7 +95,7 @@ typedef struct _cl_intern_work_item_params {
   cl_uint work_dim;
   unsigned wgid;
   uint64_t wg_wlist;
-  size_t global_ids[64], local_ids[64];
+  size_t ids[64];
 } cl_intern_work_item_params;
 
 static __attribute((address_space(4))) void *memcpy40(
@@ -115,8 +115,7 @@ static void *work_item_thread(void *arg) {
   cl_kernel kern = params->kernel;
   cl_program prog = kern->program;
 
-  memcpy40(prog->globalIds, params->global_ids, sizeof(size_t)*params->work_dim);
-  memcpy40(prog->localIds, params->local_ids, sizeof(size_t)*params->work_dim);
+  memcpy40(prog->ids, params->ids, sizeof(size_t)*params->work_dim);
 
   klee_set_work_group_id(params->wgid);
   if (prog->wgBarrierWlist)
@@ -130,7 +129,7 @@ static void *work_item_thread(void *arg) {
 }
 
 static int invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
-                            unsigned wgid, uint64_t wg_wlist, size_t global_ids[], size_t local_ids[],
+                            unsigned wgid, uint64_t wg_wlist, size_t ids[],
                             pthread_t *pt) {
   cl_intern_work_item_params *params = malloc(sizeof(cl_intern_work_item_params));
 
@@ -139,8 +138,7 @@ static int invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
   params->work_dim = work_dim;
   params->wgid = wgid;
   params->wg_wlist = wg_wlist;
-  memcpy(params->global_ids, global_ids, sizeof(size_t)*work_dim);
-  memcpy(params->local_ids, local_ids, sizeof(size_t)*work_dim);
+  memcpy(params->ids, ids, sizeof(size_t)*work_dim);
 
   return pthread_create(pt, NULL, work_item_thread, params);
 }
@@ -154,7 +152,7 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
                               cl_uint num_events_in_wait_list,
                               const cl_event *event_wait_list,
                               cl_event *event) {
-  size_t divisors[64], ids[64], local_ids[64], global_ids[64], workgroup_count,
+  size_t num_groups[64], ids[64], local_ids[64], global_ids[64], workgroup_count,
          work_item_count;
   cl_uint i, last_id;
   uintptr_t argList;
@@ -169,9 +167,9 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
     if (local_work_size) {
       if (global_work_size[i] % local_work_size[i] != 0)
         return CL_INVALID_WORK_GROUP_SIZE;
-      divisors[i] = global_work_size[i] / local_work_size[i];
+      num_groups[i] = global_work_size[i] / local_work_size[i];
     } else {
-      divisors[i] = 1;
+      num_groups[i] = 1;
     }
   }
 
@@ -192,7 +190,7 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
   workgroup_count = 1;
   if (local_work_size)
     for (i = 0; i < work_dim; ++i)
-      workgroup_count *= local_work_size[i];
+      workgroup_count *= num_groups[i];
 
   if (kernel->program->wgBarrierSize)
     *kernel->program->wgBarrierSize = work_item_count/workgroup_count;
@@ -233,20 +231,28 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
     }
   }
 
+  *kernel->program->workDim = work_dim;
+  if (global_work_offset)
+    memcpy(kernel->program->globalWorkOffset, global_work_offset, work_dim*sizeof(size_t));
+  else
+    memset(kernel->program->globalWorkOffset, 0, work_dim*sizeof(size_t));
+  memcpy(kernel->program->globalWorkSize, global_work_size, work_dim*sizeof(size_t));
+  memcpy(kernel->program->numGroups, num_groups, work_dim*sizeof(size_t));
+
   do {
+    /* Build up a one-dimensional work-group id for the work item.
+     * Each iteration multiplies the current id by the number of
+     * groups (to scale the value against the current dimension)
+     * and then adds the group id for that dimension (which is
+     * guaranteed to be between 0 and num_groups-1).
+     */
     unsigned wgid = 0;
-
-    for (i = last_id-1; i < work_dim; ++i) {
-      global_ids[i] = global_work_offset ? global_work_offset[i] + ids[i] : ids[i];
-      local_ids[i] = ids[i] / divisors[i];
-    }  
-
     if (local_work_size)
       for (i = 0; i < work_dim; ++i)
-        wgid = wgid*local_work_size[i] + local_ids[i];
+        wgid = wgid*num_groups[i] + (ids[i] / local_work_size[i]);
 
     invoke_work_item(kernel, argList, work_dim, workgroups[wgid],
-        wg_wlists[wgid], global_ids, local_ids, cur_work_item++);
+        wg_wlists[wgid], ids, cur_work_item++);
   } while ((last_id = increment_id_list(work_dim, ids, global_work_size)));
 
   if (event) {

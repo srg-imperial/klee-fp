@@ -16,7 +16,11 @@ struct _cl_program {
   char *source;
   size_t sourceSize;
   uintptr_t module;
-  __attribute__((address_space(4))) size_t *localIds, *globalIds;
+
+  unsigned *workDim;
+  size_t *globalWorkOffset, *globalWorkSize, *numGroups;
+  __attribute__((address_space(4))) size_t *ids;
+
   __attribute__((address_space(4))) uint64_t *wgBarrierWlist;
   unsigned *wgBarrierSize;
 };

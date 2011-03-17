@@ -52,8 +52,12 @@ cl_int clBuildProgram(cl_program program,
   result = program->module ? CL_SUCCESS : CL_BUILD_PROGRAM_FAILURE;
 
   if (program->module) {
-    program->localIds = (__attribute__((address_space(4))) size_t *) klee_lookup_module_global(program->module, "_local_ids");
-    program->globalIds = (__attribute__((address_space(4))) size_t *) klee_lookup_module_global(program->module, "_global_ids");
+    program->workDim = (unsigned *) klee_lookup_module_global(program->module, "_work_dim");
+    program->globalWorkOffset = (size_t *) klee_lookup_module_global(program->module, "_global_work_offset");
+    program->globalWorkSize = (size_t *) klee_lookup_module_global(program->module, "_global_work_size");
+    program->numGroups = (size_t *) klee_lookup_module_global(program->module, "_num_groups");
+    program->ids = (__attribute__((address_space(4))) size_t *) klee_lookup_module_global(program->module, "_ids");
+
     program->wgBarrierWlist = (__attribute__((address_space(4))) uint64_t *) klee_lookup_module_global(program->module, "_wg_barrier_wlist");
     program->wgBarrierSize = (unsigned *) klee_lookup_module_global(program->module, "_wg_barrier_size");
   }
