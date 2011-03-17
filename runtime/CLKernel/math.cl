@@ -20,3 +20,7 @@ float native_cos(float x) {
 float native_sin(float x) {
   return klee_sinf(x);
 }
+
+float native_sqrt(float x) {
+  return klee_sqrtf(x);
+}

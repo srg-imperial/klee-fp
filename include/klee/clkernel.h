@@ -91,6 +91,7 @@ DECLARE_NATIVE_DIVIDE(float16)
 
 float native_cos(float);
 float native_sin(float);
+float native_sqrt(float);
 
 /* 6.11.9 Explicit Memory Fence Functions */
 
