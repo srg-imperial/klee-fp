@@ -93,6 +93,25 @@ float native_cos(float);
 float native_sin(float);
 float native_sqrt(float);
 
+/* 6.11.5 Geometric Functions */
+
+#define cross(p0, p1) __generic((p0), \
+  float3: (float3)((p0).y*(p1).z - (p0).z*(p1).y, (p0).z*(p1).x - (p0).x*(p1).z, (p0).x*(p1).y - (p0).y*(p1).x), \
+  float4: (float4)((p0).y*(p1).z - (p0).z*(p1).y, (p0).z*(p1).x - (p0).x*(p1).z, (p0).x*(p1).y - (p0).y*(p1).x, 0.f))
+
+#define dot(p0, p1) __generic((p0), \
+  float: (p0)*(p1), \
+  float2: (p0).x*(p1).x + (p0).y*(p1).y, \
+  float3: (p0).x*(p1).x + (p0).y*(p1).y + (p0).z*(p1).z, \
+  float4: (p0).x*(p1).x + (p0).y*(p1).y + (p0).z*(p1).z + (p0).w*(p1).w)
+
+#define length(p) native_sqrt(dot(p, p))
+#define normalize(p) ((p)/length(p))
+
+/* 6.11.6 Relational Functions */
+
+#define select(a, b, c) ((c) ? (b) : (a))
+
 /* 6.11.9 Explicit Memory Fence Functions */
 
 typedef enum {
