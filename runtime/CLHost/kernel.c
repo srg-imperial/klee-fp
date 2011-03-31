@@ -164,7 +164,12 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
     return CL_INVALID_GLOBAL_WORK_SIZE;
 
   for (i = 0; i < work_dim; ++i) {
+    if (global_work_size[i] == 0)
+      return CL_INVALID_GLOBAL_WORK_SIZE;
+
     if (local_work_size) {
+      if (local_work_size[i] == 0)
+        return CL_INVALID_WORK_GROUP_SIZE;
       if (global_work_size[i] % local_work_size[i] != 0)
         return CL_INVALID_WORK_GROUP_SIZE;
       num_groups[i] = global_work_size[i] / local_work_size[i];
