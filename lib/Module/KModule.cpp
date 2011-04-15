@@ -339,7 +339,11 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
       BasicBlock *exit = BasicBlock::Create(getGlobalContext(), "exit", f);
       PHINode *result = 0;
       if (f->getReturnType() != Type::getVoidTy(getGlobalContext()))
+#if LLVM_VERSION_MAJOR > 2
+        result = PHINode::Create(f->getReturnType(), 0, "retval", exit);
+#else
         result = PHINode::Create(f->getReturnType(), "retval", exit);
+#endif
       CallInst::Create(mergeFn, "", exit);
       ReturnInst::Create(getGlobalContext(), result, exit);
 

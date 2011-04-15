@@ -139,6 +139,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       IRBuilder<> builder(ii->getParent(), ii);
 
       switch (ii->getIntrinsicID()) {
+#if LLVM_VERSION_MAJOR <= 2
       case Intrinsic::x86_sse_loadu_ps:
       case Intrinsic::x86_sse2_loadu_dq: {
         Value *src = GET_ARG_OPERAND(ii, 0);
@@ -155,6 +156,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
         delete ii;
         break;
       }
+#endif
 
       case Intrinsic::x86_sse_storeu_ps:
       case Intrinsic::x86_sse2_storeu_dq: {
