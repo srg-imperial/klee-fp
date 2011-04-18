@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <math.h>
 #include <klee/klee.h>
+#include <stdint.h>
 
 double sqrt(double d) {
 #if 0
@@ -32,4 +33,22 @@ double sin(double d) {
 
 float sinf(float f) {
   return klee_sinf(f);
+}
+
+float fabsf(float f) {
+  union {
+    float f; 
+    uint32_t i;
+  } u = { f };
+  u.i &= ~(1ULL << 31);
+  return u.f;
+}
+
+double fabs(double d) {
+  union {
+    double d; 
+    uint64_t i;
+  } u = { d };
+  u.i &= ~(1ULL << 63);
+  return u.d;
 }
