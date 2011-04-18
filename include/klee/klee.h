@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <string.h>
 
 #define __KLEE_FORK_DEFAULT       0
 #define __KLEE_FORK_FAULTINJ      1
@@ -272,6 +273,34 @@ extern "C" {
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+
+namespace klee {
+
+template <typename T>
+class symbolic {
+  T obj;
+
+public:
+  symbolic(const char *name = 0) {
+    char data[sizeof(T)];
+    klee_make_symbolic(data, sizeof(T), name);
+    memcpy(&obj, data, sizeof(T));
+  }
+
+  const T &get() const {
+    return obj;
+  }
+
+  operator const T &() const {
+    return obj;
+  }
+};
+
+}
+
 #endif
 
 #endif /* __KLEE_H__ */
