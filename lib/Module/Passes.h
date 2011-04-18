@@ -34,7 +34,7 @@ namespace klee {
 class RaiseAsmPass : public llvm::ModulePass {
   static char ID;
 
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR >= 9)
+#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
   const llvm::TargetLowering *TLI;
 #endif
 

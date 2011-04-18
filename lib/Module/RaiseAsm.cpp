@@ -14,13 +14,9 @@
 #if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
 #include "llvm/LLVMContext.h"
 #endif
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR >= 9)
+#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
 #include "llvm/Support/raw_ostream.h"
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
-#include "llvm/System/Host.h"
-#else
 #include "llvm/Support/Host.h"
-#endif
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetRegistry.h"
 #endif
@@ -42,7 +38,7 @@ Function *RaiseAsmPass::getIntrinsic(llvm::Module &M,
 bool RaiseAsmPass::runOnInstruction(Module &M, Instruction *I) {
   if (CallInst *ci = dyn_cast<CallInst>(I)) {
     if (InlineAsm *ia = dyn_cast<InlineAsm>(ci->getCalledValue())) {
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR >= 9)
+#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
       (void) ia;
       return TLI && TLI->ExpandInlineAsm(ci);
 #else
@@ -83,7 +79,7 @@ bool RaiseAsmPass::runOnInstruction(Module &M, Instruction *I) {
 bool RaiseAsmPass::runOnModule(Module &M) {
   bool changed = false;
 
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR >= 9)
+#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
   std::string Err;
   std::string HostTriple = llvm::sys::getHostTriple();
   const Target *NativeTarget = TargetRegistry::lookupTarget(HostTriple, Err);
