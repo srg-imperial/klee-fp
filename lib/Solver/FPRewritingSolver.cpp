@@ -257,6 +257,12 @@ bool HasFPExpr(ref<Expr> e) {
     if (HasFPExpr(e->getKid(k)))
       return true;
   }
+  if (ReadExpr *re = dyn_cast<ReadExpr>(e)) {
+    for (const UpdateNode *node = re->updates.head; node; node = node->next) {
+      if (HasFPExpr(node->index) || HasFPExpr(node->value))
+        return true;
+    }
+  }
   return false;
 }
 
