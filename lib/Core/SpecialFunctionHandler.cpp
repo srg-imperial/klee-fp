@@ -69,6 +69,9 @@
 using namespace llvm;
 using namespace klee;
 
+llvm::cl::opt<bool>
+DumpOpenCLModules("dump-opencl-modules", llvm::cl::init(false));
+
 /// \todo Almost all of the demands in this file should be replaced
 /// with terminateState calls.
 
@@ -1323,7 +1326,8 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   }
 
   Module *Mod = Act->takeModule();
-  Mod->dump();
+  if (DumpOpenCLModules)
+    Mod->dump();
 
   llvm::sys::Path LibraryDir(KLEE_DIR "/" RUNTIME_CONFIGURATION "/lib");
   llvm::sys::Path Path(LibraryDir);
