@@ -159,6 +159,7 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
   unsigned *workgroups;
   uint64_t *wg_wlists;
   pthread_t *work_items, *cur_work_item;
+  cl_event new_event;
 
   int rv = clFinish(command_queue);
   if (rv != CL_SUCCESS)
@@ -264,11 +265,13 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
         wg_wlists[wgid], ids, cur_work_item++);
   } while ((last_id = increment_id_list(work_dim, ids, global_work_size)));
 
+  new_event = kcl_create_pthread_event(work_items, work_item_count);
+  kcl_add_event_to_queue(command_queue, new_event);
+
   if (event) {
-    *event = kcl_create_pthread_event(work_items, work_item_count);
-    kcl_add_event_to_queue(command_queue, *event);
-  } else
-    free(work_items);
+    clRetainEvent(new_event);
+    *event = new_event;
+  }
 
   // klee_icall_destroy_arg_list(argList);
 
