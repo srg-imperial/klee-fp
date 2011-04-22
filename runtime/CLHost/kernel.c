@@ -160,6 +160,10 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
   uint64_t *wg_wlists;
   pthread_t *work_items, *cur_work_item;
 
+  int rv = clFinish(command_queue);
+  if (rv != CL_SUCCESS)
+    return rv;
+
   if (!global_work_size)
     return CL_INVALID_GLOBAL_WORK_SIZE;
 
