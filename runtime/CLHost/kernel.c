@@ -95,6 +95,7 @@ typedef struct _cl_intern_work_item_params {
   cl_uint work_dim;
   unsigned wgid;
   uint64_t wg_wlist;
+  unsigned wg_size;
   size_t ids[64];
 } cl_intern_work_item_params;
 
@@ -112,6 +113,8 @@ static __attribute((address_space(4))) void *memcpy40(
 static void *work_item_thread(void *arg) {
   cl_intern_work_item_params *params = arg;
   uintptr_t args = params->args;
+  uint64_t wg_wlist = params->wg_wlist;
+  unsigned wg_size = params->wg_size;
   cl_kernel kern = params->kernel;
   cl_program prog = kern->program;
 
@@ -119,18 +122,21 @@ static void *work_item_thread(void *arg) {
 
   klee_set_work_group_id(params->wgid);
   if (prog->wgBarrierWlist)
-    *prog->wgBarrierWlist = params->wg_wlist;
+    *prog->wgBarrierWlist = wg_wlist;
 
   free(arg);
   
   klee_icall(kern->function, args);
 
+  klee_thread_barrier(wg_wlist, wg_size, 1);
+  klee_thread_barrier(wg_wlist, wg_size, 0);
+
   return 0;
 }
 
 static int invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
-                            unsigned wgid, uint64_t wg_wlist, size_t ids[],
-                            pthread_t *pt) {
+                            unsigned wgid, uint64_t wg_wlist, unsigned wg_size,
+                            size_t ids[], pthread_t *pt) {
   cl_intern_work_item_params *params = malloc(sizeof(cl_intern_work_item_params));
 
   params->kernel = kern;
@@ -138,6 +144,7 @@ static int invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
   params->work_dim = work_dim;
   params->wgid = wgid;
   params->wg_wlist = wg_wlist;
+  params->wg_size = wg_size;
   memcpy(params->ids, ids, sizeof(size_t)*work_dim);
 
   return pthread_create(pt, NULL, work_item_thread, params);
@@ -262,7 +269,7 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
         wgid = wgid*num_groups[i] + (ids[i] / local_work_size[i]);
 
     invoke_work_item(kernel, argList, work_dim, workgroups[wgid],
-        wg_wlists[wgid], ids, cur_work_item++);
+        wg_wlists[wgid], work_item_count/workgroup_count, ids, cur_work_item++);
   } while ((last_id = increment_id_list(work_dim, ids, global_work_size)));
 
   new_event = kcl_create_pthread_event(work_items, work_item_count);
