@@ -52,7 +52,6 @@ public:
   Query rewriteConstraints(const Query &q);
 
   bool computeTruth(const Query&, bool &isValid);
-  bool computeValidity(const Query&, Solver::Validity &result);
   bool computeValue(const Query&, ref<Expr> &result);
   bool computeInitialValues(const Query& query,
                             const std::vector<const Array*> &objects,
@@ -345,13 +344,6 @@ Query FPRewritingSolver::rewriteConstraints(const Query &q) {
 bool FPRewritingSolver::computeTruth(const Query &q, bool &isValid) {
   Query qp = rewriteConstraints(q);
   bool rv = solver->impl->computeTruth(qp, isValid);
-  delete &qp.constraints;
-  return rv;
-}
-
-bool FPRewritingSolver::computeValidity(const Query &q, Solver::Validity &result) {
-  Query qp = rewriteConstraints(q);
-  bool rv = solver->impl->computeValidity(qp, result);
   delete &qp.constraints;
   return rv;
 }
