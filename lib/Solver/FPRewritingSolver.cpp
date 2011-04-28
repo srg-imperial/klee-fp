@@ -313,8 +313,19 @@ ref<Expr> FPRewritingSolver::fuseConstraints(const ref<Expr> &e1, const ref<Expr
 }
 
 Query FPRewritingSolver::rewriteConstraints(const Query &q) {
+  ref<Expr> notExpr = Expr::createIsZero(q.expr);
+
+  for (std::vector< ref<Expr> >::const_iterator i  = q.constraints.begin();
+                                                i != q.constraints.end();
+                                              ++i) {
+       ref<Expr> andExp = AndExpr::create(*i, notExpr);
+       if (ConstantExpr *andConst = dyn_cast<ConstantExpr>(andExp))
+         if (andConst->getZExtValue() == 0)
+           return Query(*new ConstraintManager(), ConstantExpr::create(1, Expr::Bool));
+  }
+
   std::vector< ref<Expr> > constraints(q.constraints.begin(), q.constraints.end()), newConstraints;
-  constraints.push_back(Expr::createIsZero(q.expr));
+  constraints.push_back(notExpr);
   for (std::vector< ref<Expr> >::iterator i  = constraints.begin();
                                           i != constraints.end();
                                         ++i) {
