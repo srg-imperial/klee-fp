@@ -24,6 +24,9 @@ ifeq ($(ENABLE_EXT_STP),0)
   USEDLIBS += $(STP_LIBS)
 endif
 LINK_COMPONENTS = jit bitreader bitwriter ipo linker engine asmparser
+ifeq ($(LLVM_VERSION_MAJOR),3)
+  LINK_COMPONENTS += instrumentation
+endif
 
 include $(LEVEL)/Makefile.common
 

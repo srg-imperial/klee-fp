@@ -15,6 +15,9 @@ LLVM_OBJ_ROOT = @LLVM_OBJ@
 # as the build mode used for KLEE)
 LLVM_BUILD_MODE = @LLVM_BUILD_MODE@
 
+LLVM_VERSION_MAJOR = @LLVM_VERSION_MAJOR@
+LLVM_VERSION_MINOR = @LLVM_VERSION_MINOR@
+
 # Set the directory root of this project's source files
 PROJ_SRC_ROOT := $(subst //,/,@abs_top_srcdir@)
 
