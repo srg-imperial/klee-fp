@@ -1268,6 +1268,14 @@ BCREATE(ShlExpr, Shl)
 BCREATE(LShrExpr, LShr)
 BCREATE(AShrExpr, AShr)
 
+static bool isOne(const APFloat &apf) {
+  if (&apf.getSemantics() == &APFloat::IEEEdouble)
+    return apf.convertToDouble() == 1.;
+  if (&apf.getSemantics() == &APFloat::IEEEsingle)
+    return apf.convertToFloat() == 1.f;
+  return false;
+}
+
 static ref<Expr> FAddExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
   if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
     APFloat apf = cl->getAPFloatValue(isIEEE);
@@ -1292,6 +1300,16 @@ static ref<Expr> FSubExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool is
 }
 
 static ref<Expr> FMulExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
+  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
+    APFloat apf = cl->getAPFloatValue(isIEEE);
+    if (isOne(apf))
+      return r;
+  }
+  if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
+    APFloat apf = cr->getAPFloatValue(isIEEE);
+    if (isOne(apf))
+      return l;
+  }
   return FMulExpr::alloc(l, r, isIEEE);
 }
 
