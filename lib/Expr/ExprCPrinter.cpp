@@ -100,7 +100,9 @@ void ExprCPrinter::printExpr(std::ostream &out, CType &ty, ref<Expr> e) {
     case Expr::Sgt: printSgt(out, ty, static_cast<SgtExpr&>(ep)); break;
     case Expr::Sge: printSge(out, ty, static_cast<SgeExpr&>(ep)); break;
     case Expr::FCmp: printFCmp(out, ty, static_cast<FCmpExpr&>(ep)); break;
-  }  
+    case Expr::InvalidKind: ;
+  }
+  assert(0 && "invalid expression kind");
 }
 
 void ExprCPrinter::printNotOptimized(std::ostream &out, CType &ty, NotOptimizedExpr &e) {}
@@ -168,6 +170,7 @@ const char *ExprCPrinter::getTypeName(CType ty) {
   case UInt64: return "uint64_t";
   case Float:  return "float";
   case Double: return "double";
+  default:     assert(0 && "invalid ctype"); return 0;
   }
 }
 
