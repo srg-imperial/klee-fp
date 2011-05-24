@@ -2,6 +2,7 @@
 #define EXPRCPRINTER_H
 
 #include <klee/Expr.h>
+#include <llvm/ADT/StringSet.h>
 #include <map>
 #include <ostream>
 
@@ -22,15 +23,18 @@ public:
     Double
   };
 private:
-  std::map<ref<Expr>, unsigned> bindings;
+  std::map<ref<Expr>, std::pair<CType, unsigned> > bindings;
+  llvm::StringSet<> parmDecls;
   std::vector<std::string> assignStmts;
 
-  static CType getUIntType(ref<Expr> e);
-  static CType getSIntType(ref<Expr> e);
-  static CType getFloatType(ref<Expr> e);
+  std::ostream &structOut, &fnOut;
 
-  unsigned getExprBinding(ref<Expr> e);
-  unsigned bindExpr(ref<Expr> e);
+  static CType getUIntType(unsigned w);
+  static CType getSIntType(unsigned w);
+  static CType getFloatType(unsigned w);
+
+  std::pair<CType, unsigned> getExprBinding(ref<Expr> e);
+  std::pair<CType, unsigned> bindExpr(ref<Expr> e);
 
   static const char *getTypeName(CType ty);
 
@@ -86,8 +90,9 @@ private:
   void printFCmp(std::ostream &out, CType &ty, FCmpExpr &e);
 
   void printSubExpr(std::ostream &out, CType ty, ref<Expr> e);
+  void printUIntSubExpr(std::ostream &out, ref<Expr> e);
 
-  void printTypedConstantExpr(std::ostream &out, CType ty, ConstantExpr *ce);
+  void printConstantExpr(std::ostream &out, CType ty, ConstantExpr *ce);
 };
 
 }

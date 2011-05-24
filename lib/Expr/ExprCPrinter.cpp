@@ -1,17 +1,17 @@
 #include "klee/util/ExprCPrinter.h"
+#include <sstream>
 
 using namespace klee;
 
-unsigned ExprCPrinter::getExprBinding(ref<Expr> e) {
-  std::map<ref<Expr>, unsigned>::iterator it = bindings.find(e);
+std::pair<ExprCPrinter::CType, unsigned> ExprCPrinter::getExprBinding(ref<Expr> e) {
+  std::map<ref<Expr>, std::pair<CType, unsigned> >::iterator it = bindings.find(e);
   if (it != bindings.end())
     return it->second;
 
   return bindExpr(e);
 }
 
-ExprCPrinter::CType ExprCPrinter::getUIntType(ref<Expr> e) {
-  unsigned w = e->getWidth();
+ExprCPrinter::CType ExprCPrinter::getUIntType(unsigned w) {
   if (w <= 8)
     return UInt8;
   if (w <= 16)
@@ -24,8 +24,7 @@ ExprCPrinter::CType ExprCPrinter::getUIntType(ref<Expr> e) {
   return UInt64;
 }
 
-ExprCPrinter::CType ExprCPrinter::getSIntType(ref<Expr> e) {
-  unsigned w = e->getWidth();
+ExprCPrinter::CType ExprCPrinter::getSIntType(unsigned w) {
   if (w <= 8)
     return Int8;
   if (w <= 16)
@@ -38,8 +37,7 @@ ExprCPrinter::CType ExprCPrinter::getSIntType(ref<Expr> e) {
   return Int64;
 }
 
-ExprCPrinter::CType ExprCPrinter::getFloatType(ref<Expr> e) {
-  unsigned w = e->getWidth();
+ExprCPrinter::CType ExprCPrinter::getFloatType(unsigned w) {
   if (w == 32)
     return Float;
   if (w == 64)
@@ -105,9 +103,27 @@ void ExprCPrinter::printExpr(std::ostream &out, CType &ty, ref<Expr> e) {
   assert(0 && "invalid expression kind");
 }
 
-void ExprCPrinter::printNotOptimized(std::ostream &out, CType &ty, NotOptimizedExpr &e) {}
-void ExprCPrinter::printConstant(std::ostream &out, CType &ty, ConstantExpr &e) {}
-void ExprCPrinter::printRead(std::ostream &out, CType &ty, ReadExpr &e) {}
+void ExprCPrinter::printNotOptimized(std::ostream &out, CType &ty, NotOptimizedExpr &e) {
+  printExpr(out, ty, e.src);
+}
+
+void ExprCPrinter::printConstant(std::ostream &out, CType &ty, ConstantExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printConstantExpr(out, ty, &e);
+}
+
+void ExprCPrinter::printRead(std::ostream &out, CType &ty, ReadExpr &e) {
+  // TODO: use the update list
+  const std::string &arrName = e.updates.root->name;
+  parmDecls.insert(arrName);
+
+  out << arrName << "[";
+  printUIntSubExpr(out, e.index);
+  out << "]";
+
+  ty = UInt8;
+}
+
 void ExprCPrinter::printSelect(std::ostream &out, CType &ty, SelectExpr &e) {}
 void ExprCPrinter::printConcat(std::ostream &out, CType &ty, ConcatExpr &e) {}
 void ExprCPrinter::printExtract(std::ostream &out, CType &ty, ExtractExpr &e) {}
@@ -155,7 +171,11 @@ void ExprCPrinter::printSge(std::ostream &out, CType &ty, SgeExpr &e) {}
 void ExprCPrinter::printFCmp(std::ostream &out, CType &ty, FCmpExpr &e) {}
 
 void ExprCPrinter::printSubExpr(std::ostream &out, CType ty, ref<Expr> e) {
- 
+   
+}
+
+void ExprCPrinter::printUIntSubExpr(std::ostream &out, ref<Expr> e) {
+  printSubExpr(out, getUIntType(e->getWidth()), e);
 }
 
 const char *ExprCPrinter::getTypeName(CType ty) {
@@ -175,8 +195,8 @@ const char *ExprCPrinter::getTypeName(CType ty) {
 }
 
 
-void ExprCPrinter::printTypedConstantExpr(std::ostream &out, CType ty,
-                                          ConstantExpr *ce) {
+void ExprCPrinter::printConstantExpr(std::ostream &out, CType ty,
+                                     ConstantExpr *ce) {
   if (ty != Float && ty != Double)
     out << "((" << getTypeName(ty) << ")";
 
@@ -205,9 +225,19 @@ void ExprCPrinter::printTypedConstantExpr(std::ostream &out, CType ty,
     out << ")";
 }
 
-unsigned ExprCPrinter::bindExpr(ref<Expr> e) {
-  unsigned binding = bindings.size();
-  bindings[e] = binding;
+std::pair<ExprCPrinter::CType, unsigned> ExprCPrinter::bindExpr(ref<Expr> e) {
+  unsigned bindingNo = bindings.size();
+  std::pair<CType, unsigned> &binding = bindings[e];
+  binding.second = bindingNo;
+
+  std::ostringstream out;
+  out << "  binding->n" << bindingNo << " = ";
+  printExpr(out, binding.first, e);
+  out << ";\n";
+  fnOut << out.str();
+
+  structOut << "  " << getTypeName(binding.first) << " n" << bindingNo << ";\n";
+
   return binding;
 }
 
