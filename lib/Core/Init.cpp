@@ -201,6 +201,7 @@ static const char *modelledExternals[] = {
   "klee_merge",
   "klee_prefer_cex",
   "klee_print_expr",
+  "klee_print_c_expr",
   "klee_print_range",
   "klee_report_error",
   "klee_set_forking",

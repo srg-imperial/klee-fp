@@ -30,6 +30,8 @@
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Support/ModuleUtil.h"
 
+#include "klee/util/ExprCPrinter.h"
+
 #include "Executor.h"
 #include "MemoryManager.h"
 
@@ -126,6 +128,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_merge", handleMerge, false),
   add("klee_prefer_cex", handlePreferCex, false),
   add("klee_print_expr", handlePrintExpr, false),
+  add("klee_print_c_expr", handlePrintCExpr, false),
   add("klee_print_range", handlePrintRange, false),
   add("klee_set_forking", handleSetForking, false),
   add("klee_stack_trace", handleStackTrace, false),
@@ -615,6 +618,15 @@ void SpecialFunctionHandler::handlePrintExpr(ExecutionState &state,
       it != state.constraints().end(); it++) {
     std::cerr << *it << std::endl;
   }
+}
+
+void SpecialFunctionHandler::handlePrintCExpr(ExecutionState &state,
+                                           KInstruction *target,
+                                           std::vector<ref<Expr> > &arguments) {
+  assert(arguments.size()==3 &&
+         "invalid number of arguments to klee_print_c_expr");
+
+  ExprCPrinter::printExprEvaluator(std::cerr, arguments[2]);
 }
 
 void SpecialFunctionHandler::handleSetForking(ExecutionState &state,
