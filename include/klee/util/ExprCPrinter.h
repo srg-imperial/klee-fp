@@ -20,12 +20,17 @@ public:
     UInt32,
     UInt64,
     Float,
-    Double
+    Double,
+
+    FirstInt = Int8,
+    LastInt = UInt64,
+    FirstFloat = Float,
+    LastFloat = Double
   };
 private:
-  std::map<ref<Expr>, std::pair<CType, unsigned> > bindings;
+  typedef std::pair<CType, unsigned> ExprBinding;
+  std::map<ref<Expr>, ExprBinding> bindings;
   llvm::StringSet<> parmDecls;
-  std::vector<std::string> assignStmts;
 
   std::ostream &structOut, &fnOut;
 
@@ -33,12 +38,15 @@ private:
   static CType getSIntType(unsigned w);
   static CType getFloatType(unsigned w);
 
-  std::pair<CType, unsigned> getExprBinding(ref<Expr> e);
-  std::pair<CType, unsigned> bindExpr(ref<Expr> e);
+  ExprBinding getExprBinding(ref<Expr> e);
+  ExprBinding bindExpr(ref<Expr> e);
 
   static const char *getTypeName(CType ty);
 
   void printExpr(std::ostream &out, CType &ty, ref<Expr> e);
+
+  void printFUnaryMath(std::ostream &out, CType &ty, FUnaryExpr &e,
+                       const char *floatName, const char *doubleName);
 
   void printNotOptimized(std::ostream &out, CType &ty, NotOptimizedExpr &e);
   void printConstant(std::ostream &out, CType &ty, ConstantExpr &e);
@@ -89,8 +97,15 @@ private:
   void printSge(std::ostream &out, CType &ty, SgeExpr &e);
   void printFCmp(std::ostream &out, CType &ty, FCmpExpr &e);
 
+  void printBindingRef(std::ostream &out, unsigned binding);
   void printSubExpr(std::ostream &out, CType ty, ref<Expr> e);
+  void printAnyTySubExpr(std::ostream &out, CType &ty, ref<Expr> e);
+
   void printUIntSubExpr(std::ostream &out, ref<Expr> e);
+  void printSIntSubExpr(std::ostream &out, ref<Expr> e);
+  void printZExtSubExpr(std::ostream &out, ref<Expr> e);
+  void printSExtSubExpr(std::ostream &out, ref<Expr> e);
+  void printFloatSubExpr(std::ostream &out, ref<Expr> e);
 
   void printConstantExpr(std::ostream &out, CType ty, ConstantExpr *ce);
 };

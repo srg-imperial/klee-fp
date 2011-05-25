@@ -3,8 +3,8 @@
 
 using namespace klee;
 
-std::pair<ExprCPrinter::CType, unsigned> ExprCPrinter::getExprBinding(ref<Expr> e) {
-  std::map<ref<Expr>, std::pair<CType, unsigned> >::iterator it = bindings.find(e);
+ExprCPrinter::ExprBinding ExprCPrinter::getExprBinding(ref<Expr> e) {
+  std::map<ref<Expr>, ExprBinding>::iterator it = bindings.find(e);
   if (it != bindings.end())
     return it->second;
 
@@ -124,58 +124,436 @@ void ExprCPrinter::printRead(std::ostream &out, CType &ty, ReadExpr &e) {
   ty = UInt8;
 }
 
-void ExprCPrinter::printSelect(std::ostream &out, CType &ty, SelectExpr &e) {}
-void ExprCPrinter::printConcat(std::ostream &out, CType &ty, ConcatExpr &e) {}
-void ExprCPrinter::printExtract(std::ostream &out, CType &ty, ExtractExpr &e) {}
-void ExprCPrinter::printZExt(std::ostream &out, CType &ty, ZExtExpr &e) {}
-void ExprCPrinter::printSExt(std::ostream &out, CType &ty, SExtExpr &e) {}
-void ExprCPrinter::printFPExt(std::ostream &out, CType &ty, FPExtExpr &e) {}
-void ExprCPrinter::printFPTrunc(std::ostream &out, CType &ty, FPTruncExpr &e) {}
-void ExprCPrinter::printUIToFP(std::ostream &out, CType &ty, UIToFPExpr &e) {}
-void ExprCPrinter::printSIToFP(std::ostream &out, CType &ty, SIToFPExpr &e) {}
-void ExprCPrinter::printFPToUI(std::ostream &out, CType &ty, FPToUIExpr &e) {}
-void ExprCPrinter::printFPToSI(std::ostream &out, CType &ty, FPToSIExpr &e) {}
-void ExprCPrinter::printFOrd1(std::ostream &out, CType &ty, FOrd1Expr &e) {}
-void ExprCPrinter::printFSqrt(std::ostream &out, CType &ty, FSqrtExpr &e) {}
-void ExprCPrinter::printFCos(std::ostream &out, CType &ty, FCosExpr &e) {}
-void ExprCPrinter::printFSin(std::ostream &out, CType &ty, FSinExpr &e) {}
-void ExprCPrinter::printAdd(std::ostream &out, CType &ty, AddExpr &e) {}
-void ExprCPrinter::printSub(std::ostream &out, CType &ty, SubExpr &e) {}
-void ExprCPrinter::printMul(std::ostream &out, CType &ty, MulExpr &e) {}
-void ExprCPrinter::printUDiv(std::ostream &out, CType &ty, UDivExpr &e) {}
-void ExprCPrinter::printSDiv(std::ostream &out, CType &ty, SDivExpr &e) {}
-void ExprCPrinter::printURem(std::ostream &out, CType &ty, URemExpr &e) {}
-void ExprCPrinter::printSRem(std::ostream &out, CType &ty, SRemExpr &e) {}
-void ExprCPrinter::printFAdd(std::ostream &out, CType &ty, FAddExpr &e) {}
-void ExprCPrinter::printFSub(std::ostream &out, CType &ty, FSubExpr &e) {}
-void ExprCPrinter::printFMul(std::ostream &out, CType &ty, FMulExpr &e) {}
-void ExprCPrinter::printFDiv(std::ostream &out, CType &ty, FDivExpr &e) {}
-void ExprCPrinter::printFRem(std::ostream &out, CType &ty, FRemExpr &e) {}
-void ExprCPrinter::printNot(std::ostream &out, CType &ty, NotExpr &e) {}
-void ExprCPrinter::printAnd(std::ostream &out, CType &ty, AndExpr &e) {}
-void ExprCPrinter::printOr(std::ostream &out, CType &ty, OrExpr &e) {}
-void ExprCPrinter::printXor(std::ostream &out, CType &ty, XorExpr &e) {}
-void ExprCPrinter::printShl(std::ostream &out, CType &ty, ShlExpr &e) {}
-void ExprCPrinter::printLShr(std::ostream &out, CType &ty, LShrExpr &e) {}
-void ExprCPrinter::printAShr(std::ostream &out, CType &ty, AShrExpr &e) {}
-void ExprCPrinter::printEq(std::ostream &out, CType &ty, EqExpr &e) {}
-void ExprCPrinter::printNe(std::ostream &out, CType &ty, NeExpr &e) {}
-void ExprCPrinter::printUlt(std::ostream &out, CType &ty, UltExpr &e) {}
-void ExprCPrinter::printUle(std::ostream &out, CType &ty, UleExpr &e) {}
-void ExprCPrinter::printUgt(std::ostream &out, CType &ty, UgtExpr &e) {}
-void ExprCPrinter::printUge(std::ostream &out, CType &ty, UgeExpr &e) {}
-void ExprCPrinter::printSlt(std::ostream &out, CType &ty, SltExpr &e) {}
-void ExprCPrinter::printSle(std::ostream &out, CType &ty, SleExpr &e) {}
-void ExprCPrinter::printSgt(std::ostream &out, CType &ty, SgtExpr &e) {}
-void ExprCPrinter::printSge(std::ostream &out, CType &ty, SgeExpr &e) {}
-void ExprCPrinter::printFCmp(std::ostream &out, CType &ty, FCmpExpr &e) {}
+void ExprCPrinter::printSelect(std::ostream &out, CType &ty, SelectExpr &e) {
+  printUIntSubExpr(out, e.cond);
+  out << " ? ";
+  printAnyTySubExpr(out, ty, e.trueExpr);
+  out << " : ";
+  printSubExpr(out, ty, e.falseExpr);
+}
+
+/// Print the given expression. The higher order bits of the result are
+/// guaranteed to be zero extended (as opposed to the general case, where
+/// they are undefined).
+void ExprCPrinter::printZExtSubExpr(std::ostream &out, ref<Expr> e) {
+  if (e->getWidth() == 1) {
+    out << "(";
+    printUIntSubExpr(out, e);
+    out << " & 1U)";
+  } else if (e->getWidth() == 8 || e->getWidth() == 16 ||
+             e->getWidth() == 32 || e->getWidth() == 64) {
+    printUIntSubExpr(out, e);
+  } else {
+    assert(0 && "weird bitwidth not handled yet");
+  }
+}
+
+/// Print the given expression. The higher order bits of the result are
+/// guaranteed to be sign extended (as opposed to the general case, where
+/// they are undefined).
+void ExprCPrinter::printSExtSubExpr(std::ostream &out, ref<Expr> e) {
+  if (e->getWidth() == 1) {
+    out << "-(";
+    printSIntSubExpr(out, e);
+    out << " & 1)";
+  } else if (e->getWidth() == 8 || e->getWidth() == 16 ||
+             e->getWidth() == 32 || e->getWidth() == 64) {
+    printSIntSubExpr(out, e);
+  } else {
+    assert(0 && "weird bitwidth not handled yet");
+  }
+}
+
+void ExprCPrinter::printConcat(std::ostream &out, CType &ty, ConcatExpr &e) {
+  ty = getUIntType(e.getWidth());
+  out << "(";
+  printSubExpr(out, ty, e.getLeft());
+  out << " << " << e.getRight()->getWidth() << ") | (";
+  printSubExpr(out, ty, e.getRight());
+  out << " & " << ((1ULL << e.getRight()->getWidth()) - 1) << "ULL)";
+}
+
+void ExprCPrinter::printExtract(std::ostream &out, CType &ty, ExtractExpr &e) {
+  printUIntSubExpr(out, e.expr);
+  out << " >> " << e.offset;
+}
+
+void ExprCPrinter::printZExt(std::ostream &out, CType &ty, ZExtExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printZExtSubExpr(out, e.src);
+}
+
+void ExprCPrinter::printSExt(std::ostream &out, CType &ty, SExtExpr &e) {
+  ty = getSIntType(e.getWidth());
+  printSExtSubExpr(out, e.src);
+}
+
+void ExprCPrinter::printFPExt(std::ostream &out, CType &ty, FPExtExpr &e) {
+  ty = getFloatType(e.getWidth());
+  printSubExpr(out, ty, e.src);
+}
+
+void ExprCPrinter::printFPTrunc(std::ostream &out, CType &ty, FPTruncExpr &e) {
+  ty = getFloatType(e.getWidth());
+  printSubExpr(out, ty, e.src);
+}
+
+void ExprCPrinter::printUIToFP(std::ostream &out, CType &ty, UIToFPExpr &e) {
+  ty = getFloatType(e.getWidth());
+  printUIntSubExpr(out, e.src);
+}
+
+void ExprCPrinter::printSIToFP(std::ostream &out, CType &ty, SIToFPExpr &e) {
+  ty = getFloatType(e.getWidth());
+  printSIntSubExpr(out, e.src);
+}
+
+void ExprCPrinter::printFPToUI(std::ostream &out, CType &ty, FPToUIExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printFloatSubExpr(out, e.src);
+}
+
+void ExprCPrinter::printFPToSI(std::ostream &out, CType &ty, FPToSIExpr &e) {
+  ty = getSIntType(e.getWidth());
+  printFloatSubExpr(out, e.src);
+}
+
+void ExprCPrinter::printFOrd1(std::ostream &out, CType &ty, FOrd1Expr &e) {
+  ty = getUIntType(e.getWidth());
+  printFloatSubExpr(out, e.src);
+  out << " == ";
+  printFloatSubExpr(out, e.src);
+}
+
+void ExprCPrinter::printFUnaryMath(std::ostream &out, CType &ty, FUnaryExpr &e,
+                                const char *floatName, const char *doubleName) {
+  ty = getFloatType(e.getWidth());
+  switch (ty) {
+  case Float:  out << floatName;  break;
+  case Double: out << doubleName; break;
+  default:     assert(0 && "floating type expected");
+  }
+  out << "(";
+  printSubExpr(out, ty, e.src);
+  out << ")";
+}
+
+void ExprCPrinter::printFSqrt(std::ostream &out, CType &ty, FSqrtExpr &e) {
+  printFUnaryMath(out, ty, e, "sqrtf", "sqrt");
+}
+
+void ExprCPrinter::printFCos(std::ostream &out, CType &ty, FCosExpr &e) {
+  printFUnaryMath(out, ty, e, "cosf", "cos");
+}
+
+void ExprCPrinter::printFSin(std::ostream &out, CType &ty, FSinExpr &e) {
+  printFUnaryMath(out, ty, e, "sinf", "sin");
+}
+
+void ExprCPrinter::printAdd(std::ostream &out, CType &ty, AddExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " + ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printSub(std::ostream &out, CType &ty, SubExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " - ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printMul(std::ostream &out, CType &ty, MulExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " * ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printUDiv(std::ostream &out, CType &ty, UDivExpr &e) {
+  ty = getUIntType(e.getWidth());  
+  printZExtSubExpr(out, e.left);
+  out << " / ";
+  printZExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printSDiv(std::ostream &out, CType &ty, SDivExpr &e) {
+  ty = getSIntType(e.getWidth());  
+  printSExtSubExpr(out, e.left);
+  out << " / ";
+  printSExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printURem(std::ostream &out, CType &ty, URemExpr &e) {
+  ty = getUIntType(e.getWidth());  
+  printZExtSubExpr(out, e.left);
+  out << " % ";
+  printZExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printSRem(std::ostream &out, CType &ty, SRemExpr &e) {
+  ty = getSIntType(e.getWidth());  
+  printSExtSubExpr(out, e.left);
+  out << " % ";
+  printSExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printFAdd(std::ostream &out, CType &ty, FAddExpr &e) {
+  ty = getFloatType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " + ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printFSub(std::ostream &out, CType &ty, FSubExpr &e) {
+  ty = getFloatType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " - ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printFMul(std::ostream &out, CType &ty, FMulExpr &e) {
+  ty = getFloatType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " * ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printFDiv(std::ostream &out, CType &ty, FDivExpr &e) {
+  ty = getFloatType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " / ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printFRem(std::ostream &out, CType &ty, FRemExpr &e) {
+  ty = getFloatType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " % ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printNot(std::ostream &out, CType &ty, NotExpr &e) {
+  ty = getUIntType(e.getWidth());
+  out << "~";
+  printSubExpr(out, ty, e.expr);
+}
+
+void ExprCPrinter::printAnd(std::ostream &out, CType &ty, AndExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " & ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printOr(std::ostream &out, CType &ty, OrExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " | ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printXor(std::ostream &out, CType &ty, XorExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " ^ ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printShl(std::ostream &out, CType &ty, ShlExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printSubExpr(out, ty, e.left);
+  out << " << ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printLShr(std::ostream &out, CType &ty, LShrExpr &e) {
+  ty = getUIntType(e.getWidth());
+  printZExtSubExpr(out, e.left);
+  out << " >> ";
+  printSubExpr(out, ty, e.right);
+}
+
+void ExprCPrinter::printAShr(std::ostream &out, CType &ty, AShrExpr &e) {
+  ty = getSIntType(e.getWidth());
+  printSExtSubExpr(out, e.left);
+  out << " >> ";
+  printUIntSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printEq(std::ostream &out, CType &ty, EqExpr &e) {
+  ty = UInt8;
+  printZExtSubExpr(out, e.left);
+  out << " == ";
+  printZExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printNe(std::ostream &out, CType &ty, NeExpr &e) {
+  ty = UInt8;
+  printZExtSubExpr(out, e.left);
+  out << " != ";
+  printZExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printUlt(std::ostream &out, CType &ty, UltExpr &e) {
+  ty = UInt8;
+  printZExtSubExpr(out, e.left);
+  out << " < ";
+  printZExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printUle(std::ostream &out, CType &ty, UleExpr &e) {
+  ty = UInt8;
+  printZExtSubExpr(out, e.left);
+  out << " <= ";
+  printZExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printUgt(std::ostream &out, CType &ty, UgtExpr &e) {
+  ty = UInt8;
+  printZExtSubExpr(out, e.left);
+  out << " > ";
+  printZExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printUge(std::ostream &out, CType &ty, UgeExpr &e) {
+  ty = UInt8;
+  printZExtSubExpr(out, e.left);
+  out << " >= ";
+  printZExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printSlt(std::ostream &out, CType &ty, SltExpr &e) {
+  ty = UInt8;
+  printSExtSubExpr(out, e.left);
+  out << " < ";
+  printSExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printSle(std::ostream &out, CType &ty, SleExpr &e) {
+  ty = UInt8;
+  printSExtSubExpr(out, e.left);
+  out << " <= ";
+  printSExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printSgt(std::ostream &out, CType &ty, SgtExpr &e) {
+  ty = UInt8;
+  printSExtSubExpr(out, e.left);
+  out << " > ";
+  printSExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printSge(std::ostream &out, CType &ty, SgeExpr &e) {
+  ty = UInt8;
+  printSExtSubExpr(out, e.left);
+  out << " > ";
+  printSExtSubExpr(out, e.right);
+}
+
+void ExprCPrinter::printFCmp(std::ostream &out, CType &ty, FCmpExpr &e) {
+  if (e.getPredicate() >= FCmpExpr::UNO)
+    out << "!(";
+  switch (e.getPredicate()) {
+  case FCmpExpr::FALSE:
+  case FCmpExpr::TRUE:
+    out << "0";
+    break;
+  case FCmpExpr::OEQ:
+  case FCmpExpr::UNE:
+    printFloatSubExpr(out, e.left);
+    out << " == ";
+    printFloatSubExpr(out, e.right);
+    break;
+  case FCmpExpr::OGT:
+  case FCmpExpr::ULE:
+    printFloatSubExpr(out, e.left);
+    out << " > ";
+    printFloatSubExpr(out, e.right);
+    break;
+  case FCmpExpr::OGE:
+  case FCmpExpr::ULT:
+    printFloatSubExpr(out, e.left);
+    out << " >= ";
+    printFloatSubExpr(out, e.right);
+    break;
+  case FCmpExpr::OLT:
+  case FCmpExpr::UGE:
+    printFloatSubExpr(out, e.left);
+    out << " < ";
+    printFloatSubExpr(out, e.right);
+    break;
+  case FCmpExpr::OLE:
+  case FCmpExpr::UGT:
+    printFloatSubExpr(out, e.left);
+    out << " <= ";
+    printFloatSubExpr(out, e.right);
+    break;
+  case FCmpExpr::ONE:
+  case FCmpExpr::UEQ:
+    printFloatSubExpr(out, e.left);
+    out << " < ";
+    printFloatSubExpr(out, e.right);
+    out << " | ";
+    printFloatSubExpr(out, e.left);
+    out << " > ";
+    printFloatSubExpr(out, e.right);
+    break;
+  case FCmpExpr::ORD:
+  case FCmpExpr::UNO:
+    printFloatSubExpr(out, e.left);
+    out << " < ";
+    printFloatSubExpr(out, e.right);
+    out << " | ";
+    printFloatSubExpr(out, e.left);
+    out << " >= ";
+    printFloatSubExpr(out, e.right);
+    break;
+  }
+  if (e.getPredicate() >= FCmpExpr::UNO)
+    out << ")";
+}
+
+void ExprCPrinter::printBindingRef(std::ostream &out, unsigned binding) {
+  out << "bindings->n" << binding;
+}
+
+void ExprCPrinter::printAnyTySubExpr(std::ostream &out, CType &ty, ref<Expr> e){
+  ExprBinding binding = getExprBinding(e);
+  ty = binding.first;
+  printBindingRef(out, binding.second);
+}
 
 void ExprCPrinter::printSubExpr(std::ostream &out, CType ty, ref<Expr> e) {
-   
+  ExprBinding binding = getExprBinding(e);
+  if (binding.first == ty) {
+    printBindingRef(out, binding.second);
+    return;
+  }
+
+  if ((ty >= FirstInt && ty <= LastInt && binding.first >= FirstFloat && binding.first <= LastFloat) ||
+      (ty >= FirstFloat && ty <= LastFloat && binding.first >= FirstInt && binding.first <= LastInt)) {
+    out << "(*(" << getTypeName(ty) << " *) &";
+    printBindingRef(out, binding.second);
+    out << ")";
+  } else {
+    out << "((" << getTypeName(ty) << ") ";
+    printBindingRef(out, binding.second);
+    out << ")";
+  }
 }
 
 void ExprCPrinter::printUIntSubExpr(std::ostream &out, ref<Expr> e) {
   printSubExpr(out, getUIntType(e->getWidth()), e);
+}
+
+void ExprCPrinter::printSIntSubExpr(std::ostream &out, ref<Expr> e) {
+  printSubExpr(out, getSIntType(e->getWidth()), e);
+}
+
+void ExprCPrinter::printFloatSubExpr(std::ostream &out, ref<Expr> e) {
+  printSubExpr(out, getFloatType(e->getWidth()), e);
 }
 
 const char *ExprCPrinter::getTypeName(CType ty) {
@@ -193,7 +571,6 @@ const char *ExprCPrinter::getTypeName(CType ty) {
   default:     assert(0 && "invalid ctype"); return 0;
   }
 }
-
 
 void ExprCPrinter::printConstantExpr(std::ostream &out, CType ty,
                                      ConstantExpr *ce) {
@@ -225,9 +602,9 @@ void ExprCPrinter::printConstantExpr(std::ostream &out, CType ty,
     out << ")";
 }
 
-std::pair<ExprCPrinter::CType, unsigned> ExprCPrinter::bindExpr(ref<Expr> e) {
+ExprCPrinter::ExprBinding ExprCPrinter::bindExpr(ref<Expr> e) {
   unsigned bindingNo = bindings.size();
-  std::pair<CType, unsigned> &binding = bindings[e];
+  ExprBinding &binding = bindings[e];
   binding.second = bindingNo;
 
   std::ostringstream out;
