@@ -618,3 +618,23 @@ ExprCPrinter::ExprBinding ExprCPrinter::bindExpr(ref<Expr> e) {
   return binding;
 }
 
+void ExprCPrinter::printExprEvaluator(std::ostream &out, ref<Expr> e) {
+  std::ostringstream structOut, fnOut;
+  ExprCPrinter cp(structOut, fnOut);
+
+  ExprBinding retBinding = cp.getExprBinding(e);
+  out << "struct CPbinding {\n";
+  out << structOut.str();
+  out << "};\n\n";
+
+  out << getTypeName(retBinding.first) << " CPeval(struct CPbinding *bindings";
+  for (llvm::StringSet<>::iterator i = cp.parmDecls.begin(),
+       e = cp.parmDecls.end(); i != e; ++i) {
+    out << ", char *" << i->first();
+  }
+  out << ") {\n";
+  out << fnOut.str();
+  out << "  return ";
+  cp.printBindingRef(out, retBinding.second);
+  out << ";\n}" << std::endl;
+}

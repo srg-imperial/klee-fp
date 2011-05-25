@@ -28,6 +28,9 @@ public:
     LastFloat = Double
   };
 private:
+  ExprCPrinter(std::ostream &structOut, std::ostream &fnOut)
+    : structOut(structOut), fnOut(fnOut) {}
+
   typedef std::pair<CType, unsigned> ExprBinding;
   std::map<ref<Expr>, ExprBinding> bindings;
   llvm::StringSet<> parmDecls;
@@ -108,6 +111,9 @@ private:
   void printFloatSubExpr(std::ostream &out, ref<Expr> e);
 
   void printConstantExpr(std::ostream &out, CType ty, ConstantExpr *ce);
+
+public:
+  static void printExprEvaluator(std::ostream &out, ref<Expr> e);
 };
 
 }
