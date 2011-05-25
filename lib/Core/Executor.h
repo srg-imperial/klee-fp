@@ -295,7 +295,7 @@ private:
                               KInstruction *target /* undef if write */);
 
   void executeMakeSymbolic(ExecutionState &state, const MemoryObject *mo,
-      bool shared=false);
+      const std::string &name, bool shared=false);
 
   /// Create a new state where each input condition has been added as
   /// a constraint and return the results. The input state is included

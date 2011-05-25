@@ -104,6 +104,9 @@ public:
 
   std::map<const std::string*, std::set<unsigned> > coveredLines;
 
+  /// Set of used array names.  Used to avoid collisions.
+  std::set<std::string> arrayNames;
+
   PTreeNode *ptreeNode;
 
   int crtForkReason;

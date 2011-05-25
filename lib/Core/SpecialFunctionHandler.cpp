@@ -1232,7 +1232,7 @@ void SpecialFunctionHandler::handleMakeSymbolic(ExecutionState &state,
                                      "cannot make readonly object symbolic",
                                      "user.err");
     } else {
-      executor.executeMakeSymbolic(*s, mo, os->isShared);
+      executor.executeMakeSymbolic(*s, mo, name, os->isShared);
     }
   }
 }
