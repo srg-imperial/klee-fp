@@ -608,7 +608,9 @@ ExprCPrinter::ExprBinding ExprCPrinter::bindExpr(ref<Expr> e) {
   binding.second = bindingNo;
 
   std::ostringstream out;
-  out << "  binding->n" << bindingNo << " = ";
+  out << "  ";
+  printBindingRef(out, bindingNo);
+  out << " = ";
   printExpr(out, binding.first, e);
   out << ";\n";
   fnOut << out.str();
