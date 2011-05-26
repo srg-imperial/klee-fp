@@ -597,10 +597,28 @@ void ExprCPrinter::printConstantExpr(std::ostream &out, CType ty,
     out << ce->getZExtValue() << "UL"; break;
   case UInt64:
     out << ce->getZExtValue() << "ULL"; break;
-  case Float:
-    out << ce->getAPFloatValue(false).convertToFloat() << "f"; break;
-  case Double:
-    out << ce->getAPFloatValue(false).convertToDouble(); break;
+  case Float: {
+    float f = ce->getAPFloatValue(false).convertToFloat();
+    std::ostringstream fout;
+    fout.precision(20);
+    fout << f;
+    if (fout.str().find('.') == std::string::npos &&
+        fout.str().find('e') == std::string::npos)
+      fout << ".";
+    out << fout.str() << "f";
+    break;
+  }
+  case Double: {
+    double d = ce->getAPFloatValue(false).convertToDouble();
+    std::ostringstream dout;
+    dout.precision(40);
+    dout << d;
+    if (dout.str().find('.') == std::string::npos &&
+        dout.str().find('e') == std::string::npos)
+      dout << ".";
+    out << dout.str();
+    break;
+  }
   }
 
   if (ty != Float && ty != Double)
