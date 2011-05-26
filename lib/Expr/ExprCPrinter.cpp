@@ -526,6 +526,11 @@ void ExprCPrinter::printAnyTySubExpr(std::ostream &out, CType &ty, ref<Expr> e){
 }
 
 void ExprCPrinter::printSubExpr(std::ostream &out, CType ty, ref<Expr> e) {
+  if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e)) {
+    printConstantExpr(out, ty, ce);
+    return;
+  }
+
   ExprBinding binding = getExprBinding(e);
   if (binding.first == ty) {
     printBindingRef(out, binding.second);
