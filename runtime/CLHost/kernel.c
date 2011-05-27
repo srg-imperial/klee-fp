@@ -118,7 +118,9 @@ static void *work_item_thread(void *arg) {
   cl_kernel kern = params->kernel;
   cl_program prog = kern->program;
 
-  memcpy40(prog->ids, params->ids, sizeof(size_t)*params->work_dim);
+  if (prog->ids) {
+    memcpy40(prog->ids, params->ids, sizeof(size_t)*params->work_dim);
+  }
 
   klee_set_work_group_id(params->wgid);
   if (prog->wgBarrierWlist)
@@ -248,13 +250,24 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
     }
   }
 
-  *kernel->program->workDim = work_dim;
-  if (global_work_offset)
-    memcpy(kernel->program->globalWorkOffset, global_work_offset, work_dim*sizeof(size_t));
-  else
-    memset(kernel->program->globalWorkOffset, 0, work_dim*sizeof(size_t));
-  memcpy(kernel->program->globalWorkSize, global_work_size, work_dim*sizeof(size_t));
-  memcpy(kernel->program->numGroups, num_groups, work_dim*sizeof(size_t));
+  if (kernel->program->workDim) {
+    *kernel->program->workDim = work_dim;
+  }
+
+  if (kernel->program->globalWorkOffset) {
+    if (global_work_offset)
+      memcpy(kernel->program->globalWorkOffset, global_work_offset, work_dim*sizeof(size_t));
+    else
+      memset(kernel->program->globalWorkOffset, 0, work_dim*sizeof(size_t));
+  }
+
+  if (kernel->program->globalWorkSize) {
+    memcpy(kernel->program->globalWorkSize, global_work_size, work_dim*sizeof(size_t));
+  }
+
+  if (kernel->program->numGroups) {
+    memcpy(kernel->program->numGroups, num_groups, work_dim*sizeof(size_t));
+  }
 
   do {
     /* Build up a one-dimensional work-group id for the work item.
