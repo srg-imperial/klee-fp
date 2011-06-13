@@ -174,8 +174,10 @@ void ExprCPrinter::printConcat(std::ostream &out, CType &ty, ConcatExpr &e) {
 }
 
 void ExprCPrinter::printExtract(std::ostream &out, CType &ty, ExtractExpr &e) {
+  ty = getUIntType(e.getWidth());
   printUIntSubExpr(out, e.expr);
-  out << " >> " << e.offset;
+  if (e.offset > 0)
+    out << " >> " << e.offset;
 }
 
 void ExprCPrinter::printZExt(std::ostream &out, CType &ty, ZExtExpr &e) {
