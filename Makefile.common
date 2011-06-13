@@ -29,6 +29,8 @@ endif
 # Needed to build runtime library using clang (gnu89 is the gcc default)
 C.Flags += -std=gnu89
 
+CL.Flags += -D__OPENCL_VERSION__=110
+
 ifeq ($(ENABLE_EXT_STP),1)
   LD.Flags += -L$(STP_ROOT)/lib
   CXX.Flags += -I$(STP_ROOT)/include

@@ -24,7 +24,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
+#ifdef __cplusplus
 #include <string.h>
+#endif
 
 #define __KLEE_FORK_DEFAULT       0
 #define __KLEE_FORK_FAULTINJ      1
@@ -33,6 +35,10 @@
 extern "C" {
 #endif
   
+#ifdef __OPENCL_VERSION__
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+#endif
+
   /* Add an accesible memory object at a user specified location. It
      is the users responsibility to make sure that these memory
      objects do not overlap. These memory objects will also
@@ -164,8 +170,10 @@ extern "C" {
   /* Dump constraint set. */
   void klee_dump_constraints(void);
 
+#ifndef __OPENCL_VERSION__
   /* Number of SSE instructions executed. */
   extern unsigned klee_sse_count;
+#endif
 
   /* Callback for each SSE instruction executed. */
   void klee_sse(char *name, char *file, unsigned line, char* func, char *inst);
@@ -233,6 +241,7 @@ extern "C" {
 
   void klee_thread_barrier(uint64_t wlist, unsigned tcount, unsigned addrspace);
 
+#ifndef __OPENCL_VERSION__
   static inline void klee_thread_notify_one(uint64_t wlist) {
     klee_thread_notify(wlist, 0);
   }
@@ -240,6 +249,7 @@ extern "C" {
   static inline void klee_thread_notify_all(uint64_t wlist) {
     klee_thread_notify(wlist, 1);
   }
+#endif
 
   //////////////////////////////////////////////////////////////////////////////
   // Misc
@@ -273,6 +283,10 @@ extern "C" {
   // (not the arguments or the result) to an address-space augmented type
 
 #define klee_asmalloc(AS) ((void __attribute__((address_space(AS))) *(*)(size_t))malloc)
+
+#ifdef __OPENCL_VERSION__
+#pragma OPENCL EXTENSION cl_khr_fp64 : disable
+#endif
 
 #ifdef __cplusplus
 }
