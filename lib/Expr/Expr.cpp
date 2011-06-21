@@ -1300,12 +1300,12 @@ static bool isOne(const APFloat &apf) {
 static ref<Expr> FAddExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
   if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
     APFloat apf = cl->getAPFloatValue(isIEEE);
-    if (apf.isZero() && apf.isNegative())
+    if (apf.isZero() && (apf.isNegative() || AssumePositiveZero))
       return r;
   }
   if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
     APFloat apf = cr->getAPFloatValue(isIEEE);
-    if (apf.isZero() && apf.isNegative())
+    if (apf.isZero() && (apf.isNegative() || AssumePositiveZero))
       return l;
   }
   return FAddExpr::alloc(l, r, isIEEE);
