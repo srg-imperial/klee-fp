@@ -28,6 +28,16 @@ namespace {
   ConstArrayOpt("const-array-opt",
 	 cl::init(false),
 	 cl::desc("Enable various optimizations involving all-constant arrays."));
+
+  cl::opt<bool>
+  AssumeFinite("assume-finite", 
+                   llvm::cl::desc("Assume all operands to floating point expressions are finite"),
+                   llvm::cl::init(false));
+
+  cl::opt<bool>
+  AssumePositiveZero("assume-positive-zero", 
+                   llvm::cl::desc("Assume all floating point zeros are positive"),
+                   llvm::cl::init(false));
 }
 
 /***/
@@ -1315,11 +1325,15 @@ static ref<Expr> FMulExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool is
     APFloat apf = cl->getAPFloatValue(isIEEE);
     if (isOne(apf))
       return r;
+    if (AssumeFinite && AssumePositiveZero && apf.isZero())
+      return l;
   }
   if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
     APFloat apf = cr->getAPFloatValue(isIEEE);
     if (isOne(apf))
       return l;
+    if (AssumeFinite && AssumePositiveZero && apf.isZero())
+      return r;
   }
   return FMulExpr::alloc(l, r, isIEEE);
 }
