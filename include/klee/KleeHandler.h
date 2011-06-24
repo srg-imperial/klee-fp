@@ -51,8 +51,8 @@ public:
                        const char *errorMessage,
                        const char *errorSuffix);
 
-  std::string getOutputFilename(const std::string &filename);
-  std::ostream *openOutputFile(const std::string &filename);
+  std::string getOutputFilename(const std::string &filename) const;
+  std::ostream *openOutputFile(const std::string &filename) const;
   std::string getTestFilename(const std::string &suffix, unsigned id);
   std::ostream *openTestFile(const std::string &suffix, unsigned id);
 

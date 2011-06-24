@@ -183,13 +183,13 @@ void KleeHandler::setInterpreter(Interpreter *i) {
 	}
 }
 
-std::string KleeHandler::getOutputFilename(const std::string &filename) {
+std::string KleeHandler::getOutputFilename(const std::string &filename) const {
 	char outfile[1024];
 	sprintf(outfile, "%s/%s", m_outputDirectory, filename.c_str());
 	return outfile;
 }
 
-std::ostream *KleeHandler::openOutputFile(const std::string &filename) {
+std::ostream *KleeHandler::openOutputFile(const std::string &filename) const {
 	std::ios::openmode io_mode = std::ios::out | std::ios::trunc
 			| std::ios::binary;
 	std::ostream *f;
