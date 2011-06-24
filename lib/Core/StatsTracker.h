@@ -27,6 +27,7 @@ namespace klee {
   class InstructionInfoTable;
   class InterpreterHandler;
   struct KInstruction;
+  class KModule;
   struct StackFrame;
 
   class StatsTracker {
@@ -59,6 +60,8 @@ namespace klee {
     StatsTracker(Executor &_executor, std::string _objectFilename,
                  bool _updateMinDistToUncovered);
     ~StatsTracker();
+
+    void addModule(KModule *km);
 
     // called after a new StackFrame has been pushed (for callpath tracing)
     void framePushed(StackFrame *frame, StackFrame *parentFrame);

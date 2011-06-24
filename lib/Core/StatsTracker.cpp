@@ -173,8 +173,6 @@ StatsTracker::StatsTracker(Executor &_executor, std::string _objectFilename,
     fullBranches(0),
     partialBranches(0),
     updateMinDistToUncovered(_updateMinDistToUncovered) {
-  KModule *km = executor.kmodules[0];
-
   sys::Path module(objectFilename);
   if (!sys::Path(objectFilename).isAbsolute()) {
     sys::Path current = sys::Path::GetCurrentDirectory();
@@ -183,8 +181,29 @@ StatsTracker::StatsTracker(Executor &_executor, std::string _objectFilename,
       objectFilename = current.c_str();
   }
 
+  if (OutputStats) {
+    statsFile = executor.interpreterHandler->openOutputFile("run.stats");
+    assert(statsFile && "unable to open statistics trace file");
+    writeStatsHeader();
+    writeStatsLine();
+
+    executor.addTimer(new WriteStatsTimer(this), StatsWriteInterval);
+
+    if (updateMinDistToUncovered)
+      executor.addTimer(new UpdateReachableTimer(this), UncoveredUpdateInterval);
+  }
+
+  if (OutputIStats) {
+    istatsFile = executor.interpreterHandler->openOutputFile("run.istats");
+    assert(istatsFile && "unable to open istats file");
+
+    executor.addTimer(new WriteIStatsTimer(this), IStatsWriteInterval);
+  }
+}
+
+void StatsTracker::addModule(KModule *km) {
   if (OutputIStats)
-    theStatisticManager->useIndexedStats(km->infos->getMaxID());
+    theStatisticManager->useIndexedStats(executor.infos.getMaxID());
 
   for (std::vector<KFunction*>::iterator it = km->functions.begin(), 
          ie = km->functions.end(); it != ie; ++it) {
@@ -207,25 +226,6 @@ StatsTracker::StatsTracker(Executor &_executor, std::string _objectFilename,
             numBranches++;
       }
     }
-  }
-
-  if (OutputStats) {
-    statsFile = executor.interpreterHandler->openOutputFile("run.stats");
-    assert(statsFile && "unable to open statistics trace file");
-    writeStatsHeader();
-    writeStatsLine();
-
-    executor.addTimer(new WriteStatsTimer(this), StatsWriteInterval);
-
-    if (updateMinDistToUncovered)
-      executor.addTimer(new UpdateReachableTimer(this), UncoveredUpdateInterval);
-  }
-
-  if (OutputIStats) {
-    istatsFile = executor.interpreterHandler->openOutputFile("run.istats");
-    assert(istatsFile && "unable to open istats file");
-
-    executor.addTimer(new WriteIStatsTimer(this), IStatsWriteInterval);
   }
 }
 
@@ -411,7 +411,6 @@ void StatsTracker::updateStateStatistics(uint64_t addend) {
 }
 
 void StatsTracker::writeIStats() {
-  Module *m = executor.kmodules[0]->module;
   uint64_t istatsMask = 0;
   std::ostream &of = *istatsFile;
   
@@ -422,8 +421,8 @@ void StatsTracker::writeIStats() {
   of << "version: 1\n";
   of << "creator: klee\n";
   of << "pid: " << sys::Process::GetCurrentUserId() << "\n";
-  of << "cmd: " << m->getModuleIdentifier() << "\n\n";
-  of << "\n";
+  of << "cmd: " << executor.kmodules[0]->module->getModuleIdentifier() << "\n";
+  of << "\n\n";
   
   StatisticManager &sm = *theStatisticManager;
   unsigned nStats = sm.getNumStatistics();
@@ -473,66 +472,70 @@ void StatsTracker::writeIStats() {
 
   of << "ob=" << objectFilename << "\n";
 
-  for (Module::iterator fnIt = m->begin(), fn_ie = m->end(); 
-       fnIt != fn_ie; ++fnIt) {
-    if (!fnIt->isDeclaration()) {
-      of << "fn=" << fnIt->getNameStr() << "\n";
-      for (Function::iterator bbIt = fnIt->begin(), bb_ie = fnIt->end(); 
-           bbIt != bb_ie; ++bbIt) {
-        for (BasicBlock::iterator it = bbIt->begin(), ie = bbIt->end(); 
-             it != ie; ++it) {
-          Instruction *instr = &*it;
-          const InstructionInfo &ii = executor.kmodules[0]->infos->getInfo(instr);
-          unsigned index = ii.id;
-          if (ii.file!=sourceFile) {
-            of << "fl=" << ii.file << "\n";
-            sourceFile = ii.file;
-          }
-          of << ii.assemblyLine << " ";
-          of << ii.line << " ";
-          for (unsigned i=0; i<nStats; i++)
-            if (istatsMask&(1<<i))
-              of << sm.getIndexedValue(sm.getStatistic(i), index) << " ";
-          of << "\n";
+  for (std::vector<KModule *>::iterator kmIt = executor.kmodules.begin(),
+       km_ie = executor.kmodules.end(); kmIt != km_ie; ++kmIt) {
+    Module *m = (*kmIt)->module;
+    for (Module::iterator fnIt = m->begin(), fn_ie = m->end(); 
+         fnIt != fn_ie; ++fnIt) {
+      if (!fnIt->isDeclaration()) {
+        of << "fn=" << fnIt->getNameStr() << "\n";
+        for (Function::iterator bbIt = fnIt->begin(), bb_ie = fnIt->end(); 
+             bbIt != bb_ie; ++bbIt) {
+          for (BasicBlock::iterator it = bbIt->begin(), ie = bbIt->end(); 
+               it != ie; ++it) {
+            Instruction *instr = &*it;
+            const InstructionInfo &ii = executor.infos.getInfo(instr);
+            unsigned index = ii.id;
+            if (ii.file!=sourceFile) {
+              of << "fl=" << ii.file << "\n";
+              sourceFile = ii.file;
+            }
+            of << ii.assemblyLine << " ";
+            of << ii.line << " ";
+            for (unsigned i=0; i<nStats; i++)
+              if (istatsMask&(1<<i))
+                of << sm.getIndexedValue(sm.getStatistic(i), index) << " ";
+            of << "\n";
 
-          if (UseCallPaths && 
-              (isa<CallInst>(instr) || isa<InvokeInst>(instr))) {
-            CallSiteSummaryTable::iterator it = callSiteStats.find(instr);
-            if (it!=callSiteStats.end()) {
-              for (std::map<llvm::Function*, CallSiteInfo>::iterator
-                     fit = it->second.begin(), fie = it->second.end(); 
-                   fit != fie; ++fit) {
-                Function *f = fit->first;
-                CallSiteInfo &csi = fit->second;
-                const InstructionInfo &fii = 
-                  executor.kmodules[0]->infos->getFunctionInfo(f);
-  
-                if (fii.file!="" && fii.file!=sourceFile)
-                  of << "cfl=" << fii.file << "\n";
-                of << "cfn=" << f->getNameStr() << "\n";
-                of << "calls=" << csi.count << " ";
-                of << fii.assemblyLine << " ";
-                of << fii.line << "\n";
+            if (UseCallPaths && 
+                (isa<CallInst>(instr) || isa<InvokeInst>(instr))) {
+              CallSiteSummaryTable::iterator it = callSiteStats.find(instr);
+              if (it!=callSiteStats.end()) {
+                for (std::map<llvm::Function*, CallSiteInfo>::iterator
+                       fit = it->second.begin(), fie = it->second.end(); 
+                     fit != fie; ++fit) {
+                  Function *f = fit->first;
+                  CallSiteInfo &csi = fit->second;
+                  const InstructionInfo &fii = 
+                    executor.infos.getFunctionInfo(f);
+    
+                  if (fii.file!="" && fii.file!=sourceFile)
+                    of << "cfl=" << fii.file << "\n";
+                  of << "cfn=" << f->getNameStr() << "\n";
+                  of << "calls=" << csi.count << " ";
+                  of << fii.assemblyLine << " ";
+                  of << fii.line << "\n";
 
-                of << ii.assemblyLine << " ";
-                of << ii.line << " ";
-                for (unsigned i=0; i<nStats; i++) {
-                  if (istatsMask&(1<<i)) {
-                    Statistic &s = sm.getStatistic(i);
-                    uint64_t value;
+                  of << ii.assemblyLine << " ";
+                  of << ii.line << " ";
+                  for (unsigned i=0; i<nStats; i++) {
+                    if (istatsMask&(1<<i)) {
+                      Statistic &s = sm.getStatistic(i);
+                      uint64_t value;
 
-                    // Hack, ignore things that don't make sense on
-                    // call paths.
-                    if (&s == &stats::uncoveredInstructions) {
-                      value = 0;
-                    } else {
-                      value = csi.statistics.getValue(s);
+                      // Hack, ignore things that don't make sense on
+                      // call paths.
+                      if (&s == &stats::uncoveredInstructions) {
+                        value = 0;
+                      } else {
+                        value = csi.statistics.getValue(s);
+                      }
+
+                      of << value << " ";
                     }
-
-                    of << value << " ";
                   }
+                  of << "\n";
                 }
-                of << "\n";
               }
             }
           }
@@ -600,7 +603,7 @@ void StatsTracker::computeReachableUncovered() {
   KModule *km = executor.kmodules[0];
   Module *m = km->module;
   static bool init = true;
-  const InstructionInfoTable &infos = *km->infos;
+  const InstructionInfoTable &infos = executor.infos;
   StatisticManager &sm = *theStatisticManager;
   
   if (init) {

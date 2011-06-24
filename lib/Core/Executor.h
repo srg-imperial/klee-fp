@@ -32,6 +32,7 @@
 #include "klee/ForkTag.h"
 #include "klee/util/Ref.h"
 #include "klee/Internal/Module/Cell.h"
+#include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
 #include "llvm/Support/CallSite.h"
@@ -122,6 +123,7 @@ private:
   SpecialFunctionHandler *specialFunctionHandler;
   std::vector<TimerInfo*> timers;
   PTree *processTree;
+  InstructionInfoTable infos;
 
   /// Used to track states that have been added during the current
   /// instructions step. 

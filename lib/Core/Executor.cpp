@@ -506,14 +506,17 @@ unsigned Executor::addModule(llvm::Module *module,
     specialFunctionHandler = new SpecialFunctionHandler(*this);
 
   specialFunctionHandler->prepare(kmodule);
-  kmodule->prepare(opts, interpreterHandler);
+  kmodule->prepare(opts, interpreterHandler, infos);
   specialFunctionHandler->bind(kmodule);
 
-  if (StatsTracker::useStatistics() && !statsTracker) {
-    statsTracker = 
-      new StatsTracker(*this,
-                       interpreterHandler->getOutputFilename("assembly.ll"),
-                       userSearcherRequiresMD2U());
+  if (StatsTracker::useStatistics()) {
+    if (!statsTracker)
+      statsTracker = 
+        new StatsTracker(*this,
+                         interpreterHandler->getOutputFilename("assembly.ll"),
+                         userSearcherRequiresMD2U());
+
+    statsTracker->addModule(kmodule);
   }
   
   return kmodules.size()-1;

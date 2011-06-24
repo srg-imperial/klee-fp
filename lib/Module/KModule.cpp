@@ -200,14 +200,12 @@ KModule::KModule(Module *_module)
     targetData(new TargetData(module)),
     dbgStopPointFn(0),
     kleeMergeFn(0),
-    infos(0),
     constantTable(0) {
 
 }
 
 KModule::~KModule() {
   delete[] constantTable;
-  delete infos;
 
   for (std::vector<KFunction*>::iterator it = functions.begin(), 
          ie = functions.end(); it != ie; ++it)
@@ -312,7 +310,8 @@ static void forceImport(Module *m, const char *name, const Type *retType, ...) {
 }
 
 void KModule::prepare(const Interpreter::ModuleOptions &opts,
-                      InterpreterHandler *ih) {
+                      InterpreterHandler *ih,
+                      InstructionInfoTable &infos) {
   if (!MergeAtExit.empty()) {
     Function *mergeFn = module->getFunction("klee_merge");
     if (!mergeFn) {
@@ -537,8 +536,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   /* Build shadow structures */
 
-  infos = new InstructionInfoTable;
-  infos->addModule(module);
+  infos.addModule(module);
 
   std::map<std::string, Function*> fnList;
   
@@ -558,7 +556,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
     for (unsigned i=0; i<kf->numInstructions; ++i) {
       KInstruction *ki = kf->instructions[i];
-      ki->info = &infos->getInfo(ki->inst);
+      ki->info = &infos.getInfo(ki->inst);
 
       if (ki->inst->getOpcode() == Instruction::Call) {
         KCallInstruction* kCallI = static_cast<KCallInstruction*>(ki);

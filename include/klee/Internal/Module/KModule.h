@@ -94,8 +94,6 @@ namespace klee {
     // XXX change to KFunction
     std::set<llvm::Function*> escapingFunctions;
 
-    InstructionInfoTable *infos;
-
     std::vector<llvm::Constant*> constants;
     std::map<llvm::Constant*, KConstant*> constantMap;
     KConstant* getKConstant(llvm::Constant *c);
@@ -131,7 +129,8 @@ namespace klee {
     //
     // FIXME: ihandler should not be here
     void prepare(const Interpreter::ModuleOptions &opts, 
-                 InterpreterHandler *ihandler);
+                 InterpreterHandler *ihandler,
+                 InstructionInfoTable &infos);
 
     /// Return an id for the given constant, creating a new one if necessary.
     unsigned getConstantID(llvm::Constant *c, KInstruction* ki);
