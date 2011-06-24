@@ -537,7 +537,8 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   /* Build shadow structures */
 
-  infos = new InstructionInfoTable(module);
+  infos = new InstructionInfoTable;
+  infos->addModule(module);
 
   std::map<std::string, Function*> fnList;
   

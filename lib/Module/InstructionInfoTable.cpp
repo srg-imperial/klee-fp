@@ -116,9 +116,11 @@ bool klee::getInstructionDebugInfo(const llvm::Instruction *I,
   return false;
 }
 
-InstructionInfoTable::InstructionInfoTable(Module *m) 
-  : dummyString(""), dummyInfo(0, dummyString, 0, 0) {
-  unsigned id = 0;
+InstructionInfoTable::InstructionInfoTable() 
+  : dummyString(""), dummyInfo(0, dummyString, 0, 0) {}
+
+void InstructionInfoTable::addModule(Module *m) {
+  unsigned id = infos.size();
   std::map<const Instruction*, unsigned> lineTable;
   buildInstructionToLineMap(m, lineTable);
 

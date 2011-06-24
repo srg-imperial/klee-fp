@@ -57,9 +57,10 @@ namespace klee {
     const std::string *internString(std::string s);
 
   public:
-    InstructionInfoTable(llvm::Module *m);
+    InstructionInfoTable();
     ~InstructionInfoTable();
 
+    void addModule(llvm::Module *m);
     unsigned getMaxID() const;
     const InstructionInfo &getInfo(const llvm::Instruction*) const;
     const InstructionInfo &getFunctionInfo(const llvm::Function*) const;
