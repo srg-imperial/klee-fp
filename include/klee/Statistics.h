@@ -42,9 +42,9 @@ namespace klee {
     bool enabled;
     std::vector<Statistic*> stats;
     uint64_t *globalStats;
-    uint64_t *indexedStats;
+    std::vector<uint64_t> indexedStats;
     StatisticRecord *contextStats;
-    unsigned index;
+    unsigned index, totalIndices;
 
   public:
     StatisticManager();
@@ -64,7 +64,7 @@ namespace klee {
     void incrementStatistic(Statistic &s, uint64_t addend);
     uint64_t getValue(const Statistic &s) const;
     void incrementIndexedValue(const Statistic &s, unsigned index, 
-                               uint64_t addend) const;
+                               uint64_t addend);
     uint64_t getIndexedValue(const Statistic &s, unsigned index) const;
     void setIndexedValue(const Statistic &s, unsigned index, uint64_t value);
     int getStatisticID(const std::string &name) const;
@@ -77,7 +77,7 @@ namespace klee {
                                                    uint64_t addend) {
     if (enabled) {
       globalStats[s.id] += addend;
-      if (indexedStats) {
+      if (!indexedStats.empty()) {
         indexedStats[index*stats.size() + s.id] += addend;
         if (contextStats)
           contextStats->data[s.id] += addend;
@@ -135,7 +135,7 @@ namespace klee {
 
   inline void StatisticManager::incrementIndexedValue(const Statistic &s, 
                                                       unsigned index,
-                                                      uint64_t addend) const {
+                                                      uint64_t addend) {
     indexedStats[index*stats.size() + s.id] += addend;
   }
 

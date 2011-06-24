@@ -23,13 +23,10 @@ StatisticManager::StatisticManager()
 
 StatisticManager::~StatisticManager() {
   if (globalStats) delete[] globalStats;
-  if (indexedStats) delete[] indexedStats;
 }
 
 void StatisticManager::useIndexedStats(unsigned totalIndices) {  
-  if (indexedStats) delete[] indexedStats;
-  indexedStats = new uint64_t[totalIndices * stats.size()];
-  memset(indexedStats, 0, sizeof(*indexedStats) * totalIndices * stats.size());
+  indexedStats.resize(totalIndices * stats.size());
 }
 
 void StatisticManager::registerStatistic(Statistic &s) {
