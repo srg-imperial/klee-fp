@@ -53,6 +53,7 @@
 #else
 #include "llvm/Support/Path.h"
 #endif
+#include "llvm/Support/raw_os_ostream.h"
 
 #ifdef HAVE_OPENCL
 #include "clang/Basic/Version.h"
@@ -70,6 +71,9 @@
 
 using namespace llvm;
 using namespace klee;
+
+llvm::cl::opt<bool>
+DumpOpenCLSource("dump-opencl-source", llvm::cl::init(false));
 
 llvm::cl::opt<bool>
 DumpOpenCLModules("dump-opencl-modules", llvm::cl::init(false));
@@ -1270,9 +1274,22 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
                                               KInstruction *target,
                                               std::vector<ref<Expr> > &arguments) {
 #ifdef HAVE_OPENCL
-  const char *codeName = "<OpenCL code>";
+  std::string codeName = "<OpenCL code>";
 
   std::string code = readStringAtAddress(state, arguments[0]);
+
+  static unsigned codeNum = -1U;
+  ++codeNum;
+
+  if (DumpOpenCLSource) {
+    char fileName[64];
+    snprintf(fileName, 64, "cl%06d.cl", codeNum);
+    codeName = executor.getHandler().getOutputFilename(fileName);
+
+    llvm::OwningPtr<std::ostream> out(
+      executor.getHandler().openOutputFile(fileName));
+    *out << code;
+  }
 
   MemoryBuffer *buf = MemoryBuffer::getMemBuffer(code);
 
@@ -1296,11 +1313,15 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
     }
   }
 
-  const char **argv = new const char*[splitArgs.size() + 2];
+  unsigned initialArgs = DumpOpenCLSource ? 3 : 2;
+
+  const char **argv = new const char*[splitArgs.size() + initialArgs];
   argv[0] = "-x";
   argv[1] = "cl";
+  if (DumpOpenCLSource)
+    argv[2] = "-g";
 
-       const char **argi = argv+2;
+       const char **argi = argv+initialArgs;
   for (SmallVector<StringRef, 8>::const_iterator
          i = splitArgs.begin(),
          e = splitArgs.end(); i != e; ++i, ++argi) {
@@ -1310,9 +1331,9 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
     *argi = arg;
   }
 
-  clang::CompilerInvocation::CreateFromArgs(*CI, argv, argv+splitArgs.size()+2, *Diag);
+  clang::CompilerInvocation::CreateFromArgs(*CI, argv, argv+splitArgs.size()+initialArgs, *Diag);
 
-  for (argi = argv+2; argi != argv+splitArgs.size()+2; ++argi) {
+  for (argi = argv+initialArgs; argi != argv+splitArgs.size()+initialArgs; ++argi) {
     delete *argi;
   }
   delete argv;
@@ -1338,8 +1359,15 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   }
 
   Module *Mod = Act->takeModule();
-  if (DumpOpenCLModules)
-    Mod->dump();
+  if (DumpOpenCLModules) {
+    char fileName[64];
+    snprintf(fileName, 64, "cl%06d.ll", codeNum);
+
+    llvm::OwningPtr<std::ostream> out(
+      executor.getHandler().openOutputFile(fileName));
+    llvm::raw_os_ostream rout(*out);
+    Mod->print(rout, 0);
+  }
 
   llvm::sys::Path LibraryDir(KLEE_DIR "/" RUNTIME_CONFIGURATION "/lib");
   llvm::sys::Path Path(LibraryDir);
@@ -1353,7 +1381,6 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   executor.bindLocal(target, state, 
                      ConstantExpr::create((uintptr_t) Mod,
                                           sizeof(uintptr_t) * 8));
-
 #else
   executor.terminateStateOnError(state, 
                                  "OpenCL support not available", 
