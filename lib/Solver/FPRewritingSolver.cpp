@@ -180,6 +180,14 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs, boo
                                constrainEquality(lhs->getKid(1), rhs->getKid(1), isUnordered));
       }
     }
+    case Expr::FSqrt:
+    case Expr::FCos:
+    case Expr::FSin: {
+      FUnaryExpr *fulhs = cast<FUnaryExpr>(lhs), *furhs = cast<FUnaryExpr>(rhs);
+      if (fulhs->isIEEE() != furhs->isIEEE())
+        return ConstantExpr::alloc(0, Expr::Bool);
+      return constrainEquality(lhs->getKid(0), rhs->getKid(0), isUnordered);
+    }
     case Expr::FPExt:
     case Expr::FPTrunc: {
       F2FConvertExpr *fclhs = cast<F2FConvertExpr>(lhs), *fcrhs = cast<F2FConvertExpr>(rhs);
