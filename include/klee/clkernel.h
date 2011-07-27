@@ -1,9 +1,5 @@
 #include <stddef.h>
 
-#define __local __attribute__((address_space(1)))
-#define __constant
-#define __global
-#define __private
 #define __klee_thrlocal __attribute__((address_space(4)))
 
 #define __kernel

@@ -40,6 +40,7 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/ADT/Twine.h"
 
 #include "llvm/Support/MemoryBuffer.h"
@@ -1345,7 +1346,9 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   CI->getPreprocessorOpts().Includes.push_back(KLEE_SRC_DIR "/include/klee/clkernel.h");
   CI->getPreprocessorOpts().addRemappedFile(codeName, buf);
 
-  CI->getTargetOpts().Triple = sys::getHostTriple();
+  Triple kleeTriple(sys::getHostTriple());
+  kleeTriple.setOS(Triple::KLEEOpenCL);
+  CI->getTargetOpts().Triple = kleeTriple.str();
 
   clang::CompilerInstance Clang;
   Clang.setInvocation(CI.take());

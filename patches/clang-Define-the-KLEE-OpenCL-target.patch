@@ -1,0 +1,63 @@
+From f05aec48b635b25f28a09d73088e2b42d91267ea Mon Sep 17 00:00:00 2001
+From: Peter Collingbourne <peter@pcc.me.uk>
+Date: Tue, 26 Jul 2011 20:29:18 +0100
+Subject: [PATCH] Define the KLEE-OpenCL target
+
+---
+ lib/Basic/Targets.cpp |   26 ++++++++++++++++++++++++++
+ 1 files changed, 26 insertions(+), 0 deletions(-)
+
+diff --git a/lib/Basic/Targets.cpp b/lib/Basic/Targets.cpp
+index 3aebc41..5baf27e 100644
+--- a/lib/Basic/Targets.cpp
++++ b/lib/Basic/Targets.cpp
+@@ -523,6 +523,28 @@ public:
+     : OSTargetInfo<Target>(triple) {}
+ };
+ 
++static const unsigned KLEEOpenCLAddrSpaceMap[] = {
++  0, // opencl_global
++  1, // opencl_local
++  0  // opencl_constant
++};
++
++// KLEE-OpenCL target
++template<typename Target>
++class KLEEOpenCLTargetInfo : public OSTargetInfo<Target> {
++protected:
++  virtual void getOSDefines(const LangOptions &Opts, const llvm::Triple &Triple,
++                            MacroBuilder &Builder) const {
++    DefineStd(Builder, "unix", Opts);
++  }
++public:
++  KLEEOpenCLTargetInfo(const std::string& triple)
++    : OSTargetInfo<Target>(triple) {
++    this->UserLabelPrefix = "";
++    this->AddrSpaceMap = &KLEEOpenCLAddrSpaceMap;
++  }
++};
++
+ } // end anonymous namespace.
+ 
+ //===----------------------------------------------------------------------===//
+@@ -2992,6 +3014,8 @@ static TargetInfo *AllocateTarget(const std::string &T) {
+       return new HaikuX86_32TargetInfo(T);
+     case llvm::Triple::RTEMS:
+       return new RTEMSX86_32TargetInfo(T);
++    case llvm::Triple::KLEEOpenCL:
++      return new KLEEOpenCLTargetInfo<X86_32TargetInfo>(T);
+     default:
+       return new X86_32TargetInfo(T);
+     }
+@@ -3019,6 +3043,8 @@ static TargetInfo *AllocateTarget(const std::string &T) {
+       return new MinGWX86_64TargetInfo(T);
+     case llvm::Triple::Win32:   // This is what Triple.h supports now.
+       return new VisualStudioWindowsX86_64TargetInfo(T);
++    case llvm::Triple::KLEEOpenCL:
++      return new KLEEOpenCLTargetInfo<X86_64TargetInfo>(T);
+     default:
+       return new X86_64TargetInfo(T);
+     }
+-- 
+1.7.5.3
+
