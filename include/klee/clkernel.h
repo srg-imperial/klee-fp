@@ -115,11 +115,11 @@ float __dot4(float4 p0, float4 p1);
 
 #define select(a, b, c) ((c) ? (b) : (a))
 
-/* 6.11.9 Explicit Memory Fence Functions */
+/* 6.11.8 Synchronization Functions */
 
 typedef enum {
   CLK_LOCAL_MEM_FENCE = 1,
   CLK_GLOBAL_MEM_FENCE = 2
 } cl_mem_fence_flags;
 
-void mem_fence(cl_mem_fence_flags flags);
+void barrier(cl_mem_fence_flags flags);
