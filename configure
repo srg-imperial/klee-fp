@@ -654,12 +654,14 @@ target_os
 LLVM_VERSION_MAJOR
 LLVM_VERSION_MINOR
 LLVM_IS_RELEASE
+REQUIRES_RTTI
 LLVM_BUILD_MODE
 KLEE_UCLIBC
 ENABLE_UCLIBC
 ENABLE_POSIX_RUNTIME
 ENABLE_OPENCL
 RUNTIME_ENABLE_OPTIMIZED
+RUNTIME_DISABLE_ASSERTIONS
 RUNTIME_CONFIGURATION
 CC
 CFLAGS
@@ -1281,7 +1283,7 @@ Optional Packages:
                           autodetect)
   --with-uclibc           Enable use of the klee uclibc at the given path
   --with-runtime          Select build configuration for runtime libraries
-                          (default Release)
+                          (default Release+Asserts)
   --with-stp              Location of STP installation directory
 
 Some influential environment variables:
@@ -1795,6 +1797,11 @@ ac_config_headers="$ac_config_headers include/klee/Config/config.h"
 
 
 
+
+
+
+
+
 ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
 ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -2074,6 +2081,14 @@ _ACEOF
 LLVM_IS_RELEASE=$llvm_is_release
 
 
+if test $llvm_version_major -eq 2 -a $llvm_version_minor -le 6 ; then
+  requires_rtti=1
+else
+  requires_rtti=0
+fi
+REQUIRES_RTTI=$requires_rtti
+
+
 
 # Check whether --with-llvm-build-mode was given.
 if test "${with_llvm_build_mode+set}" = set; then
@@ -2254,13 +2269,7 @@ else
 fi
 
 if test X"${withval}" = Xdefault; then
-   with_runtime=Release
-fi
-
-if !(test $llvm_version_major == 2 &&
-    test $llvm_version_minor -lt 8) &&
-    test "$with_runtime" == "Release"; then
-  with_runtime=Release+Asserts
+   with_runtime=Release+Asserts
 fi
 
 { echo "$as_me:$LINENO: checking runtime configuration" >&5
@@ -2270,20 +2279,28 @@ if test X${with_runtime} = XRelease; then
 echo "${ECHO_T}Release" >&6; }
     RUNTIME_ENABLE_OPTIMIZED=1
 
+    RUNTIME_DISABLE_ASSERTIONS=1
+
 elif test X${with_runtime} = XRelease+Asserts; then
     { echo "$as_me:$LINENO: result: Release+Asserts" >&5
 echo "${ECHO_T}Release+Asserts" >&6; }
     RUNTIME_ENABLE_OPTIMIZED=1
+
+    RUNTIME_DISABLE_ASSERTIONS=0
 
 elif test X${with_runtime} = XDebug; then
    { echo "$as_me:$LINENO: result: Debug" >&5
 echo "${ECHO_T}Debug" >&6; }
    RUNTIME_ENABLE_OPTIMIZED=0
 
+   RUNTIME_DISABLE_ASSERTIONS=1
+
 elif test X${with_runtime} = XDebug+Asserts; then
    { echo "$as_me:$LINENO: result: Debug+Asserts" >&5
 echo "${ECHO_T}Debug+Asserts" >&6; }
    RUNTIME_ENABLE_OPTIMIZED=0
+
+   RUNTIME_DISABLE_ASSERTIONS=0
 
 else
    { { echo "$as_me:$LINENO: error: invalid configuration: ${with_runtime}" >&5
@@ -6046,12 +6063,14 @@ target_os!$target_os$ac_delim
 LLVM_VERSION_MAJOR!$LLVM_VERSION_MAJOR$ac_delim
 LLVM_VERSION_MINOR!$LLVM_VERSION_MINOR$ac_delim
 LLVM_IS_RELEASE!$LLVM_IS_RELEASE$ac_delim
+REQUIRES_RTTI!$REQUIRES_RTTI$ac_delim
 LLVM_BUILD_MODE!$LLVM_BUILD_MODE$ac_delim
 KLEE_UCLIBC!$KLEE_UCLIBC$ac_delim
 ENABLE_UCLIBC!$ENABLE_UCLIBC$ac_delim
 ENABLE_POSIX_RUNTIME!$ENABLE_POSIX_RUNTIME$ac_delim
 ENABLE_OPENCL!$ENABLE_OPENCL$ac_delim
 RUNTIME_ENABLE_OPTIMIZED!$RUNTIME_ENABLE_OPTIMIZED$ac_delim
+RUNTIME_DISABLE_ASSERTIONS!$RUNTIME_DISABLE_ASSERTIONS$ac_delim
 RUNTIME_CONFIGURATION!$RUNTIME_CONFIGURATION$ac_delim
 CC!$CC$ac_delim
 CFLAGS!$CFLAGS$ac_delim
@@ -6074,7 +6093,7 @@ LIBOBJS!$LIBOBJS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 80; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 82; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

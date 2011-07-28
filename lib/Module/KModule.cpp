@@ -14,6 +14,7 @@
 
 #include "Passes.h"
 
+#include "klee/Config/Version.h"
 #include "klee/Interpreter.h"
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
@@ -22,7 +23,7 @@
 
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Instructions.h"
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(2, 7)
 #include "llvm/LLVMContext.h"
 #endif
 #include "llvm/Module.h"
@@ -31,10 +32,10 @@
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(2, 7)
 #include "llvm/Support/raw_os_ostream.h"
 #endif
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 9)
 #include "llvm/System/Path.h"
 #else
 #include "llvm/Support/Path.h"
@@ -228,7 +229,7 @@ static Function *getStubFunctionForCtorList(Module *m,
   assert(!gv->isDeclaration() && !gv->hasInternalLinkage() &&
          "do not support old LLVM style constructor/destructor lists");
   
-  std::vector<const Type*> nullary;
+  std::vector<LLVM_TYPE_Q Type*> nullary;
 
   Function *fn = Function::Create(FunctionType::get(Type::getVoidTy(getGlobalContext()), 
 						    nullary, false),
@@ -287,7 +288,8 @@ static void injectStaticConstructorsAndDestructors(Module *m) {
   }
 }
 
-static void forceImport(Module *m, const char *name, const Type *retType, ...) {
+static void forceImport(Module *m, const char *name, LLVM_TYPE_Q Type *retType,
+                        ...) {
   // If module lacks an externally visible symbol for the name then we
   // need to create one. We have to look in the symbol table because
   // we want to check everything (global variables, functions, and
@@ -300,8 +302,8 @@ static void forceImport(Module *m, const char *name, const Type *retType, ...) {
     va_list ap;
 
     va_start(ap, retType);
-    std::vector<const Type *> argTypes;
-    while (const Type *t = va_arg(ap, const Type*))
+    std::vector<LLVM_TYPE_Q Type *> argTypes;
+    while (LLVM_TYPE_Q Type *t = va_arg(ap, LLVM_TYPE_Q Type*))
       argTypes.push_back(t);
     va_end(ap);
 
@@ -315,9 +317,9 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   if (!MergeAtExit.empty()) {
     Function *mergeFn = module->getFunction("klee_merge");
     if (!mergeFn) {
-      const llvm::FunctionType *Ty = 
+      LLVM_TYPE_Q llvm::FunctionType *Ty = 
         FunctionType::get(Type::getVoidTy(getGlobalContext()), 
-                          std::vector<const Type*>(), false);
+                          std::vector<LLVM_TYPE_Q Type*>(), false);
       mergeFn = Function::Create(Ty, GlobalVariable::ExternalLinkage,
 				 "klee_merge",
 				 module);
@@ -338,10 +340,10 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
       BasicBlock *exit = BasicBlock::Create(getGlobalContext(), "exit", f);
       PHINode *result = 0;
       if (f->getReturnType() != Type::getVoidTy(getGlobalContext()))
-#if LLVM_VERSION_MAJOR > 2
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 0)
         result = PHINode::Create(f->getReturnType(), 0, "retval", exit);
 #else
-        result = PHINode::Create(f->getReturnType(), "retval", exit);
+		result = PHINode::Create(f->getReturnType(), "retval", exit);
 #endif
       CallInst::Create(mergeFn, "", exit);
       ReturnInst::Create(getGlobalContext(), result, exit);
@@ -391,7 +393,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   // by name. We only add them if such a function doesn't exist to
   // avoid creating stale uses.
 
-  const llvm::Type *i8Ty = Type::getInt8Ty(getGlobalContext());
+  LLVM_TYPE_Q llvm::Type *i8Ty = Type::getInt8Ty(getGlobalContext());
   forceImport(module, "memcpy", PointerType::getUnqual(i8Ty),
               PointerType::getUnqual(i8Ty),
               PointerType::getUnqual(i8Ty),
@@ -453,7 +455,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
     std::ostream *os = ih->openOutputFile("assembly.ll");
     assert(os && os->good() && "unable to open source output");
 
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 6)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 6)
     // We have an option for this in case the user wants a .ll they
     // can compile.
     if (NoTruncateSourceLines) {

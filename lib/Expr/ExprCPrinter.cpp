@@ -1,4 +1,5 @@
 #include "klee/util/ExprCPrinter.h"
+#include "klee/Config/Version.h"
 #include <sstream>
 
 using namespace klee;
@@ -657,7 +658,11 @@ void ExprCPrinter::printExprEvaluator(std::ostream &out, ref<Expr> e) {
   out << getTypeName(retBinding.first) << " CPeval(struct CPbinding *bindings";
   for (llvm::StringSet<>::iterator i = cp.parmDecls.begin(),
        e = cp.parmDecls.end(); i != e; ++i) {
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 0)
+    out << ", char *" << i->first().str();
+#else
     out << ", char *" << i->first();
+#endif
   }
   out << ") {\n";
   out << fnOut.str();

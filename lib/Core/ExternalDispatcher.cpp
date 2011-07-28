@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ExternalDispatcher.h"
-#include "klee/Config/config.h"
+#include "klee/Config/Version.h"
 
 // Ugh.
 #undef PACKAGE_BUGREPORT
@@ -21,16 +21,16 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Instructions.h"
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 7)
 #include "llvm/ModuleProvider.h"
 #endif
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(2, 7)
 #include "llvm/LLVMContext.h"
 #endif
 #include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/Support/CallSite.h"
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 9)
 #include "llvm/System/DynamicLibrary.h"
 #else
 #include "llvm/Support/DynamicLibrary.h"
@@ -85,12 +85,12 @@ void *ExternalDispatcher::resolveSymbol(const std::string &name) {
 
 ExternalDispatcher::ExternalDispatcher() {
   dispatchModule = new Module("ExternalDispatcher", getGlobalContext());
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 7)
   ExistingModuleProvider* MP = new ExistingModuleProvider(dispatchModule);
 #endif
 
   std::string error;
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 7)
   executionEngine = ExecutionEngine::createJIT(MP, &error);
 #else
   executionEngine = ExecutionEngine::createJIT(dispatchModule, &error);
@@ -209,7 +209,7 @@ Function *ExternalDispatcher::createDispatcher(Function *target, Instruction *in
 
   Value **args = new Value*[cs.arg_size()];
 
-  std::vector<const Type*> nullary;
+  std::vector<LLVM_TYPE_Q Type*> nullary;
   
   Function *dispatcher = Function::Create(FunctionType::get(Type::getVoidTy(getGlobalContext()), 
 							    nullary, false),
@@ -229,7 +229,7 @@ Function *ExternalDispatcher::createDispatcher(Function *target, Instruction *in
   Instruction *argI64s = new LoadInst(argI64sp, "args", dBB); 
   
   // Get the target function type.
-  const FunctionType *FTy =
+  LLVM_TYPE_Q FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(target->getType())->getElementType());
 
   // Each argument will be passed by writing it into gTheArgsP[i].
@@ -239,8 +239,8 @@ Function *ExternalDispatcher::createDispatcher(Function *target, Instruction *in
     // Determine the type the argument will be passed as. This accomodates for
     // the corresponding code in Executor.cpp for handling calls to bitcasted
     // functions.
-    const Type *argTy = (i < FTy->getNumParams() ? FTy->getParamType(i) : 
-                         (*ai)->getType());
+    LLVM_TYPE_Q Type *argTy = (i < FTy->getNumParams() ? FTy->getParamType(i) : 
+                               (*ai)->getType());
     Instruction *argI64p = 
       GetElementPtrInst::Create(argI64s, 
                                 ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 
@@ -258,7 +258,13 @@ Function *ExternalDispatcher::createDispatcher(Function *target, Instruction *in
   Constant *dispatchTarget =
     dispatchModule->getOrInsertFunction(target->getName(), FTy,
                                         target->getAttributes());
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 0)
+  Instruction *result = CallInst::Create(dispatchTarget,
+                                         llvm::ArrayRef<Value *>(args, args+i),
+                                         "", dBB);
+#else
   Instruction *result = CallInst::Create(dispatchTarget, args, args+i, "", dBB);
+#endif
   if (result->getType() != Type::getVoidTy(getGlobalContext())) {
     Instruction *resp = 
       new BitCastInst(argI64s, PointerType::getUnqual(result->getType()), 

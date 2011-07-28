@@ -447,6 +447,9 @@ else
         LLVMCXX := $(LLVMToolDir)/clang++
       endif
     endif
+  else
+    LLVMCC := $(LLVMGCC)
+    LLVMCXX := $(LLVMGXX)
   endif
 endif
 
@@ -1660,13 +1663,14 @@ $(ObjDir)/%.s: %.cl $(ObjDir)/.dir $(BUILT_SOURCES)
 
 # make the C and C++ compilers strip debug info out of bytecode libraries.
 ifdef DEBUG_RUNTIME
-$(ObjectsBC): $(ObjDir)/%.bc: $(ObjDir)/%.ll $(LOPT)
+$(ObjectsBC): $(ObjDir)/%.bc: $(ObjDir)/%.ll $(LLVMAS) $(LOPT)
 	$(Echo) "Compiling $*.ll to $*.bc for $(BuildMode) build (bytecode)"
-	$(Verb) $(LOPT) $(LOPT.Flags) $< -std-compile-opts -o $@
+	$(Verb) $(LLVMAS) $< -o - | $(LOPT) -std-compile-opts -o $@
 else
-$(ObjectsBC): $(ObjDir)/%.bc: $(ObjDir)/%.ll $(LOPT)
+$(ObjectsBC): $(ObjDir)/%.bc: $(ObjDir)/%.ll $(LLVMAS) $(LOPT)
 	$(Echo) "Compiling $*.ll to $*.bc for $(BuildMode) build (bytecode)"
-	$(Verb) $(LOPT) $(LOPT.Flags) $< -std-compile-opts -strip-debug -o $@
+	$(Verb) $(LLVMAS) $< -o - | \
+	   $(LOPT) -std-compile-opts -strip-debug -o $@
 endif
 
 

@@ -104,9 +104,6 @@ public:
 
   std::map<const std::string*, std::set<unsigned> > coveredLines;
 
-  /// Set of used array names.  Used to avoid collisions.
-  std::set<std::string> arrayNames;
-
   PTreeNode *ptreeNode;
 
   int crtForkReason;
@@ -118,6 +115,13 @@ public:
   //
   // FIXME: Move to a shared list structure (not critical).
   std::vector< std::pair<const MemoryObject*, const Array*> > symbolics;
+
+  /// Set of used array names.  Used to avoid collisions.
+  std::set<std::string> arrayNames;
+
+  // Used by the checkpoint/rollback methods for fake objects.
+  // FIXME: not freeing things on branch deletion.
+  MemoryMap shadowObjects;
 
   ConstraintManager globalConstraints;
 

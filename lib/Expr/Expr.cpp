@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/Expr.h"
+#include "klee/Config/Version.h"
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/CommandLine.h"
@@ -101,7 +102,7 @@ int Expr::compare(const Expr &b, ExprEquivSet &equivs) const {
     ap = &b; bp = this;
   }
 
-  if (equivs.find(std::make_pair(ap, bp)) != equivs.end())
+  if (equivs.count(std::make_pair(ap, bp)))
     return 0;
 
   Kind ak = getKind(), bk = b.getKind();
@@ -434,11 +435,11 @@ void ConstantExpr::toString(std::string &Res) const {
 
 ref<ConstantExpr> ConstantExpr::Concat(const ref<ConstantExpr> &RHS) {
   Expr::Width W = getWidth() + RHS->getWidth();
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
   APInt Tmp(value);
+#if LLVM_VERSION_CODE <= LLVM_VERSION(2, 8)
   Tmp.zext(W);
 #else
-  APInt Tmp = value.zext(W);
+  Tmp=Tmp.zext(W);
 #endif
   Tmp <<= RHS->getWidth();
   Tmp |= APInt(RHS->value).zext(W);

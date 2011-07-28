@@ -25,6 +25,10 @@ dnl Configure project makefiles
 dnl List every Makefile that exists within your source tree
 AC_CONFIG_HEADERS([include/klee/Config/config.h])
 
+AH_TOP([#ifndef KLEE_CONFIG_CONFIG_H
+#define KLEE_CONFIG_CONFIG_H])
+AH_BOTTOM([#endif])
+
 dnl FIXME: Make out of tree builds work.
 
 AC_LANG([C++])
@@ -138,6 +142,14 @@ AC_DEFINE_UNQUOTED(LLVM_VERSION_MINOR, $llvm_version_minor, [LLVM minor version 
 AC_SUBST(LLVM_VERSION_MINOR,$llvm_version_minor)
 AC_DEFINE_UNQUOTED(LLVM_IS_RELEASE, $llvm_is_release, [LLVM version is release (instead of development)])
 AC_SUBST(LLVM_IS_RELEASE,$llvm_is_release)
+
+dnl LLVM <= 2.6 requires RTTI.
+if test $llvm_version_major -eq 2 -a $llvm_version_minor -le 6 ; then
+  requires_rtti=1
+else
+  requires_rtti=0
+fi
+AC_SUBST(REQUIRES_RTTI,$requires_rtti)
 
 AC_ARG_WITH(llvm-build-mode,
   AS_HELP_STRING([--with-llvm-build-mode],
@@ -274,33 +286,29 @@ dnl User option to select runtime version
 
 AC_ARG_WITH(runtime,
   AS_HELP_STRING([--with-runtime],
-    [Select build configuration for runtime libraries (default [Release])]),,
+    [Select build configuration for runtime libraries (default [Release+Asserts])]),,
     withval=default)
 if test X"${withval}" = Xdefault; then
-   with_runtime=Release
-fi
-
-dnl Before LLVM 2.8, the "optimized with asserts enabled" build was just
-dnl 'Release'; now it's 'Release+Asserts'. See the LLVM 2.8 release notes.
-if !(test $llvm_version_major == 2 &&
-    test $llvm_version_minor -lt 8) &&
-    test "$with_runtime" == "Release"; then
-  with_runtime=Release+Asserts
+   with_runtime=Release+Asserts
 fi
 
 AC_MSG_CHECKING([runtime configuration])
 if test X${with_runtime} = XRelease; then
     AC_MSG_RESULT([Release])
     AC_SUBST(RUNTIME_ENABLE_OPTIMIZED,[[1]])
+    AC_SUBST(RUNTIME_DISABLE_ASSERTIONS,[[1]])
 elif test X${with_runtime} = XRelease+Asserts; then
     AC_MSG_RESULT([Release+Asserts])
     AC_SUBST(RUNTIME_ENABLE_OPTIMIZED,[[1]])
+    AC_SUBST(RUNTIME_DISABLE_ASSERTIONS,[[0]])
 elif test X${with_runtime} = XDebug; then
    AC_MSG_RESULT([Debug])
    AC_SUBST(RUNTIME_ENABLE_OPTIMIZED,[[0]])
+   AC_SUBST(RUNTIME_DISABLE_ASSERTIONS,[[1]])
 elif test X${with_runtime} = XDebug+Asserts; then
    AC_MSG_RESULT([Debug+Asserts])
    AC_SUBST(RUNTIME_ENABLE_OPTIMIZED,[[0]])
+   AC_SUBST(RUNTIME_DISABLE_ASSERTIONS,[[0]])
 else
    AC_MSG_ERROR([invalid configuration: ${with_runtime}])
 fi

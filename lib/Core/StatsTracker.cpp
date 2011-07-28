@@ -13,6 +13,7 @@
 
 #include "klee/ExecutionState.h"
 #include "klee/Statistics.h"
+#include "klee/Config/Version.h"
 #include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Module/KInstruction.h"
@@ -35,12 +36,12 @@
 #include "llvm/Type.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/CFG.h"
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 9)
 #include "llvm/System/Process.h"
 #else
 #include "llvm/Support/Process.h"
 #endif
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 9)
 #include "llvm/System/Path.h"
 #else
 #include "llvm/Support/Path.h"
@@ -244,41 +245,43 @@ void StatsTracker::done() {
 }
 
 void StatsTracker::stepInstruction(ExecutionState &es) {
-	if (OutputIStats) {
-		if (TrackInstructionTime) {
-			static sys::TimeValue lastNowTime(0, 0), lastUserTime(0, 0);
+  if (OutputIStats) {
+    if (TrackInstructionTime) {
+      static sys::TimeValue lastNowTime(0,0),lastUserTime(0,0);
+    
+      if (lastUserTime.seconds()==0 && lastUserTime.nanoseconds()==0) {
+        sys::TimeValue sys(0,0);
+        sys::Process::GetTimeUsage(lastNowTime,lastUserTime,sys);
+      } else {
+        sys::TimeValue now(0,0),user(0,0),sys(0,0);
+        sys::Process::GetTimeUsage(now,user,sys);
+        sys::TimeValue delta = user - lastUserTime;
+        sys::TimeValue deltaNow = now - lastNowTime;
+        stats::instructionTime += delta.usec();
+        stats::instructionRealTime += deltaNow.usec();
+        lastUserTime = user;
+        lastNowTime = now;
+      }
+    }
 
-			if (lastUserTime.seconds() == 0 && lastUserTime.nanoseconds() == 0) {
-				sys::TimeValue sys(0, 0);
-				sys::Process::GetTimeUsage(lastNowTime, lastUserTime, sys);
-			} else {
-				sys::TimeValue now(0, 0), user(0, 0), sys(0, 0);
-				sys::Process::GetTimeUsage(now, user, sys);
-				sys::TimeValue delta = user - lastUserTime;
-				sys::TimeValue deltaNow = now - lastNowTime;
-				stats::instructionTime += delta.usec();
-				stats::instructionRealTime += deltaNow.usec();
-				lastUserTime = user;
-				lastNowTime = now;
-			}
-		}
+    Instruction *inst = es.pc()->inst;
+    const InstructionInfo &ii = *es.pc()->info;
+    StackFrame &sf = es.stack().back();
+    theStatisticManager->setIndex(ii.id);
+    if (UseCallPaths)
+      theStatisticManager->setContext(&sf.callPathNode->statistics);
 
-		Instruction *inst = es.pc()->inst;
-		const InstructionInfo &ii = *es.pc()->info;
-		StackFrame &sf = es.stack().back();
-		theStatisticManager->setIndex(ii.id);
-		if (UseCallPaths)
-			theStatisticManager->setContext(&sf.callPathNode->statistics);
+    if (es.instsSinceCovNew)
+      ++es.instsSinceCovNew;
 
-		if (es.instsSinceCovNew)
-			++es.instsSinceCovNew;
-
-		if (sf.kf->trackCoverage && instructionIsCoverable(inst)) {
-			if (!theStatisticManager->getIndexedValue(
-					stats::coveredInstructions, ii.id)) {
-				// Checking for actual stoppoints avoids inconsistencies due
-				// to line number propogation.
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+    if (sf.kf->trackCoverage && instructionIsCoverable(inst)) {
+      if (!theStatisticManager->getIndexedValue(stats::coveredInstructions, ii.id)) {
+        // Checking for actual stoppoints avoids inconsistencies due
+        // to line number propogation.
+        //
+        // FIXME: This trick no longer works, we should fix this in the line
+        // number propogation.
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 7)
         if (isa<DbgStopPointInst>(inst))
 #endif
           es.coveredLines[&ii.file].insert(ii.line);
@@ -617,7 +620,7 @@ void StatsTracker::computeReachableUncovered() {
       for (Function::iterator bbIt = fnIt->begin(), bb_ie = fnIt->end(); 
            bbIt != bb_ie; ++bbIt) {
         for (BasicBlock::iterator it = bbIt->begin(), ie = bbIt->end(); 
-             it != it; ++it) {
+             it != ie; ++it) {
           if (isa<CallInst>(it) || isa<InvokeInst>(it)) {
             CallSite cs(it);
             if (isa<InlineAsm>(cs.getCalledValue())) {
@@ -663,7 +666,7 @@ void StatsTracker::computeReachableUncovered() {
       for (Function::iterator bbIt = fnIt->begin(), bb_ie = fnIt->end(); 
            bbIt != bb_ie; ++bbIt) {
         for (BasicBlock::iterator it = bbIt->begin(), ie = bbIt->end(); 
-             it != it; ++it) {
+             it != ie; ++it) {
           instructions.push_back(it);
           unsigned id = infos.getInfo(it).id;
           sm.setIndexedValue(stats::minDistToReturn, 
@@ -735,7 +738,7 @@ void StatsTracker::computeReachableUncovered() {
     for (Function::iterator bbIt = fnIt->begin(), bb_ie = fnIt->end(); 
          bbIt != bb_ie; ++bbIt) {
       for (BasicBlock::iterator it = bbIt->begin(), ie = bbIt->end(); 
-           it != it; ++it) {
+           it != ie; ++it) {
         unsigned id = infos.getInfo(it).id;
         instructions.push_back(&*it);
         sm.setIndexedValue(stats::minDistToUncovered, 

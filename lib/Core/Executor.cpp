@@ -45,7 +45,7 @@
 #include "klee/util/ExprPPrinter.h"
 #include "klee/util/ExprUtil.h"
 #include "klee/util/GetElementPtrTypeIterator.h"
-#include "klee/Config/config.h"
+#include "klee/Config/Version.h"
 #include "klee/Internal/ADT/KTest.h"
 #include "klee/Internal/ADT/RNG.h"
 #include "klee/Internal/Module/Cell.h"
@@ -60,7 +60,7 @@
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(2, 7)
 #include "llvm/LLVMContext.h"
 #endif
 #include "llvm/Module.h"
@@ -68,7 +68,7 @@
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 9)
 #include "llvm/System/Process.h"
 #else
 #include "llvm/Support/Process.h"
@@ -342,28 +342,28 @@ public:
   KModule *kmodule;
   SIMDOperation(const Executor *Exec, KModule *kmodule) : Exec(Exec), kmodule(kmodule) {}
 
-  virtual ref<Expr> evalOne(const Type *tt, const Type *ft, ref<Expr> l, ref<Expr> r) = 0;
+  virtual ref<Expr> evalOne(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *ft, ref<Expr> l, ref<Expr> r) = 0;
 
-  ref<Expr> eval(const Type *t, ref<Expr> src) {
+  ref<Expr> eval(LLVM_TYPE_Q Type *t, ref<Expr> src) {
     return eval(t, t, src);
   }
 
-  ref<Expr> eval(const Type *tt, const Type *ft, ref<Expr> src) {
+  ref<Expr> eval(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *ft, ref<Expr> src) {
     unsigned Bits = Exec->getWidthForLLVMType(kmodule, ft);
     return eval(tt, ft, src, klee::ConstantExpr::create(0, Bits));
   }
 
-  ref<Expr> eval(const Type *t, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> eval(LLVM_TYPE_Q Type *t, ref<Expr> l, ref<Expr> r) {
     return eval(t, t, l, r);
   }
 
-  ref<Expr> eval(const Type *tt, const Type *ft, ref<Expr> l, ref<Expr> r) {
-    if (const VectorType *vft = dyn_cast<VectorType>(ft)) {
+  ref<Expr> eval(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *ft, ref<Expr> l, ref<Expr> r) {
+    if (LLVM_TYPE_Q VectorType *vft = dyn_cast<VectorType>(ft)) {
       assert(isa<VectorType>(tt));
-      const VectorType *vtt = cast<VectorType>(tt);
+      LLVM_TYPE_Q VectorType *vtt = cast<VectorType>(tt);
 
-      const Type *fElTy = vft->getElementType();
-      const Type *tElTy = vtt->getElementType();
+      LLVM_TYPE_Q Type *fElTy = vft->getElementType();
+      LLVM_TYPE_Q Type *tElTy = vtt->getElementType();
       unsigned EltBits = Exec->getWidthForLLVMType(kmodule, fElTy);
    
       unsigned ElemCount = vft->getNumElements();
@@ -389,7 +389,7 @@ public:
 
   ISIMDOperation(const Executor *Exec, KModule *kmodule, ExprCtor Ctor) : SIMDOperation(Exec, kmodule), Ctor(Ctor) {}
 
-  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> evalOne(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, r);
   }
 };
@@ -401,7 +401,7 @@ public:
 
   FSIMDOperation(const Executor *Exec, KModule *kmodule, ExprCtor Ctor) : SIMDOperation(Exec, kmodule), Ctor(Ctor) {}
 
-  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> evalOne(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, r, t->isFP128Ty());
   }
 };
@@ -411,7 +411,7 @@ public:
   FCmpSIMDOperation(const Executor *Exec, KModule *kmodule, FCmpInst::Predicate pred) : SIMDOperation(Exec, kmodule), pred(klee::ConstantExpr::create(pred, 4)) {}
   ref<klee::ConstantExpr> pred;
 
-  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> evalOne(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *t, ref<Expr> l, ref<Expr> r) {
     return FCmpExpr::create(l, r, pred, t->isFP128Ty());
   }
 };
@@ -423,7 +423,7 @@ public:
 
   FUnSIMDOperation(const Executor *Exec, KModule *kmodule, ExprCtor Ctor) : SIMDOperation(Exec, kmodule), Ctor(Ctor) {}
 
-  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> evalOne(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, t->isFP128Ty());
   }
 };
@@ -435,7 +435,7 @@ public:
 
   I2FSIMDOperation(const Executor *Exec, KModule *kmodule, ExprCtor Ctor) : SIMDOperation(Exec, kmodule), Ctor(Ctor) {}
 
-  ref<Expr> evalOne(const Type *tt, const Type *t, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> evalOne(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *t, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, TypeToFloatSemantics(t));
   }
 };
@@ -447,7 +447,7 @@ public:
 
   F2ISIMDOperation(const Executor *Exec, KModule *kmodule, ExprCtor Ctor) : SIMDOperation(Exec, kmodule), Ctor(Ctor) {}
 
-  ref<Expr> evalOne(const Type *tt, const Type *ft, ref<Expr> l, ref<Expr> r) {
+  ref<Expr> evalOne(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *ft, ref<Expr> l, ref<Expr> r) {
     return Ctor(l, Exec->getWidthForLLVMType(kmodule, tt), ft->isFP128Ty());
   }
 };
@@ -544,10 +544,10 @@ Executor::~Executor() {
 /***/
 
 void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os,
-                                      Constant *c, 
+                                      const Constant *c, 
                                       unsigned offset) {
   TargetData *targetData = kmodule(state)->targetData;
-  if (ConstantVector *cp = dyn_cast<ConstantVector>(c)) {
+  if (const ConstantVector *cp = dyn_cast<ConstantVector>(c)) {
     unsigned elementSize =
       targetData->getTypeStoreSize(cp->getType()->getElementType());
     for (unsigned i=0, e=cp->getNumOperands(); i != e; ++i)
@@ -557,13 +557,13 @@ void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os,
     unsigned i, size = targetData->getTypeStoreSize(c->getType());
     for (i=0; i<size; i++)
       os->write8(0, offset+i, (uint8_t) 0);
-  } else if (ConstantArray *ca = dyn_cast<ConstantArray>(c)) {
+  } else if (const ConstantArray *ca = dyn_cast<ConstantArray>(c)) {
     unsigned elementSize =
       targetData->getTypeStoreSize(ca->getType()->getElementType());
     for (unsigned i=0, e=ca->getNumOperands(); i != e; ++i)
       initializeGlobalObject(state, os, ca->getOperand(i), 
 			     offset + i*elementSize);
-  } else if (ConstantStruct *cs = dyn_cast<ConstantStruct>(c)) {
+  } else if (const ConstantStruct *cs = dyn_cast<ConstantStruct>(c)) {
     const StructLayout *sl =
       targetData->getStructLayout(cast<StructType>(cs->getType()));
     for (unsigned i=0, e=cs->getNumOperands(); i != e; ++i)
@@ -647,7 +647,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
       // better we could support user definition, or use the EXE style
       // hack where we check the object file information.
 
-      const Type *ty = i->getType()->getElementType();
+      LLVM_TYPE_Q Type *ty = i->getType()->getElementType();
       unsigned addrspace = i->getType()->getAddressSpace();
       uint64_t size = kmodule(state)->targetData->getTypeStoreSize(ty);
 
@@ -691,7 +691,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
           os->write8(0, offset, ((unsigned char*)addr)[offset]);
       }
     } else {
-      const Type *ty = i->getType()->getElementType();
+      LLVM_TYPE_Q Type *ty = i->getType()->getElementType();
       unsigned addrspace = i->getType()->getAddressSpace();
       uint64_t size = kmodule(state)->targetData->getTypeStoreSize(ty);
       MemoryObject *mo = 0;
@@ -1187,8 +1187,8 @@ void Executor::addConstraint(ExecutionState &state, ref<Expr> condition) {
                                  ConstantExpr::alloc(1, Expr::Bool));
 }
 
-ref<klee::ConstantExpr> Executor::evalConstant(const KModule *kmodule, Constant *c) {
-  if (llvm::ConstantExpr *ce = dyn_cast<llvm::ConstantExpr>(c)) {
+ref<klee::ConstantExpr> Executor::evalConstant(const KModule *kmodule, const Constant *c) {
+  if (const llvm::ConstantExpr *ce = dyn_cast<llvm::ConstantExpr>(c)) {
     return evalConstantExpr(kmodule, ce);
   } else {
     if (const ConstantInt *ci = dyn_cast<ConstantInt>(c)) {
@@ -1610,7 +1610,7 @@ Function* Executor::getCalledFunction(CallSite &cs, ExecutionState &state) {
 }
 
 static bool isDebugIntrinsic(const Function *f, KModule *KM) {
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 7)
   // Fast path, getIntrinsicID is slow.
   if (f == KM->dbgStopPointFn)
     return true;
@@ -1694,7 +1694,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       }
 
       if (!isVoidReturn) {
-        const Type *t = caller->getType();
+        LLVM_TYPE_Q Type *t = caller->getType();
         if (t != Type::getVoidTy(getGlobalContext())) {
           // may need to do coercion due to bitcasts
           Expr::Width from = result->getWidth();
@@ -1790,7 +1790,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(cond)) {
       // Somewhat gross to create these all the time, but fine till we
       // switch to an internal rep.
-      const llvm::IntegerType *Ty = 
+      LLVM_TYPE_Q llvm::IntegerType *Ty = 
         cast<IntegerType>(si->getCondition()->getType());
       ConstantInt *ci = ConstantInt::get(Ty, CE->getZExtValue());
       unsigned index = si->findCaseValue(ci);
@@ -1977,7 +1977,11 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     break;
   }
   case Instruction::PHI: {
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 0)
+    ref<Expr> result = eval(ki, state.crtThread().incomingBBIndex, state).value;
+#else
     ref<Expr> result = eval(ki, state.crtThread().incomingBBIndex * 2, state).value;
+#endif
     bindLocal(ki, state, result);
     break;
   }
@@ -2209,7 +2213,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   }
  
     // Memory instructions...
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 7)
   case Instruction::Malloc:
   case Instruction::Alloca: {
     AllocationInst *ai = cast<AllocationInst>(i);
@@ -2229,7 +2233,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     executeAlloc(state, size, isLocal, ki);
     break;
   }
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 7)
   case Instruction::Free: {
     executeFree(state, eval(ki, 0, state).value);
     break;
@@ -2370,7 +2374,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::FPToUI:
   case Instruction::FPToSI: {
     ref<Expr> arg = eval(ki, 0, state).value;
-    const llvm::Type *type = i->getType();
+    LLVM_TYPE_Q llvm::Type *type = i->getType();
     bindLocal(ki, state, F2ISIMDOperation(this, kmodule(state),
        (i->getOpcode() == Instruction::FPToUI
       ? FPToUIExpr::create
@@ -2381,7 +2385,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::UIToFP:
   case Instruction::SIToFP: {
     ref<Expr> arg = eval(ki, 0, state).value;
-    const llvm::Type *type = i->getType();
+    LLVM_TYPE_Q llvm::Type *type = i->getType();
     bindLocal(ki, state, I2FSIMDOperation(this, kmodule(state),
        (i->getOpcode() == Instruction::UIToFP
       ? UIToFPExpr::create
@@ -2549,7 +2553,7 @@ void Executor::computeOffsets(KModule *kmodule, KGEPInstruction *kgepi,
     ConstantExpr::alloc(0, Context::get().getPointerWidth());
   uint64_t index = 1;
   for (TypeIt ii = ib; ii != ie; ++ii) {
-    if (const StructType *st = dyn_cast<StructType>(*ii)) {
+    if (LLVM_TYPE_Q StructType *st = dyn_cast<StructType>(*ii)) {
       const StructLayout *sl = kmodule->targetData->getStructLayout(st);
       const ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
       uint64_t addend = sl->getElementOffset((unsigned) ci->getZExtValue());
@@ -2986,7 +2990,7 @@ void Executor::callUnmodelledFunction(ExecutionState &state,
     }
   }
 
-  const Type *resultType = target->inst->getType();
+  LLVM_TYPE_Q Type *resultType = target->inst->getType();
   if (resultType != Type::getVoidTy(getGlobalContext())) {
     ref<Expr> e = ConstantExpr::fromMemory((void*) args, 
                                            getWidthForLLVMType(kmodule(state), resultType));
@@ -3127,7 +3131,7 @@ void Executor::executeAlloc(ExecutionState &state,
                UltExpr::create(ConstantExpr::alloc(1<<31, W), size), 
                true, KLEE_FORK_INTERNAL);
         if (hugeSize.first) {
-          klee_message("NOTE: found huge malloc, returing 0");
+          klee_message("NOTE: found huge malloc, returning 0");
           bindLocal(target, *hugeSize.first, 
                     ConstantExpr::alloc(0, Context::get().getPointerWidth()));
         }
@@ -3879,7 +3883,7 @@ void Executor::doImpliedValueConcretization(ExecutionState &state,
 }
 
 Expr::Width Executor::getWidthForLLVMType(const KModule *kmodule,
-                                          const llvm::Type *type) const {
+                                          LLVM_TYPE_Q llvm::Type *type) const {
   return kmodule->targetData->getTypeSizeInBits(type);
 }
 

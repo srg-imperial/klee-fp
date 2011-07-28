@@ -8,13 +8,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "Passes.h"
-#include "klee/Config/config.h"
+#include "klee/Config/Version.h"
 
 #include "llvm/InlineAsm.h"
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(2, 7)
 #include "llvm/LLVMContext.h"
 #endif
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(2, 9)
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Target/TargetLowering.h"
@@ -28,9 +28,14 @@ char RaiseAsmPass::ID = 0;
 
 Function *RaiseAsmPass::getIntrinsic(llvm::Module &M,
                                      unsigned IID,
-                                     const Type **Tys,
+                                     LLVM_TYPE_Q Type **Tys,
                                      unsigned NumTys) {  
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 0)
+  return Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) IID,
+                                   llvm::ArrayRef<llvm::Type*>(Tys, NumTys));
+#else
   return Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) IID, Tys, NumTys);
+#endif
 }
 
 // FIXME: This should just be implemented as a patch to
@@ -38,7 +43,7 @@ Function *RaiseAsmPass::getIntrinsic(llvm::Module &M,
 bool RaiseAsmPass::runOnInstruction(Module &M, Instruction *I) {
   if (CallInst *ci = dyn_cast<CallInst>(I)) {
     if (InlineAsm *ia = dyn_cast<InlineAsm>(ci->getCalledValue())) {
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(2, 9)
       (void) ia;
       return TLI && TLI->ExpandInlineAsm(ci);
 #else
@@ -47,7 +52,7 @@ bool RaiseAsmPass::runOnInstruction(Module &M, Instruction *I) {
       const llvm::Type *T = ci->getType();
 
       // bswaps
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 8)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 8)
       unsigned NumOperands = ci->getNumOperands();
       llvm::Value *Arg0 = NumOperands > 1 ? ci->getOperand(1) : 0;
 #else
@@ -62,7 +67,7 @@ bool RaiseAsmPass::runOnInstruction(Module &M, Instruction *I) {
             as == "rorw $$8, ${0:w};rorl $$16, $0;rorw $$8, ${0:w}" &&
             cs == "=r,0,~{dirflag},~{fpsr},~{flags},~{cc}"))) {
         Function *F = getIntrinsic(M, Intrinsic::bswap, Arg0->getType());
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 8)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 8)
         ci->setOperand(0, F);
 #else
         ci->setCalledFunction(F);
@@ -79,7 +84,7 @@ bool RaiseAsmPass::runOnInstruction(Module &M, Instruction *I) {
 bool RaiseAsmPass::runOnModule(Module &M) {
   bool changed = false;
 
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(2, 9)
   std::string Err;
   std::string HostTriple = llvm::sys::getHostTriple();
   const Target *NativeTarget = TargetRegistry::lookupTarget(HostTriple, Err);
@@ -87,7 +92,11 @@ bool RaiseAsmPass::runOnModule(Module &M) {
     llvm::errs() << "Warning: unable to select native target: " << Err << "\n";
     TLI = 0;
   } else {
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 0)
+    TargetMachine *TM = NativeTarget->createTargetMachine(HostTriple, "", "");
+#else
     TargetMachine *TM = NativeTarget->createTargetMachine(HostTriple, "");
+#endif
     TLI = TM->getTargetLowering();
   }
 #endif

@@ -7,7 +7,7 @@
 #include "klee/Expr.h"
 #include "klee/Interpreter.h"
 #include "klee/Statistics.h"
-#include "klee/Config/config.h"
+#include "klee/Config/Version.h"
 #include "klee/Internal/ADT/KTest.h"
 #include "klee/Internal/ADT/TreeStream.h"
 #include "klee/Internal/Support/ModuleUtil.h"
@@ -18,11 +18,14 @@
 
 #include "llvm/Constants.h"
 #include "llvm/Module.h"
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 7)
+#include "llvm/ModuleProvider.h"
+#endif
 #include "llvm/Type.h"
 #include "llvm/InstrTypes.h"
 #include "llvm/Instruction.h"
 #include "llvm/Instructions.h"
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(2, 7)
 #include "llvm/LLVMContext.h"
 #endif
 #include "llvm/Support/CommandLine.h"
@@ -35,10 +38,11 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 #include "llvm/Target/TargetSelect.h"
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE < LLVM_VERSION(2, 9)
 #include "llvm/System/Signals.h"
 #else
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/system_error.h"
 #endif
 #include <iostream>
 #include <fstream>

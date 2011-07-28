@@ -11,6 +11,7 @@
 
 #include "expr/Lexer.h"
 
+#include "klee/Config/Version.h"
 #include "klee/Constraints.h"
 #include "klee/ExprBuilder.h"
 #include "klee/Solver.h"
@@ -1496,16 +1497,16 @@ ExprResult ParserImpl::ParseNumberToken(Expr::Width Type, const Token &Tok) {
     Val = -Val;
 
   if (Type < Val.getBitWidth())
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE <= LLVM_VERSION(2, 8)
     Val.trunc(Type);
 #else
-    Val = Val.trunc(Type);
+    Val=Val.trunc(Type);
 #endif
   else if (Type > Val.getBitWidth())
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 9)
+#if LLVM_VERSION_CODE <= LLVM_VERSION(2, 8)
     Val.zext(Type);
 #else
-    Val = Val.zext(Type);
+    Val=Val.zext(Type);
 #endif
 
   return ExprResult(Builder->Constant(Val));
