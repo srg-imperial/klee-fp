@@ -424,13 +424,13 @@ static llvm::Module *linkWithPOSIX(llvm::Module *mainModule) {
 
     StringRef newName = fName.substr(strlen("__klee_model_"), fName.size());
 
-    Value *modelF = mainModule->getNamedValue(newName);
+    GlobalValue *modelF = mainModule->getNamedValue(newName);
 
     if (modelF != NULL) {
       //CLOUD9_DEBUG("Patching " << fName.str());
       //modelF->getType()->dump();
       //f->getType()->dump();
-      modelF->replaceAllUsesWith(f);
+      modelF->replaceAllUsesWith(ConstantExpr::getBitCast(f, modelF->getType()));
     }
   }
 
@@ -447,10 +447,10 @@ static llvm::Module *linkWithPOSIX(llvm::Module *mainModule) {
 
     //CLOUD9_DEBUG("Patching " << fName.str());
 
-    Value *originalF = mainModule->getNamedValue(newName);
+    GlobalValue *originalF = mainModule->getNamedValue(newName);
 
     if (originalF) {
-      f->replaceAllUsesWith(originalF);
+      f->replaceAllUsesWith(ConstantExpr::getBitCast(originalF, f->getType()));
       it++;
       f->eraseFromParent();
     } else {
