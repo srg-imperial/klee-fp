@@ -14,7 +14,7 @@ cl_int clGetDeviceIDs(cl_platform_id platform,
   if (num_devices == 0 && devices == 0)
     return CL_INVALID_VALUE;
 
-  if ((device_type & (CL_DEVICE_TYPE_DEFAULT & CL_DEVICE_TYPE_ALL)) == 0) {
+  if ((device_type & (CL_DEVICE_TYPE_DEFAULT | CL_DEVICE_TYPE_GPU)) == 0) {
     if (num_devices)
       *num_devices = 0;
     return CL_DEVICE_NOT_FOUND;

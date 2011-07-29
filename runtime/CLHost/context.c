@@ -42,7 +42,7 @@ clCreateContextFromType(const cl_context_properties *properties,
                                           void *user_data),
                         void *user_data,
                         cl_int *errcode_ret) {
-  if ((device_type & (CL_DEVICE_TYPE_CPU | CL_DEVICE_TYPE_DEFAULT)) == 0) { 
+  if ((device_type & (CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_DEFAULT)) == 0) { 
     if (errcode_ret)
       *errcode_ret = CL_DEVICE_NOT_FOUND;
     return NULL;
