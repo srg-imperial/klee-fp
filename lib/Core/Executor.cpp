@@ -2226,7 +2226,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> size = Expr::createPointer(elementSize);
     if (ai->isArrayAllocation()) {
       ref<Expr> count = eval(ki, 0, state).value;
-      count = Expr::createCoerceToPointerType(count);
+      count = Expr::createZExtToPointerWidth(count);
       size = MulExpr::create(size, count);
     }
     bool isLocal = i->getOpcode()==Instruction::Alloca;
@@ -2266,7 +2266,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       uint64_t elementSize = it->second;
       ref<Expr> index = eval(ki, it->first, state).value;
       base = AddExpr::create(base,
-                             MulExpr::create(Expr::createCoerceToPointerType(index),
+                             MulExpr::create(Expr::createSExtToPointerWidth(index),
                                              Expr::createPointer(elementSize)));
     }
     if (kgepi->offset)
@@ -2568,7 +2568,7 @@ void Executor::computeOffsets(KModule *kmodule, KGEPInstruction *kgepi,
         ref<ConstantExpr> index = evalConstant(kmodule, c);
         assert(isa<ConstantExpr>(index) && "index not an integer");
         ref<ConstantExpr> indexExt =
-          cast<ConstantExpr>(index)->ZExt(Context::get().getPointerWidth());
+          cast<ConstantExpr>(index)->SExt(Context::get().getPointerWidth());
         ref<ConstantExpr> addend = 
           indexExt->Mul(ConstantExpr::alloc(elementSize,
                                          Context::get().getPointerWidth()));
