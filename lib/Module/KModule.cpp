@@ -451,7 +451,9 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   // Write out the .ll assembly file. We truncate long lines to work
   // around a kcachegrind parsing bug (it puts them on new lines), so
   // that source browsing works.
-  if (OutputSource) {
+  static bool WroteAssembly = false;
+  if (OutputSource && !WroteAssembly) {
+    WroteAssembly = true;
     std::ostream *os = ih->openOutputFile("assembly.ll");
     assert(os && os->good() && "unable to open source output");
 
