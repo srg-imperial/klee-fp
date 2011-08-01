@@ -40,6 +40,7 @@ union _cl_intern_arg_data {
   float f32;
   double f64;
   struct _cl_mem mem;
+  size_t local_size;
 };
 
 struct _cl_kernel {
@@ -67,10 +68,11 @@ void kcl_add_event_to_queue(cl_command_queue queue, cl_event event);
 
 typedef int8_t cl_intern_arg_type;
 
-#define CL_INTERN_ARG_TYPE_I8  0
-#define CL_INTERN_ARG_TYPE_I16 1
-#define CL_INTERN_ARG_TYPE_I32 2
-#define CL_INTERN_ARG_TYPE_I64 3
-#define CL_INTERN_ARG_TYPE_F32 4
-#define CL_INTERN_ARG_TYPE_F64 5
-#define CL_INTERN_ARG_TYPE_MEM 6
+#define CL_INTERN_ARG_TYPE_I8        0
+#define CL_INTERN_ARG_TYPE_I16       1
+#define CL_INTERN_ARG_TYPE_I32       2
+#define CL_INTERN_ARG_TYPE_I64       3
+#define CL_INTERN_ARG_TYPE_F32       4
+#define CL_INTERN_ARG_TYPE_F64       5
+#define CL_INTERN_ARG_TYPE_MEM       6
+#define CL_INTERN_ARG_TYPE_LOCAL_MEM 7

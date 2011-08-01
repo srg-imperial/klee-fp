@@ -1405,8 +1405,12 @@ static cl_intern_arg_type typeAsCLArgType(const Type *t) {
     return CL_INTERN_ARG_TYPE_F32;
   if (t->isDoubleTy())
     return CL_INTERN_ARG_TYPE_F64;
-  if (t->isPointerTy())
-    return CL_INTERN_ARG_TYPE_MEM;
+  if (const PointerType *pt = dyn_cast<PointerType>(t)) {
+    if (pt->getAddressSpace() == 1)
+      return CL_INTERN_ARG_TYPE_LOCAL_MEM;
+    else
+      return CL_INTERN_ARG_TYPE_MEM;
+  }
   assert(0 && "Unknown type");
 }
 #endif

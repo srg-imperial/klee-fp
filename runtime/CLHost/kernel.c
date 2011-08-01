@@ -71,6 +71,15 @@ cl_int clSetKernelArg(cl_kernel kernel,
       }
       break;
     }
+    case CL_INTERN_ARG_TYPE_LOCAL_MEM: {
+      if (arg_value)
+        return CL_INVALID_ARG_VALUE;
+      if (arg_size == 0)
+        return CL_INVALID_ARG_SIZE;
+
+      kernel->args[arg_index].local_size = arg_size;
+      break;
+    }
     default: return CL_INVALID_KERNEL;
 #undef X
   }
@@ -242,6 +251,12 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
         case CL_INTERN_ARG_TYPE_F64: X(double, f64)
         case CL_INTERN_ARG_TYPE_MEM: {
           void *a = kernel->args[arg].mem.data;
+          klee_icall_add_arg(argList, &a, sizeof(a));
+          break;
+        }
+        case CL_INTERN_ARG_TYPE_LOCAL_MEM: {
+          __attribute__((address_space(1))) void *a =
+            klee_asmalloc(1)(kernel->args[arg].local_size);
           klee_icall_add_arg(argList, &a, sizeof(a));
           break;
         }
