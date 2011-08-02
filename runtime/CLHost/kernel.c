@@ -6,6 +6,12 @@
 #include <klee/klee.h>
 #include <klee/Internal/CL/clintern.h>
 
+#undef DUMP_NDRANGE
+
+#ifdef DUMP_NDRANGE
+#include <stdio.h>
+#endif
+
 cl_kernel clCreateKernel(cl_program program,
                          const char *kernel_name,
                          cl_int *errcode_ret) {
@@ -161,6 +167,25 @@ static int invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
   return pthread_create(pt, NULL, work_item_thread, params);
 }
 
+#ifdef DUMP_NDRANGE
+static void dump_ndrange_size(const char *name, cl_uint work_dim, const size_t *size) {
+  printf("  %s ", name);
+  fflush(stdout);
+  if (size) {
+    cl_uint dim;
+    printf("(");
+    if (work_dim > 0)
+      printf("%lu", (unsigned long) size[0]);
+    for (dim = 1; dim < work_dim; ++dim)
+      printf(", %lu", (unsigned long) size[dim]);
+    fflush(stdout);
+    puts(")");
+  } else {
+    puts("NULL");
+  }
+}
+#endif
+
 cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
                               cl_kernel kernel,
                               cl_uint work_dim,
@@ -178,6 +203,13 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
   uint64_t *wg_wlists;
   pthread_t *work_items, *cur_work_item;
   cl_event new_event;
+
+#ifdef DUMP_NDRANGE
+  puts("clEnqueueNDRangeKernel:");
+  dump_ndrange_size("global_work_offset", work_dim, global_work_offset);
+  dump_ndrange_size("global_work_size", work_dim, global_work_size);
+  dump_ndrange_size("local_work_size", work_dim, local_work_size);
+#endif
 
   int rv = clFinish(command_queue);
   if (rv != CL_SUCCESS)

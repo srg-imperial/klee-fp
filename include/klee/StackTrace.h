@@ -29,6 +29,7 @@ class KInstruction;
 
 class StackTrace {
   friend class ExecutionState;
+  friend class Thread;
 private:
   typedef std::pair<KFunction*, const KInstruction*> position_t;
 

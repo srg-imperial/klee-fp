@@ -19,6 +19,8 @@
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Module/Cell.h"
 
+#include "llvm/Function.h"
+
 namespace klee {
 
 /* StackFrame Methods */
@@ -80,6 +82,41 @@ Thread::Thread(thread_id_t tid, process_id_t pid, KFunction * kf, unsigned modul
     prevPC = pc;
   }
 
+}
+
+StackTrace Thread::getStackTrace() const {
+  StackTrace result;
+
+  const KInstruction *target = prevPC;
+
+  for (ExecutionState::stack_ty::const_reverse_iterator
+         it = stack.rbegin(), ie = stack.rend();
+       it != ie; ++it) {
+
+    const StackFrame &sf = *it;
+
+    StackTrace::position_t position = std::make_pair(sf.kf, target);
+    std::vector<ref<Expr> > arguments;
+
+    Function *f = sf.kf->function;
+    unsigned index = 0;
+    for (Function::arg_iterator ai = f->arg_begin(), ae = f->arg_end();
+         ai != ae; ++ai) {
+
+      ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
+      arguments.push_back(value);
+    }
+
+    result.contents.push_back(std::make_pair(position, arguments));
+
+    target = sf.caller;
+  }
+
+  return result;
+}
+
+void Thread::dumpStackTrace() const {
+ getStackTrace().dump(std::cerr);
 }
 
 }

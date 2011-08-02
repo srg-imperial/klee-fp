@@ -603,35 +603,17 @@ bool ExecutionState::merge(const ExecutionState &b) {
 
 /***/
 
-StackTrace ExecutionState::getStackTrace() const {
-  StackTrace result;
+void ExecutionState::dumpStacks() const {
+  printStacks(std::cerr);
+}
 
-  const KInstruction *target = prevPC();
-
-  for (ExecutionState::stack_ty::const_reverse_iterator
-         it = stack().rbegin(), ie = stack().rend();
-       it != ie; ++it) {
-
-    const StackFrame &sf = *it;
-
-    StackTrace::position_t position = std::make_pair(sf.kf, target);
-    std::vector<ref<Expr> > arguments;
-
-    Function *f = sf.kf->function;
-    unsigned index = 0;
-    for (Function::arg_iterator ai = f->arg_begin(), ae = f->arg_end();
-         ai != ae; ++ai) {
-
-      ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
-      arguments.push_back(value);
-    }
-
-    result.contents.push_back(std::make_pair(position, arguments));
-
-    target = sf.caller;
+void ExecutionState::printStacks(std::ostream &out) const {
+  for (threads_ty::const_iterator i = threads.begin(), e = threads.end();
+       i != e; ++i) {
+    out << "Thread #(" << i->second.tuid.first << "," << i->second.tuid.second
+        << "):\n";
+    i->second.getStackTrace().dump(out);
   }
-
-  return result;
 }
 
 AddressSpace &ExecutionState::addressSpace(unsigned addrspace) {

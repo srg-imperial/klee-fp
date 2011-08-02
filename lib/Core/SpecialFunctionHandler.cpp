@@ -653,7 +653,7 @@ void SpecialFunctionHandler::handleSetForking(ExecutionState &state,
 void SpecialFunctionHandler::handleStackTrace(ExecutionState &state,
                                               KInstruction *target,
                                               std::vector<ref<Expr> > &arguments) {
-  state.getStackTrace().dump(std::cout);
+  state.crtThread().getStackTrace().dump(std::cout);
 }
 
 void SpecialFunctionHandler::handleDumpConstraints(ExecutionState &state,

@@ -31,6 +31,7 @@ class ExecutionState;
 class Process;
 class CallPathNode;
 struct Cell;
+class StackTrace;
 
 typedef uint64_t thread_id_t;
 typedef uint64_t process_id_t;
@@ -94,6 +95,9 @@ public:
   thread_id_t getTid() const { return tuid.first; }
   process_id_t getPid() const { return tuid.second; }
   void setWorkgroupId(unsigned wgid) { workgroupId = wgid; }
+
+  StackTrace getStackTrace() const;
+  void dumpStackTrace() const;
 };
 
 }

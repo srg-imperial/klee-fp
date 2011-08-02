@@ -250,7 +250,8 @@ public:
 
   bool merge(const ExecutionState &b);
 
-  StackTrace getStackTrace() const;
+  void dumpStacks() const;
+  void printStacks(std::ostream &out) const;
 
   wg_addrspace_iterator wg_addrspace_begin() {
     return wgAddressSpaces.begin();
