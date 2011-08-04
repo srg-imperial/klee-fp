@@ -278,11 +278,9 @@ extern "C" {
   // Address spaces
   //////////////////////////////////////////////////////////////////////////////
 
-  // Multiple address space support is implemented by making the builtin
-  // functions polymorphic over address spaces and casting the function
-  // (not the arguments or the result) to an address-space augmented type
-
-#define klee_asmalloc(AS) ((void __attribute__((address_space(AS))) *(*)(size_t))malloc)
+  void *klee_malloc(size_t size, unsigned addrspace);
+#define klee_asmalloc(AS, SIZE) \
+  ((void __attribute__((address_space(AS))) *) klee_malloc(SIZE, AS))
 
 #ifdef __OPENCL_VERSION__
 #pragma OPENCL EXTENSION cl_khr_fp64 : disable

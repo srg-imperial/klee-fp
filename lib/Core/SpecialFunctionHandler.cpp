@@ -185,6 +185,7 @@ HandlerInfo handlerInfo[] = {
   add("klee_sinf", handleSin, true),
 
   add("malloc", handleMalloc, true),
+  add("klee_malloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
   add("valloc", handleValloc, true),
 
@@ -541,8 +542,19 @@ void SpecialFunctionHandler::handleMalloc(ExecutionState &state,
                                   KInstruction *target,
                                   std::vector<ref<Expr> > &arguments) {
   // XXX should type check args
-  assert(arguments.size()==1 && "invalid number of arguments to malloc");
-  executor.executeAlloc(state, arguments[0], false, target);
+  assert((arguments.size()==1 || arguments.size()==2) &&
+         "invalid number of arguments to malloc");
+  unsigned addrspace = 0;
+  if (arguments.size() == 2) {
+    ConstantExpr *addrspaceCE = dyn_cast<ConstantExpr>(arguments[1]);
+    if (!addrspaceCE) {
+      executor.terminateStateOnError(state, "symbolic address space",
+                                     "user.err");
+      return;
+    }
+    addrspace = addrspaceCE->getZExtValue();
+  }
+  executor.executeAlloc(state, arguments[0], false, target, addrspace);
 }
 
 
@@ -849,7 +861,7 @@ void SpecialFunctionHandler::handleRealloc(ExecutionState &state,
       
       for (Executor::ExactResolutionList::iterator it = rl.begin(), 
              ie = rl.end(); it != ie; ++it) {
-        executor.executeAlloc(*it->second, size, false, target, false, 
+        executor.executeAlloc(*it->second, size, false, target, 0, false, 
                               it->first.second);
       }
     }

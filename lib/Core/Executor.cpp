@@ -3065,11 +3065,11 @@ void Executor::executeAlloc(ExecutionState &state,
                             ref<Expr> size,
                             bool isLocal,
                             KInstruction *target,
+                            unsigned addrspace,
                             bool zeroMemory,
                             const ObjectState *reallocFrom) {
   size = toUnique(state, size);
   assert(isa<PointerType>(target->inst->getType()) && "alloc nonpointer type?");
-  unsigned addrspace = cast<PointerType>(target->inst->getType())->getAddressSpace();
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
     MemoryObject *mo = memory->allocate(&state, CE->getZExtValue(), isLocal, false,
                                         state.prevPC()->inst);
@@ -3139,7 +3139,7 @@ void Executor::executeAlloc(ExecutionState &state,
       (void) success;
       if (res) {
         executeAlloc(*fixedSize.second, tmp, isLocal,
-                     target, zeroMemory, reallocFrom);
+                     target, addrspace, zeroMemory, reallocFrom);
       } else {
         // See if a *really* big value is possible. If so assume
         // malloc will fail for it, so lets fork and return 0.
@@ -3168,7 +3168,7 @@ void Executor::executeAlloc(ExecutionState &state,
 
     if (fixedSize.first) // can be zero when fork fails
       executeAlloc(*fixedSize.first, example, isLocal, 
-                   target, zeroMemory, reallocFrom);
+                   target, addrspace, zeroMemory, reallocFrom);
   }
 }
 

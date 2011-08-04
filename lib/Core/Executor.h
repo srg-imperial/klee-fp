@@ -269,6 +269,7 @@ private:
                     ref<Expr> size,
                     bool isLocal,
                     KInstruction *target,
+                    unsigned addrspace=0,
                     bool zeroMemory=false,
                     const ObjectState *reallocFrom=0);
 

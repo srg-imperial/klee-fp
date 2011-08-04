@@ -288,7 +288,7 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
         }
         case CL_INTERN_ARG_TYPE_LOCAL_MEM: {
           __attribute__((address_space(1))) void *a =
-            klee_asmalloc(1)(kernel->args[arg].local_size);
+            klee_asmalloc(1, kernel->args[arg].local_size);
           klee_icall_add_arg(argList, &a, sizeof(a));
           break;
         }
