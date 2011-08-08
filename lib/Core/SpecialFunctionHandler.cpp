@@ -319,7 +319,7 @@ bool SpecialFunctionHandler::writeConcreteValue(ExecutionState &state,
 
   ObjectState *os = state.addressSpace().getWriteable(op.first, op.second);
 
-  os->write(state.crtThread().getTid(), op.first->getOffsetExpr(address), ConstantExpr::create(value, width));
+  os->write(op.first->getOffsetExpr(address), ConstantExpr::create(value, width), state.crtThread().getTid());
 
   return true;
 }
@@ -353,7 +353,7 @@ SpecialFunctionHandler::readStringAtAddress(ExecutionState &state,
 
   unsigned i;
   for (i = 0; i < mo->size - ioffset - 1; i++) {
-    ref<Expr> cur = os->read8(state.crtThread().getTid(), i + ioffset);
+    ref<Expr> cur = os->read8(i + ioffset, state.crtThread().getTid());
     cur = executor.toUnique(state, cur);
     if (!isa<ConstantExpr>(cur)) //XXX: Should actually concretize the value...
            return std::string("hit symbolic char while reading concrete string");
@@ -392,7 +392,7 @@ SpecialFunctionHandler::readMemoryAtAddress(ExecutionState &state,
 
   unsigned i;
   for (i = 0; i < mo->size; i++) {
-    ref<Expr> cur = os->read8(state.crtThread().getTid(), i);
+    ref<Expr> cur = os->read8(i, state.crtThread().getTid());
     cur = executor.toUnique(state, cur);
     assert(isa<ConstantExpr>(cur) && 
            "hit symbolic char while reading concrete memory");
@@ -426,7 +426,7 @@ SpecialFunctionHandler::writeMemoryAtAddress(ExecutionState &state,
 
   unsigned i;
   for (i = 0; i < mo->size; i++) {
-    os->write8(state.crtThread().getTid(), i, buf[i]);
+    os->write8(i, buf[i], state.crtThread().getTid());
   }
 }
 
@@ -1515,7 +1515,7 @@ void SpecialFunctionHandler::handleICallAddArg(ExecutionState &state,
          "XXX interior pointer unhandled");
   const ObjectState *os = op.second;
 
-  ref<Expr> arg = os->read(state.crtThread().getTid(), 0, argSize*8);
+  ref<Expr> arg = os->read(0, argSize*8, state.crtThread().getTid());
 
   argsPtr->push_back(arg);
 }

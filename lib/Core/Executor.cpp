@@ -557,7 +557,7 @@ void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os,
   } else if (isa<ConstantAggregateZero>(c)) {
     unsigned i, size = targetData->getTypeStoreSize(c->getType());
     for (i=0; i<size; i++)
-      os->write8(0, offset+i, (uint8_t) 0);
+      os->write8(offset+i, (uint8_t) 0);
   } else if (const ConstantArray *ca = dyn_cast<ConstantArray>(c)) {
     unsigned elementSize =
       targetData->getTypeStoreSize(ca->getType()->getElementType());
@@ -579,7 +579,7 @@ void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os,
     if (StoreBits > C->getWidth())
       C = C->ZExt(StoreBits);
 
-    os->write(0, offset, C);
+    os->write(offset, C);
   }
 }
 
@@ -590,7 +590,7 @@ MemoryObject * Executor::addExternalObject(ExecutionState &state,
                                            size, 0);
   ObjectState *os = bindObjectInState(state, 0, mo, false);
   for(unsigned i = 0; i < size; i++)
-    os->write8(0, i, ((uint8_t*)addr)[i]);
+    os->write8(i, ((uint8_t*)addr)[i]);
   if(isReadOnly)
     os->setReadOnly(true);  
   return mo;
@@ -689,7 +689,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
                      i->getName().data());
 
         for (unsigned offset=0; offset<mo->size; offset++)
-          os->write8(0, offset, ((unsigned char*)addr)[offset]);
+          os->write8(offset, ((unsigned char*)addr)[offset]);
       }
     } else {
       LLVM_TYPE_Q Type *ty = i->getType()->getElementType();
@@ -1540,11 +1540,11 @@ void Executor::executeCall(ExecutionState &state,
         // size. This happens to work fir x86-32 and x86-64, however.
         Expr::Width WordSize = Context::get().getPointerWidth();
         if (WordSize == Expr::Int32) {
-          os->write(state.crtThread().getTid(), offset, arguments[i]);
+          os->write(offset, arguments[i], state.crtThread().getTid());
           offset += Expr::getMinBytesForWidth(arguments[i]->getWidth());
         } else {
           assert(WordSize == Expr::Int64 && "Unknown word size!");
-          os->write(state.crtThread().getTid(), offset, arguments[i]);
+          os->write(offset, arguments[i], state.crtThread().getTid());
           offset += llvm::RoundUpToAlignment(arguments[i]->getWidth(), 
                                              WordSize) / 8;
         }
@@ -3137,7 +3137,7 @@ void Executor::executeAlloc(ExecutionState &state,
         unsigned count = std::min(reallocFrom->size, os->size);
         thread_id_t tid = state.crtThread().getTid();
         for (unsigned i=0; i<count; i++)
-          os->write(tid, i, reallocFrom->read8(tid, i));
+          os->write(i, reallocFrom->read8(tid, i), tid);
         state.addressSpace(addrspace).unbindObject(reallocFrom->getObject());
       }
     }
@@ -3573,11 +3573,11 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                                 "readonly.err");
         } else {
           ObjectState *wos = state.addressSpace(addrspace).getWriteable(mo, os);
-          wos->write(state.crtThread().getTid(), offset, value);
+          wos->write(offset, value, state.crtThread().getTid());
 
 	}          
       } else {
-	ref<Expr> result = os->read(state.crtThread().getTid(), offset, type);
+	ref<Expr> result = os->read(offset, type, state.crtThread().getTid());
 
         if (interpreterOpts.MakeConcreteSymbolic)
           result = replaceReadWithSymbolic(state, result);
@@ -3618,10 +3618,10 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                                 "readonly.err");
         } else {
           ObjectState *wos = bound->addressSpace(addrspace).getWriteable(mo, os);
-          wos->write(state.crtThread().getTid(), mo->getOffsetExpr(address), value);
+          wos->write(mo->getOffsetExpr(address), value, state.crtThread().getTid());
         }
       } else {
-        ref<Expr> result = os->read(state.crtThread().getTid(), mo->getOffsetExpr(address), type);
+        ref<Expr> result = os->read(mo->getOffsetExpr(address), type, state.crtThread().getTid());
         bindLocal(target, *bound, result);
       }
     }
@@ -3720,7 +3720,7 @@ void Executor::executeMakeSymbolic(ExecutionState &state,
       } else {
         thread_id_t tid = state.crtThread().getTid();
         for (unsigned i=0; i<mo->size; i++)
-          os->write8(tid, i, obj->bytes[i]);
+          os->write8(i, obj->bytes[i], tid);
       }
     }
   }
@@ -3804,13 +3804,13 @@ void Executor::runFunctionAsMain(Function *f,
 				arg = memory->allocate(state, len + 1, false, true, state->pc()->inst);
 				ObjectState *os = bindObjectInState(*state, 0, arg, false);
 				for (j = 0; j < len + 1; j++)
-                                  os->write8(tid, j, s[j]);
+                                  os->write8(j, s[j], tid);
 			}
 
 			if (arg) {
-				argvOS->write(tid, i * NumPtrBytes, arg->getBaseExpr());
+				argvOS->write(i * NumPtrBytes, arg->getBaseExpr(), tid);
 			} else {
-				argvOS->write(tid, i * NumPtrBytes, Expr::createPointer(0));
+				argvOS->write(i * NumPtrBytes, Expr::createPointer(0), tid);
 			}
 		}
 	}
@@ -3941,7 +3941,7 @@ void Executor::doImpliedValueConcretization(ExecutionState &state,
         assert(!os->readOnly && 
                "not possible? read only object with static read?");
         ObjectState *wos = state.addressSpace().getWriteable(mo, os);
-        wos->write(state.crtThread().getTid(), CE, it->second);
+        wos->write(CE, it->second, state.crtThread().getTid());
       }
     }
   }
