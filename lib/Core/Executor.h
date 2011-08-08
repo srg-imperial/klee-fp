@@ -233,6 +233,12 @@ private:
   ObjectState *bindObjectInState(ExecutionState &state, unsigned addrspace,
                                  const MemoryObject *mo,
                                  bool isLocal, const Array *array = 0);
+  void bindAllObjectStates(ExecutionState &state,
+                           unsigned addrspace,
+                           const MemoryObject *mo,
+                           bool isLocal,
+                           std::vector<ObjectState *> &states,
+                           const Array *array = 0);
 
   /// Resolve a pointer to the memory objects it could point to the
   /// start of, forking execution when necessary and generating errors

@@ -3061,6 +3061,48 @@ ObjectState *Executor::bindObjectInState(ExecutionState &state,
   return os;
 }
 
+/// Similar to Executor::bindObjectInState, but binds in all "variants"
+/// of the given address space (within the current process, where possible).
+/// A list of all ObjectStates created is returned through states.
+void Executor::bindAllObjectStates(ExecutionState &state, 
+                                   unsigned addrspace,
+                                   const MemoryObject *mo,
+                                   bool isLocal,
+                                   std::vector<ObjectState *> &states,
+                                   const Array *array) {
+  std::vector<AddressSpace *> addrspaces;
+  switch (addrspace) {
+  case 0:
+    addrspaces.push_back(&state.crtProcess().addressSpace);
+    break;
+  case 1:
+    addrspaces = state.wgAddressSpaces;
+    break;
+  case 4: {
+    std::set<thread_uid_t> &thrs = state.crtProcess().threads;
+    for (std::set<thread_uid_t>::iterator i = thrs.begin(), e = thrs.end();
+         i != e; ++i) {
+      ExecutionState::threads_ty::iterator thrIt = state.threads.find(*i);
+      addrspaces.push_back(&thrIt->second.threadLocalAddressSpace);
+    }
+    break;
+  }
+  }
+
+  if (addrspaces.size() > 1)
+    puts("b");
+
+  for (std::vector<AddressSpace *>::iterator i = addrspaces.begin(),
+       e = addrspaces.end(); i != e; ++i) {
+    ObjectState *os = array ? new ObjectState(mo, array) : new ObjectState(mo);
+    (*i)->bindObject(mo, os);
+    states.push_back(os);
+  }
+
+  if (isLocal)
+    state.stack().back().allocas.push_back(mo);
+}
+
 void Executor::executeAlloc(ExecutionState &state,
                             ref<Expr> size,
                             bool isLocal,
@@ -3077,15 +3119,21 @@ void Executor::executeAlloc(ExecutionState &state,
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
     } else {
-      ObjectState *os = bindObjectInState(state, addrspace, mo, isLocal);
-      if (zeroMemory) {
-        os->initializeToZero();
-      } else {
-        os->initializeToRandom();
+      std::vector<ObjectState *> states;
+      bindAllObjectStates(state, addrspace, mo, isLocal, states);
+      for (std::vector<ObjectState *>::iterator i = states.begin(),
+           e = states.end(); i != e; ++i) {
+        if (zeroMemory) {
+          (*i)->initializeToZero();
+        } else {
+          (*i)->initializeToRandom();
+        }
       }
       bindLocal(target, state, mo->getBaseExpr());
       
       if (reallocFrom) {
+        assert(states.size() == 1 && "realloc not supported in this addrspace");
+        ObjectState *os = states[0];
         unsigned count = std::min(reallocFrom->size, os->size);
         thread_id_t tid = state.crtThread().getTid();
         for (unsigned i=0; i<count; i++)
