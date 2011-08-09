@@ -239,7 +239,8 @@ extern "C" {
 
   void klee_thread_notify(uint64_t wlist, int all);
 
-  void klee_thread_barrier(uint64_t wlist, unsigned tcount, unsigned addrspace);
+  void klee_thread_barrier(uint64_t wlist, unsigned tcount, unsigned addrspace,
+                           unsigned isglobal);
 
 #ifndef __OPENCL_VERSION__
   static inline void klee_thread_notify_one(uint64_t wlist) {

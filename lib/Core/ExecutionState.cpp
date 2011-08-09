@@ -287,7 +287,8 @@ void ExecutionState::sleepThread(wlist_id_t wlist) {
   wl.insert(crtThread().tuid);
 }
 
-bool ExecutionState::barrierThread(wlist_id_t wlist, unsigned threadCount,  unsigned addrSpace) {
+bool ExecutionState::barrierThread(wlist_id_t wlist, unsigned threadCount,
+                                   unsigned addrSpace, bool isGlobal) {
   assert(crtThread().enabled);
   assert(wlist > 0);
 
@@ -296,7 +297,10 @@ bool ExecutionState::barrierThread(wlist_id_t wlist, unsigned threadCount,  unsi
     AddressSpace &as = addressSpace(addrSpace);
     for (MemoryMap::iterator it = as.objects.begin(), ie = as.objects.end(); 
          it != ie; ++it) {
-      (*it->second).resetMemoryLog();
+      if (isGlobal)
+        (*it->second).globalResetMemoryLog();
+      else
+        (*it->second).localResetMemoryLog();
     }
 
     notifyAll(wlist);

@@ -103,19 +103,22 @@ bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, unsigned offset, Me
     concreteEntries.resize(offset+1);
   MemoryLogEntry &entry = concreteEntries[offset];
 
-  if (entry.writeRead && entry.threadId != threadId) {
+  if (entry.write && !entry.matches(threadId, wgid)) {
     raceInfo.raceType = MemoryRace::RT_readwrite;
     raceInfo.op1ThreadId = threadId;
     raceInfo.op2ThreadId = entry.threadId;
     return true;
   }
 
-  if (entry.readWrite) {
+  if (entry.read) {
     if (entry.threadId != threadId)
       entry.manyRead = 1;
+    if (entry.wgid != wgid)
+      entry.wgManyRead = 1;
   } else {
     entry.threadId = threadId;
-    entry.readWrite = 1;
+    entry.wgid = wgid;
+    entry.read = 1;
   }
   
   return false;
@@ -131,19 +134,33 @@ bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, M
     concreteEntries.resize(offset+1);
   MemoryLogEntry &entry = concreteEntries[offset];
 
-  if ((entry.readWrite || entry.writeWrite) && entry.threadId != threadId) {
-    raceInfo.raceType = entry.readWrite ? MemoryRace::RT_readwrite : MemoryRace::RT_writewrite;
+  if (entry.manyRead || entry.wgManyRead ||
+      ((entry.read || entry.write) && !entry.matches(threadId, wgid))) {
+    raceInfo.raceType = entry.read ? MemoryRace::RT_readwrite : MemoryRace::RT_writewrite;
     raceInfo.op1ThreadId = entry.threadId;
     raceInfo.op2ThreadId = threadId;
     return true;
   }
 
-  if (!(entry.writeRead || entry.writeWrite)) {
+  if (!entry.write) {
     entry.threadId = threadId;
-    entry.writeRead = entry.writeWrite = 1;
+    entry.wgid = wgid;
+    entry.write = 1;
   }
 
   return false;
+}
+
+void MemoryLog::localReset() {
+  for (std::vector<MemoryLogEntry>::iterator i = concreteEntries.begin(),
+       e = concreteEntries.end(); i != e; ++i) {
+    i->threadId = 0;
+    i->manyRead = 0;
+  }
+}
+
+void MemoryLog::globalReset() {
+  concreteEntries.clear();
 }
 
 /***/
@@ -657,6 +674,10 @@ void ObjectState::print() {
   }
 }
 
-void ObjectState::resetMemoryLog() {
-  memoryLog = MemoryLog();
+void ObjectState::localResetMemoryLog() {
+  memoryLog.localReset();
+}
+
+void ObjectState::globalResetMemoryLog() {
+  memoryLog.globalReset();
 }

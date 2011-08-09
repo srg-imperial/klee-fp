@@ -1052,14 +1052,15 @@ void SpecialFunctionHandler::handleThreadBarrier(ExecutionState &state,
                     KInstruction *target,
                     std::vector<ref<Expr> > &arguments) {
 
-  assert(arguments.size() == 3 && "invalid number of arguments to klee_thread_barrier");
+  assert(arguments.size() == 4 && "invalid number of arguments to klee_thread_barrier");
 
   ref<Expr> barrierIdX = executor.toUnique(state, arguments[0]);
   ref<Expr> threadCountX = executor.toUnique(state, arguments[1]);
   ref<Expr> addrSpaceX = executor.toUnique(state, arguments[2]);
+  ref<Expr> isGlobalX = executor.toUnique(state, arguments[3]);
 
   if (!isa<ConstantExpr>(barrierIdX) || !isa<ConstantExpr>(threadCountX)
-   || !isa<ConstantExpr>(addrSpaceX)) {
+   || !isa<ConstantExpr>(addrSpaceX) || !isa<ConstantExpr>(isGlobalX)) {
     executor.terminateStateOnError(state, "klee_thread_barrier", "user.err");
     return;
   }
@@ -1067,8 +1068,9 @@ void SpecialFunctionHandler::handleThreadBarrier(ExecutionState &state,
   wlist_id_t barrierId = cast<ConstantExpr>(barrierIdX)->getZExtValue();
   unsigned threadCount = cast<ConstantExpr>(threadCountX)->getZExtValue();
   unsigned addrSpace = cast<ConstantExpr>(addrSpaceX)->getZExtValue();
+  bool isGlobal = cast<ConstantExpr>(isGlobalX)->getZExtValue();
 
-  if (state.barrierThread(barrierId, threadCount, addrSpace))
+  if (state.barrierThread(barrierId, threadCount, addrSpace, isGlobal))
     executor.schedule(state, false);
 }
 

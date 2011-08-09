@@ -109,8 +109,8 @@ typedef struct _cl_intern_work_item_params {
   uintptr_t args;
   cl_uint work_dim;
   unsigned wgid;
-  uint64_t wg_wlist;
-  unsigned wg_size;
+  uint64_t wg_wlist, global_wlist;
+  unsigned global_size;
   size_t ids[64];
 } cl_intern_work_item_params;
 
@@ -128,8 +128,8 @@ static __attribute((address_space(4))) void *memcpy40(
 static void *work_item_thread(void *arg) {
   cl_intern_work_item_params *params = arg;
   uintptr_t args = params->args;
-  uint64_t wg_wlist = params->wg_wlist;
-  unsigned wg_size = params->wg_size;
+  uint64_t wg_wlist = params->wg_wlist, global_wlist = params->global_wlist;
+  unsigned global_size = params->global_size;
   cl_kernel kern = params->kernel;
   cl_program prog = kern->program;
 
@@ -145,15 +145,15 @@ static void *work_item_thread(void *arg) {
   
   klee_icall(kern->function, args);
 
-  klee_thread_barrier(wg_wlist, wg_size, 1);
-  klee_thread_barrier(wg_wlist, wg_size, 0);
+  klee_thread_barrier(global_wlist, global_size, /*addrspace=*/1, /*isglobal=*/1);
+  klee_thread_barrier(global_wlist, global_size, /*addrspace=*/0, /*isglobal=*/1);
 
   return 0;
 }
 
 static int invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
-                            unsigned wgid, uint64_t wg_wlist, unsigned wg_size,
-                            size_t ids[], pthread_t *pt) {
+                            unsigned wgid, uint64_t wg_wlist, unsigned global_wlist,
+                            unsigned global_size, size_t ids[], pthread_t *pt) {
   cl_intern_work_item_params *params = malloc(sizeof(cl_intern_work_item_params));
 
   params->kernel = kern;
@@ -161,7 +161,8 @@ static int invoke_work_item(cl_kernel kern, uintptr_t args, cl_uint work_dim,
   params->work_dim = work_dim;
   params->wgid = wgid;
   params->wg_wlist = wg_wlist;
-  params->wg_size = wg_size;
+  params->global_wlist = global_wlist;
+  params->global_size = global_size;
   memcpy(params->ids, ids, sizeof(size_t)*work_dim);
 
   return pthread_create(pt, NULL, work_item_thread, params);
@@ -200,7 +201,7 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
   cl_uint i, last_id;
   uintptr_t argList;
   unsigned *workgroups;
-  uint64_t *wg_wlists;
+  uint64_t *wg_wlists, global_wlist;
   pthread_t *work_items, *cur_work_item;
   cl_event new_event;
 
@@ -262,6 +263,7 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
   wg_wlists = malloc(sizeof(uint64_t) * workgroup_count);
   for (i = 0; i < workgroup_count; ++i)
     wg_wlists[i] = klee_get_wlist();
+  global_wlist = klee_get_wlist();
 
   {
     argList = klee_icall_create_arg_list();
@@ -329,7 +331,7 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue command_queue,
         wgid = wgid*num_groups[i] + (ids[i] / local_work_size[i]);
 
     invoke_work_item(kernel, argList, work_dim, workgroups[wgid],
-        wg_wlists[wgid], work_item_count/workgroup_count, ids, cur_work_item++);
+        wg_wlists[wgid], global_wlist, work_item_count, ids, cur_work_item++);
   } while ((last_id = increment_id_list(work_dim, ids, global_work_size)));
 
   new_event = kcl_create_pthread_event(work_items, work_item_count);

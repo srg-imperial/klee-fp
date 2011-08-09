@@ -139,30 +139,41 @@ public:
 };
 
 struct MemoryLogEntry {
-  MemoryLogEntry() : threadId(0), manyRead(0), readWrite(0), writeRead(0),
-                     writeWrite(0) {}
+  MemoryLogEntry() : threadId(0), wgid(0), read(0), write(0), manyRead(0),
+                     wgManyRead(0) {}
 
   // The id of the thread which initially read from or wrote to this
   // memory location.
-  unsigned threadId : 28;
+  unsigned threadId : 32;
 
-  // Set if readWrite=1 and a thread whose id != threadId reads from
-  // this memory location.
-  unsigned manyRead : 1;
+  // The workgroup id of the thread which initially read from or wrote to this
+  // memory location.
+  unsigned wgid : 28;
+
+  // In the following, a matching thread is a thread whose id == threadId,
+  // or whose workgroup id == wgid.  A mismatching thread is a thread which
+  // does not meet these criteria.  i.e. the matches function below.
+  bool matches(unsigned otherThreadId, unsigned otherWgid) const {
+    return threadId == otherThreadId || wgid == otherWgid;
+  }
 
   // Set if a read is issued on this memory location.  A write from a
-  // thread whose id != threadId (or if manyRead is set, any write) will
+  // mismatching thread (or if manyRead is set, any write) will
   // trigger a race diagnostic.
-  unsigned readWrite : 1;
+  unsigned read : 1;
 
-  // Set if a write is issued on this memory location.  A read from a
-  // thread whose id != threadId will trigger a race diagnostic.
-  unsigned writeRead : 1;
+  // Set if a write is issued on this memory location.  A read or write from a
+  // mismatching thread will trigger a race diagnostic.
+  unsigned write : 1;
 
-  // Set if a write is issued on this memory location.  A write from a
-  // thread whose id != threadId will trigger a race diagnostic.
-  // Encountering a write barrier will reset this flag to 0.
-  unsigned writeWrite : 1;
+  // Set if read=1 and a thread whose id != threadId reads from this memory
+  // location.
+  unsigned manyRead : 1;
+
+  // Set if read=1 and a thread whose workgroup id != wgid reads from this
+  // memory location.
+  unsigned wgManyRead : 1;
+
 };
 
 struct MemoryRace {
@@ -187,6 +198,9 @@ public:
 
   bool logRead(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo);
   bool logWrite(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo);
+
+  void localReset();
+  void globalReset();
 };
 
 class ObjectState {
@@ -256,7 +270,8 @@ public:
   void write32(unsigned offset, uint32_t value, thread_id_t threadId = 0, unsigned wgid = 0);
   void write64(unsigned offset, uint64_t value, thread_id_t threadId = 0, unsigned wgid = 0);
 
-  void resetMemoryLog();
+  void globalResetMemoryLog();
+  void localResetMemoryLog();
 
 private:
   const UpdateList &getUpdates() const;
