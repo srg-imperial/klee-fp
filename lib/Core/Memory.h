@@ -182,11 +182,11 @@ public:
 
   std::vector<MemoryLogEntry> concreteEntries;
 
-  bool logRead(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo);
-  bool logWrite(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo);
+  bool logRead(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo);
+  bool logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo);
 
-  bool logRead(thread_id_t threadId, ref<Expr> offset, MemoryRace &raceInfo);
-  bool logWrite(thread_id_t threadId, ref<Expr> offset, MemoryRace &raceInfo);
+  bool logRead(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo);
+  bool logWrite(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo);
 };
 
 class ObjectState {

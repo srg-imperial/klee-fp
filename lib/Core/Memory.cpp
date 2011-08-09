@@ -93,7 +93,7 @@ MemoryLog::MemoryLog() {}
 MemoryLog::MemoryLog(const MemoryLog &that) : concreteEntries(that.concreteEntries) {}
 MemoryLog::~MemoryLog() {}
 
-bool MemoryLog::logRead(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo) {
+bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo) {
   // FIXME: creating a thread should be handled specially
   // for now, just ignore thread 0
   if (threadId == 0)
@@ -121,7 +121,7 @@ bool MemoryLog::logRead(thread_id_t threadId, unsigned offset, MemoryRace &raceI
   return false;
 }
 
-bool MemoryLog::logWrite(thread_id_t threadId, unsigned offset, MemoryRace &raceInfo) {
+bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo) {
   // FIXME: creating a thread should be handled specially
   // for now, just ignore thread 0
   if (threadId == 0)
@@ -423,7 +423,7 @@ void ObjectState::setKnownSymbolic(unsigned offset,
 
 ref<Expr> ObjectState::read8(unsigned offset, thread_id_t threadId, unsigned wgid) const {
   MemoryRace race;
-  if (memoryLog.logRead(threadId, offset, race)) {
+  if (memoryLog.logRead(threadId, wgid, offset, race)) {
     llvm::errs() << "memory read: race detected\n";
   }
 
@@ -459,7 +459,7 @@ ref<Expr> ObjectState::read8(ref<Expr> offset, thread_id_t threadId, unsigned wg
 void ObjectState::write8(unsigned offset, uint8_t value, thread_id_t threadId, unsigned wgid) {
   //assert(read_only == false && "writing to read-only object!");
   MemoryRace race;
-  if (memoryLog.logWrite(threadId, offset, race)) {
+  if (memoryLog.logWrite(threadId, wgid, offset, race)) {
     llvm::errs() << "memory write: race detected\n";
   }
 
@@ -476,7 +476,7 @@ void ObjectState::write8(unsigned offset, ref<Expr> value, thread_id_t threadId,
     write8(offset, (uint8_t) CE->getZExtValue(8), threadId, wgid);
   } else {
     MemoryRace race;
-    if (memoryLog.logWrite(threadId, offset, race)) {
+    if (memoryLog.logWrite(threadId, wgid, offset, race)) {
       llvm::errs() << "memory write: race detected\n";
     }
 
