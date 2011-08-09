@@ -243,18 +243,18 @@ public:
   // make contents all concrete and random
   void initializeToRandom();
 
-  ref<Expr> read(ref<Expr> offset, Expr::Width width, thread_id_t threadId = 0) const;
-  ref<Expr> read(unsigned offset, Expr::Width width, thread_id_t threadId = 0) const;
-  ref<Expr> read8(unsigned offset, thread_id_t threadId = 0) const;
+  ref<Expr> read(ref<Expr> offset, Expr::Width width, thread_id_t threadId = 0, unsigned wgid = 0) const;
+  ref<Expr> read(unsigned offset, Expr::Width width, thread_id_t threadId = 0, unsigned wgid = 0) const;
+  ref<Expr> read8(unsigned offset, thread_id_t threadId = 0, unsigned wgid = 0) const;
 
   // return bytes written.
-  void write(unsigned offset, ref<Expr> value, thread_id_t threadId = 0);
-  void write(ref<Expr> offset, ref<Expr> value, thread_id_t threadId = 0);
+  void write(unsigned offset, ref<Expr> value, thread_id_t threadId = 0, unsigned wgid = 0);
+  void write(ref<Expr> offset, ref<Expr> value, thread_id_t threadId = 0, unsigned wgid = 0);
 
-  void write8(unsigned offset, uint8_t value, thread_id_t threadId = 0);
-  void write16(unsigned offset, uint16_t value, thread_id_t threadId = 0);
-  void write32(unsigned offset, uint32_t value, thread_id_t threadId = 0);
-  void write64(unsigned offset, uint64_t value, thread_id_t threadId = 0);
+  void write8(unsigned offset, uint8_t value, thread_id_t threadId = 0, unsigned wgid = 0);
+  void write16(unsigned offset, uint16_t value, thread_id_t threadId = 0, unsigned wgid = 0);
+  void write32(unsigned offset, uint32_t value, thread_id_t threadId = 0, unsigned wgid = 0);
+  void write64(unsigned offset, uint64_t value, thread_id_t threadId = 0, unsigned wgid = 0);
 
   void resetMemoryLog();
 
@@ -265,9 +265,9 @@ private:
 
   void makeSymbolic();
 
-  ref<Expr> read8(ref<Expr> offset, thread_id_t threadId = 0) const;
-  void write8(unsigned offset, ref<Expr> value, thread_id_t threadId = 0);
-  void write8(ref<Expr> offset, ref<Expr> value, thread_id_t threadId = 0);
+  ref<Expr> read8(ref<Expr> offset, thread_id_t threadId = 0, unsigned wgid = 0) const;
+  void write8(unsigned offset, ref<Expr> value, thread_id_t threadId = 0, unsigned wgid = 0);
+  void write8(ref<Expr> offset, ref<Expr> value, thread_id_t threadId = 0, unsigned wgid = 0);
 
   void fastRangeCheckOffset(ref<Expr> offset, unsigned *base_r, 
                             unsigned *size_r) const;
