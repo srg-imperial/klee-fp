@@ -111,7 +111,9 @@ bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, unsigned offset, Me
   }
 
   if (entry.read) {
-    if (entry.threadId != threadId)
+    if (entry.threadId == 0)
+      entry.threadId = threadId;
+    else if (entry.threadId != threadId)
       entry.manyRead = 1;
     if (entry.wgid != wgid)
       entry.wgManyRead = 1;
