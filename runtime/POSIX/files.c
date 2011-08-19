@@ -599,6 +599,10 @@ DEFINE_MODEL(off_t, lseek, int fd, off_t offset, int whence) {
   return _lseek(file, offset, whence);
 }
 
+DEFINE_MODEL(off_t, lseek64, int fd, off64_t offset, int whence) {
+  return CALL_MODEL(lseek, fd, offset, whence);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static int _chmod(disk_file_t *dfile, mode_t mode) {
