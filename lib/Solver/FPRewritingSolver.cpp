@@ -30,11 +30,6 @@ namespace {
   AssumeOrdered("assume-ordered", 
                    llvm::cl::desc("Assume all operands to floating point expressions are ordered"),
                    llvm::cl::init(false));
-
-  cl::opt<bool>
-  AssumeFPAssoc("assume-fp-assoc", 
-                llvm::cl::desc("Assume floating point operations are associative"),
-                llvm::cl::init(false));
 }
 
 
@@ -144,14 +139,6 @@ bool collectFMinMax(ref<Expr> &e, std::set<ref<Expr> > &ops, MinMax &mm) {
   return false;
 }
 
-void collectOperandsOfKind(Expr::Kind kind, ref<Expr> e, std::set<ref<Expr> > &ops) {
-  if (e->getKind() == kind) {
-    for (unsigned i = 0, n = e->getNumKids(); i != n; ++i)
-      collectOperandsOfKind(kind, e->getKid(i), ops);
-  } else
-    ops.insert(e);
-}
-
 /* Given a pair of floating point expressions lhs and rhs, return an expression
  * which is a sufficient condition for lhs == rhs (unordered or bitwise
  * comparison) to hold
@@ -167,13 +154,6 @@ ref<Expr> FPRewritingSolver::constrainEquality(ref<Expr> lhs, ref<Expr> rhs, boo
   switch (kind) {
     case Expr::FAdd:
     case Expr::FMul:
-      if (AssumeFPAssoc) {
-        std::set<ref<Expr> > lhsOps, rhsOps;
-        collectOperandsOfKind(kind, lhs, lhsOps);
-        collectOperandsOfKind(kind, rhs, rhsOps);
-        if (lhsOps == rhsOps)
-          return ConstantExpr::alloc(1, Expr::Bool);
-      }
       return OrExpr::create(
                AndExpr::create(constrainEquality(lhs->getKid(0), rhs->getKid(0), isUnordered),
                                constrainEquality(lhs->getKid(1), rhs->getKid(1), isUnordered)),

@@ -39,6 +39,11 @@ namespace {
   AssumePositiveZero("assume-positive-zero", 
                    llvm::cl::desc("Assume all floating point zeros are positive"),
                    llvm::cl::init(false));
+
+  cl::opt<bool>
+  AssumeFPAssoc("assume-fp-assoc", 
+                llvm::cl::desc("Assume floating point operations are associative"),
+                llvm::cl::init(false));
 }
 
 /***/
@@ -1298,6 +1303,19 @@ static bool isOne(const APFloat &apf) {
   return false;
 }
 
+static ref<Expr> reassociate(ref<Expr> (*ctor)(const ref<Expr> &l,
+                                               const ref<Expr> &r,
+                                               bool isIEEE),
+                             Expr::Kind kind, ref<Expr> l, ref<Expr> r,
+                             bool isIEEE) {
+   if (AssumeFPAssoc && r->getKind() == kind) {
+     FBinaryExpr *br = cast<FBinaryExpr>(r);
+     if (isIEEE == br->isIEEE())
+       return ctor(ctor(l, br->getKid(0), isIEEE), br->getKid(1), isIEEE);
+   }
+   return ref<Expr>();
+}
+
 static ref<Expr> FAddExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
   if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
     APFloat apf = cl->getAPFloatValue(isIEEE);
@@ -1309,6 +1327,9 @@ static ref<Expr> FAddExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool is
     if (apf.isZero() && (apf.isNegative() || AssumePositiveZero))
       return l;
   }
+  ref<Expr> res = reassociate(FAddExpr::create, Expr::FAdd, l, r, isIEEE);
+  if (!res.isNull())
+    return res;
   return FAddExpr::alloc(l, r, isIEEE);
 }
 
@@ -1336,6 +1357,9 @@ static ref<Expr> FMulExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool is
     if (AssumeFinite && AssumePositiveZero && apf.isZero())
       return r;
   }
+  ref<Expr> res = reassociate(FMulExpr::create, Expr::FMul, l, r, isIEEE);
+  if (!res.isNull())
+    return res;
   return FMulExpr::alloc(l, r, isIEEE);
 }
 
