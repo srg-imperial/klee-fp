@@ -132,6 +132,11 @@ namespace klee {
     case Instruction::Select:
       return op1->isTrue() ? op2 : op3;
 
+    case Instruction::ExtractElement: {
+      unsigned EltBits = getWidthForLLVMType(kmodule, type);
+      return op1->Extract(EltBits*op2->getZExtValue(), EltBits);
+    }
+
     case Instruction::FAdd:
     case Instruction::FSub:
     case Instruction::FMul:
