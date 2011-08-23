@@ -2364,9 +2364,15 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   }
 
   case Instruction::FDiv: {
-    ref<Expr> left = eval(ki, 0, state).value;
-    ref<Expr> right  = eval(ki, 1, state).value;
-    bindLocal(ki, state, FSIMDOperation(this, kmodule(state), FDivExpr::create).eval(i->getType(), left, right));
+    if (i->getMetadata("fpaccuracy")) {
+      ref<Expr> undef =
+        AnyExpr::create(getWidthForLLVMType(kmodule(state), i->getType()));
+      bindLocal(ki, state, undef);
+    } else {
+      ref<Expr> left = eval(ki, 0, state).value;
+      ref<Expr> right  = eval(ki, 1, state).value;
+      bindLocal(ki, state, FSIMDOperation(this, kmodule(state), FDivExpr::create).eval(i->getType(), left, right));
+    }
     break;
   }
 
