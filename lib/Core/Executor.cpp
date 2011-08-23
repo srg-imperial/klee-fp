@@ -3091,9 +3091,6 @@ void Executor::bindAllObjectStates(ExecutionState &state,
   }
   }
 
-  if (addrspaces.size() > 1)
-    puts("b");
-
   for (std::vector<AddressSpace *>::iterator i = addrspaces.begin(),
        e = addrspaces.end(); i != e; ++i) {
     ObjectState *os = array ? new ObjectState(mo, array) : new ObjectState(mo);
