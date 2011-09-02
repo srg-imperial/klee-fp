@@ -144,6 +144,9 @@ public:
     FCos,
     FSin,
 
+    // Any
+    Any,
+
     // All subsequent kinds are binary.
 
     // Arithmetic
@@ -1322,6 +1325,43 @@ FUNARY_EXPR_CLASS(FSqrt)
 FUNARY_EXPR_CLASS(FCos)
 FUNARY_EXPR_CLASS(FSin)
   
+// AnyExpr
+
+class AnyExpr : public NonConstantExpr {
+private:
+  Width width;
+  uint64_t key;
+  static uint64_t nextKey;
+
+public:
+  AnyExpr(Width width, uint64_t key) : width(width), key(key) {}
+
+  virtual unsigned computeHash();
+
+  unsigned getWidth() const { return width; }
+  Kind getKind() const { return Any; }
+
+  unsigned getNumKids() const { return 0; }
+  ref<Expr> getKid(unsigned i) const { return 0; }
+
+  virtual ref<Expr> rebuild(ref<Expr> kids[]) const { 
+    assert(0 && "rebuild() on AnyExpr"); 
+    return (Expr*) this;
+  }
+
+  static ref<Expr> create(Width width, uint64_t key = -1ULL);
+  static ref<Expr> alloc(Width width, uint64_t key) {
+    ref<Expr> r(new AnyExpr(width, key));
+    r->computeHash();
+    return r;
+  }
+
+  static bool classof(const Expr *E) {
+    return E->getKind() == Expr::Any;
+  }
+  static bool classof(const AnyExpr *) { return true; }
+};
+
 // Arithmetic/Bit Exprs
 
 #define INT_EXPR_DECL (const ref<Expr> &l, const ref<Expr> &r)

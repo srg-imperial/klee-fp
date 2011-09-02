@@ -150,6 +150,7 @@ void Expr::printKind(std::ostream &os, Kind k) {
     X(FSqrt);
     X(FCos);
     X(FSin);
+    X(Any);
     X(Add);
     X(Sub);
     X(Mul);
@@ -2077,6 +2078,19 @@ Expr::FPCategories FCosExpr::getCategories(bool isIEEE) const {
 
 Expr::FPCategories FSinExpr::getCategories(bool isIEEE) const {
   return fcAll;
+}
+
+uint64_t AnyExpr::nextKey = 0;
+
+ref<Expr> AnyExpr::create(Width width, uint64_t key) {
+  if (key == -1ULL)
+    key = nextKey++;
+  return AnyExpr::alloc(width, key);
+}
+
+unsigned AnyExpr::computeHash() {
+  hashValue = key;
+  return hashValue;
 }
 
 ref<Expr> FPToUIExpr::create(const ref<Expr> &e, Width W, bool isIEEE) {
