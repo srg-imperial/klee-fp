@@ -1341,6 +1341,8 @@ public:
   unsigned getWidth() const { return width; }
   Kind getKind() const { return Any; }
 
+  uint64_t getKey() const { return key; }
+
   unsigned getNumKids() const { return 0; }
   ref<Expr> getKid(unsigned i) const { return 0; }
 

@@ -329,6 +329,10 @@ private:
     print(ee->expr, PC);
   }
 
+  void printAny(const AnyExpr *ae, PrintContext &PC, unsigned indent) {
+    PC << ae->getKey();
+  }
+
   void printExpr(const Expr *ep, PrintContext &PC, unsigned indent, bool printConstWidth=false) {
     bool simple = hasSimpleKids(ep);
     
@@ -451,6 +455,8 @@ public:
           printRead(re, PC, indent);
         } else if (const ExtractExpr *ee = dyn_cast<ExtractExpr>(e)) {
           printExtract(ee, PC, indent);
+        } else if (const AnyExpr *ae = dyn_cast<AnyExpr>(e)) {
+          printAny(ae, PC, indent);
         } else if (e->getKind() == Expr::Concat || e->getKind() == Expr::SExt)
 	  printExpr(e.get(), PC, indent, true);
 	else
