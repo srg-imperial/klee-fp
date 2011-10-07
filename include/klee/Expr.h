@@ -752,6 +752,8 @@ public:
   // FIXME: This does not belong here.
   mutable void *stpInitialArray;
 
+  Expr::Width domain, range;
+
 public:
   /// Array - Construct a new array object.
   ///
@@ -762,10 +764,11 @@ public:
   /// distinguished once printed.
   Array(const std::string &_name, uint64_t _size, 
         const ref<ConstantExpr> *constantValuesBegin = 0,
-        const ref<ConstantExpr> *constantValuesEnd = 0)
+        const ref<ConstantExpr> *constantValuesEnd = 0,
+        Expr::Width _domain = Expr::Int32, Expr::Width _range = Expr::Int8)
     : name(_name), size(_size), 
       constantValues(constantValuesBegin, constantValuesEnd), 
-      stpInitialArray(0) {
+      stpInitialArray(0), domain(_domain), range(_range) {
     assert((isSymbolicArray() || constantValues.size() == size) &&
            "Invalid size for constant array!");
 #ifdef NDEBUG
@@ -780,8 +783,8 @@ public:
   bool isSymbolicArray() const { return constantValues.empty(); }
   bool isConstantArray() const { return !isSymbolicArray(); }
 
-  Expr::Width getDomain() const { return Expr::Int32; }
-  Expr::Width getRange() const { return Expr::Int8; }
+  Expr::Width getDomain() const { return domain; }
+  Expr::Width getRange() const { return range; }
 };
 
 /// Class representing a complete list of updates into an array.
@@ -829,7 +832,7 @@ public:
   
   static ref<Expr> create(const UpdateList &updates, ref<Expr> i);
   
-  Width getWidth() const { return Expr::Int8; }
+  Width getWidth() const { return updates.root->getRange(); }
   Kind getKind() const { return Read; }
   
   unsigned getNumKids() const { return numKids; }
