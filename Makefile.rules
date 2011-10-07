@@ -433,25 +433,8 @@ endif
 # LLVM Capable Compiler
 #--------------------------------------------------------------------
 
-ifeq ($(LLVMCC_OPTION),llvm-gcc)
-  LLVMCC := $(LLVMGCC)
-  LLVMCXX := $(LLVMGXX)
-else
-  ifeq ($(LLVMCC_OPTION),clang)
-    ifneq ($(CLANGPATH),)
-      LLVMCC := $(CLANGPATH)
-      LLVMCXX := $(CLANGXXPATH)
-    else
-      ifeq ($(ENABLE_BUILT_CLANG),1)
-        LLVMCC := $(LLVMToolDir)/clang
-        LLVMCXX := $(LLVMToolDir)/clang++
-      endif
-    endif
-  else
-    LLVMCC := $(LLVMGCC)
-    LLVMCXX := $(LLVMGXX)
-  endif
-endif
+LLVMCC  := $(LLVMToolDir)/clang
+LLVMCXX := $(LLVMToolDir)/clang++
 
 #--------------------------------------------------------------------
 # Full Paths To Compiled Tools and Utilities
