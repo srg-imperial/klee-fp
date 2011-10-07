@@ -1320,7 +1320,8 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   clang::Diagnostic *Diag = new clang::Diagnostic(DiagClient);
 #else
   IntrusiveRefCntPtr<clang::DiagnosticIDs> DiagID(new clang::DiagnosticIDs());
-  clang::Diagnostic *Diag = new clang::Diagnostic(DiagID, DiagClient);
+  clang::DiagnosticsEngine *Diag =
+    new clang::DiagnosticsEngine(DiagID, DiagClient);
 #endif
 
   SmallVector<StringRef, 8> splitArgs;
