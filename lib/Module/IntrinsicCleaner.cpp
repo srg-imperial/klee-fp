@@ -144,12 +144,14 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
         ii->eraseFromParent();
         dirty = true;
         break;
+#if LLVM_VERSION_CODE < LLVM_VERSION(3, 0)
       case Intrinsic::memory_barrier:
       case Intrinsic::atomic_swap:
       case Intrinsic::atomic_cmp_swap:
       case Intrinsic::atomic_load_add:
       case Intrinsic::atomic_load_sub:
         break;
+#endif
                     
       default:
         if (LowerIntrinsics)
