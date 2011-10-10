@@ -176,6 +176,13 @@ struct MemoryLogEntry {
 
 };
 
+struct MemoryLogUpdates {
+  MemoryLogUpdates() : threadId(0, 0), wgid(0, 0), read(0, 0), write(0, 0),
+                       manyRead(0, 0), wgManyRead(0, 0) {}
+
+  UpdateList threadId, wgid, read, write, manyRead, wgManyRead;
+};
+
 struct MemoryRace {
   enum RaceType {
     RT_readwrite, RT_writewrite
@@ -187,11 +194,16 @@ struct MemoryRace {
 
 class MemoryLog {
 public:
-  MemoryLog();
+  MemoryLog(unsigned size);
   MemoryLog(const MemoryLog &that);
   ~MemoryLog();
 
+  unsigned size;
   std::vector<MemoryLogEntry> concreteEntries;
+  MemoryLogUpdates *updates;
+
+  bool isSymbolic() const { return updates; }
+  void makeSymbolic();
 
   bool logRead(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo);
   bool logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo);

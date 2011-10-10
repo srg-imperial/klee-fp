@@ -89,9 +89,72 @@ void MemoryObject::getAllocInfo(std::string &result) const {
 
 /***/
 
-MemoryLog::MemoryLog() {}
-MemoryLog::MemoryLog(const MemoryLog &that) : concreteEntries(that.concreteEntries) {}
-MemoryLog::~MemoryLog() {}
+MemoryLog::MemoryLog(unsigned size) : size(size), updates(0) {}
+
+MemoryLog::MemoryLog(const MemoryLog &that)
+  : size(that.size),
+    concreteEntries(that.concreteEntries),
+    updates(that.updates ? new MemoryLogUpdates(*that.updates) : 0) {}
+
+MemoryLog::~MemoryLog() {
+  delete updates;
+}
+
+void MemoryLog::makeSymbolic() {
+  if (isSymbolic())
+    return;
+
+  std::vector<ref<ConstantExpr> > threadId, wgid, read, write, manyRead,
+                                  wgManyRead;
+  for (std::vector<MemoryLogEntry>::iterator i = concreteEntries.begin(),
+       e = concreteEntries.end(); i != e; ++i) {
+    threadId.push_back(ConstantExpr::create(i->threadId, Expr::Int32));
+    wgid.push_back(ConstantExpr::create(i->wgid, Expr::Int32));
+    read.push_back(ConstantExpr::create(i->read, Expr::Bool));
+    write.push_back(ConstantExpr::create(i->write, Expr::Bool));
+    manyRead.push_back(ConstantExpr::create(i->manyRead, Expr::Bool));
+    wgManyRead.push_back(ConstantExpr::create(i->wgManyRead, Expr::Bool));
+  }
+
+  for (size_t i = concreteEntries.size(); i != size; ++i) {
+    threadId.push_back(ConstantExpr::create(0, Expr::Int32));
+    wgid.push_back(ConstantExpr::create(0, Expr::Int32));
+    read.push_back(ConstantExpr::create(0, Expr::Bool));
+    write.push_back(ConstantExpr::create(0, Expr::Bool));
+    manyRead.push_back(ConstantExpr::create(0, Expr::Bool));
+    wgManyRead.push_back(ConstantExpr::create(0, Expr::Bool));
+  }
+
+  static unsigned logId = 0;
+  std::string logIdStr;
+  llvm::raw_string_ostream(logIdStr) << logId++;
+
+  updates = new MemoryLogUpdates;
+  updates->threadId.root =
+    new Array("threadId_" + logId, size,
+              threadId.data(), threadId.data()+threadId.size(),
+              Expr::Int32, Expr::Int32);
+  updates->wgid.root =
+    new Array("wgid_" + logId, size,
+              wgid.data(), wgid.data()+wgid.size(),
+              Expr::Int32, Expr::Int32);
+  updates->read.root =
+    new Array("read_" + logId, size,
+              read.data(), read.data()+read.size(),
+              Expr::Int32, Expr::Bool);
+  updates->write.root =
+    new Array("write_" + logId, size,
+              write.data(), write.data()+write.size(),
+              Expr::Int32, Expr::Bool);
+  updates->manyRead.root =
+    new Array("manyRead_" + logId, size,
+              manyRead.data(), manyRead.data()+manyRead.size(),
+              Expr::Int32, Expr::Bool);
+  updates->wgManyRead.root =
+    new Array("wgManyRead_" + logId, size,
+              wgManyRead.data(), wgManyRead.data()+wgManyRead.size(),
+              Expr::Int32, Expr::Bool);
+}
 
 bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo) {
   // FIXME: creating a thread should be handled specially
@@ -176,6 +239,7 @@ ObjectState::ObjectState(const MemoryObject *mo)
     flushMask(0),
     knownSymbolics(0),
     updates(0, 0),
+    memoryLog(mo->size),
     size(mo->size),
     readOnly(false),
     isShared(false) {
@@ -197,6 +261,7 @@ ObjectState::ObjectState(const MemoryObject *mo, const Array *array)
     flushMask(0),
     knownSymbolics(0),
     updates(array, 0),
+    memoryLog(mo->size),
     size(mo->size),
     readOnly(false),
     isShared(false) {
@@ -212,6 +277,7 @@ ObjectState::ObjectState(const ObjectState &os)
     flushMask(os.flushMask ? new BitArray(*os.flushMask, os.size) : 0),
     knownSymbolics(0),
     updates(os.updates),
+    memoryLog(os.memoryLog),
     size(os.size),
     readOnly(false),
     isShared(os.isShared) {
