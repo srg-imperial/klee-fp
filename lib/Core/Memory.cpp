@@ -89,6 +89,8 @@ void MemoryObject::getAllocInfo(std::string &result) const {
 
 /***/
 
+unsigned MemoryLog::logId = 0;
+
 MemoryLog::MemoryLog(unsigned size) : size(size), updates(0) {}
 
 MemoryLog::MemoryLog(const MemoryLog &that)
@@ -127,7 +129,6 @@ void MemoryLog::makeSymbolic() {
     wgManyRead.resize(size, zero1);
   }
 
-  static unsigned logId = 0;
   std::string logIdStr;
   llvm::raw_string_ostream(logIdStr) << logId++;
 

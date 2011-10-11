@@ -193,6 +193,8 @@ struct MemoryRace {
 };
 
 class MemoryLog {
+  static unsigned logId;
+
 public:
   MemoryLog(unsigned size);
   MemoryLog(const MemoryLog &that);
