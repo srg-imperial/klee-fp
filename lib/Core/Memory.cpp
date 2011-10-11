@@ -251,6 +251,9 @@ bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, M
   if (threadId == 0)
     return false;
 
+  if (isSymbolic())
+    return logWrite(threadId, wgid, ConstantExpr::create(offset, Expr::Int32), raceInfo);
+
   if (concreteEntries.size() < offset+1)
     concreteEntries.resize(offset+1);
   MemoryLogEntry &entry = concreteEntries[offset];
@@ -266,6 +269,46 @@ bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, M
   entry.threadId = threadId;
   entry.wgid = wgid;
   entry.write = 1;
+
+  return false;
+}
+
+bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo) {
+  // FIXME: creating a thread should be handled specially
+  // for now, just ignore thread 0
+  if (threadId == 0)
+    return false;
+
+  makeSymbolic();
+
+  ref<Expr> oldThreadId = ReadExpr::create(updates->threadId, offset);
+  ref<Expr> oldWgid = ReadExpr::create(updates->wgid, offset);
+  ref<Expr> oldRead = ReadExpr::create(updates->read, offset);
+  ref<Expr> oldWrite = ReadExpr::create(updates->write, offset);
+  ref<Expr> oldManyRead = ReadExpr::create(updates->manyRead, offset);
+  ref<Expr> oldWgManyRead = ReadExpr::create(updates->wgManyRead, offset);
+
+  ref<ConstantExpr> threadIdConst = ConstantExpr::create(threadId, Expr::Int32);
+  ref<ConstantExpr> wgidConst = ConstantExpr::create(wgid, Expr::Int32);
+
+  ref<Expr> threadIdMismatch = NeExpr::create(oldThreadId, threadIdConst);
+  ref<Expr> wgidMismatch = NeExpr::create(oldWgid, wgidConst);
+
+  ref<Expr> query =
+    OrExpr::create(OrExpr::create(oldManyRead, oldWgManyRead),
+                   AndExpr::create(OrExpr::create(oldRead, oldWrite), 
+                              AndExpr::create(threadIdMismatch, wgidMismatch)));
+  // TODO: run query
+
+  ref<ConstantExpr> trueConst = ConstantExpr::create(1, Expr::Bool);
+
+  ref<Expr> newThreadId = threadIdConst;
+  ref<Expr> newWgid = wgidConst;
+  ref<Expr> newWrite = trueConst;
+
+  updates->threadId.extend(offset, newThreadId);
+  updates->wgid.extend(offset, newWgid);
+  updates->write.extend(offset, newWrite);
 
   return false;
 }
