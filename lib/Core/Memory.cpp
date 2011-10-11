@@ -164,6 +164,9 @@ bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, unsigned offset, Me
   if (threadId == 0)
     return false;
 
+  if (isSymbolic())
+    return logRead(threadId, wgid, ConstantExpr::create(offset, Expr::Int32), raceInfo);
+
   if (concreteEntries.size() < offset+1)
     concreteEntries.resize(offset+1);
   MemoryLogEntry &entry = concreteEntries[offset];
@@ -186,6 +189,58 @@ bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, unsigned offset, Me
   entry.wgid = wgid;
   entry.read = 1;
   
+  return false;
+}
+
+bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo) {
+  // FIXME: creating a thread should be handled specially
+  // for now, just ignore thread 0
+  if (threadId == 0)
+    return false;
+
+  makeSymbolic();
+
+  ref<Expr> oldWrite = ReadExpr::create(updates->write, offset);
+  ref<Expr> oldThreadId = ReadExpr::create(updates->threadId, offset);
+  ref<Expr> oldWgid = ReadExpr::create(updates->wgid, offset);
+
+  ref<ConstantExpr> threadIdConst = ConstantExpr::create(threadId, Expr::Int32);
+  ref<ConstantExpr> wgidConst = ConstantExpr::create(wgid, Expr::Int32);
+
+  ref<Expr> threadIdMismatch = NeExpr::create(oldThreadId, threadIdConst);
+  ref<Expr> wgidMismatch = NeExpr::create(oldWgid, wgidConst);
+
+  ref<Expr> query = AndExpr::create(oldWrite,
+                               AndExpr::create(threadIdMismatch, wgidMismatch));
+  // TODO: run query
+
+  ref<ConstantExpr> trueConst = ConstantExpr::create(1, Expr::Bool);
+
+  ref<Expr> oldRead = ReadExpr::create(updates->read, offset);
+  ref<Expr> oldManyRead = ReadExpr::create(updates->manyRead, offset);
+  ref<Expr> oldWgManyRead = ReadExpr::create(updates->wgManyRead, offset);
+
+  ref<Expr> threadIdNonZero =
+    NeExpr::create(oldThreadId, ConstantExpr::create(0, Expr::Int32));
+
+  ref<Expr> newManyRead =
+    SelectExpr::create(AndExpr::create(oldRead,
+                         AndExpr::create(threadIdNonZero, threadIdMismatch)),
+                       trueConst, oldManyRead);
+  ref<Expr> newWgManyRead =
+    SelectExpr::create(AndExpr::create(oldRead, wgidMismatch),
+                       trueConst, oldWgManyRead);
+
+  ref<Expr> newThreadId = threadIdConst;
+  ref<Expr> newWgid = wgidConst;
+  ref<Expr> newRead = trueConst;
+
+  updates->manyRead.extend(offset, newManyRead);
+  updates->wgManyRead.extend(offset, newWgManyRead);
+  updates->threadId.extend(offset, newThreadId);
+  updates->wgid.extend(offset, newWgid);
+  updates->read.extend(offset, newRead);
+
   return false;
 }
 
