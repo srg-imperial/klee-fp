@@ -116,13 +116,15 @@ void MemoryLog::makeSymbolic() {
     wgManyRead.push_back(ConstantExpr::create(i->wgManyRead, Expr::Bool));
   }
 
-  for (size_t i = concreteEntries.size(); i != size; ++i) {
-    threadId.push_back(ConstantExpr::create(0, Expr::Int32));
-    wgid.push_back(ConstantExpr::create(0, Expr::Int32));
-    read.push_back(ConstantExpr::create(0, Expr::Bool));
-    write.push_back(ConstantExpr::create(0, Expr::Bool));
-    manyRead.push_back(ConstantExpr::create(0, Expr::Bool));
-    wgManyRead.push_back(ConstantExpr::create(0, Expr::Bool));
+  if (size > concreteEntries.size()) {
+    ref<ConstantExpr> zero1 = ConstantExpr::create(0, Expr::Bool),
+                      zero32 = ConstantExpr::create(0, Expr::Int32);
+    threadId.resize(size, zero32);
+    wgid.resize(size, zero32);
+    read.resize(size, zero1);
+    write.resize(size, zero1);
+    manyRead.resize(size, zero1);
+    wgManyRead.resize(size, zero1);
   }
 
   static unsigned logId = 0;
