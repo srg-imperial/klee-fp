@@ -271,15 +271,34 @@ bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, M
 }
 
 void MemoryLog::localReset() {
-  for (std::vector<MemoryLogEntry>::iterator i = concreteEntries.begin(),
-       e = concreteEntries.end(); i != e; ++i) {
-    i->threadId = 0;
-    i->manyRead = 0;
+  if (isSymbolic()) {
+    ref<ConstantExpr> zero1 = ConstantExpr::create(0, Expr::Bool),
+                      zero32 = ConstantExpr::create(0, Expr::Int32);
+    std::vector<ref<ConstantExpr> > zeros32(size, zero32), zeros1(size, zero1);
+
+    std::string logIdStr;
+    llvm::raw_string_ostream(logIdStr) << logId++;
+
+    // FIXME: Leaks old threadId and manyRead arrays.
+    updates->threadId = UpdateList(new Array("threadId_" + logIdStr, size,
+              zeros32.data(), zeros32.data()+zeros32.size(),
+              Expr::Int32, Expr::Int32), 0);
+    updates->manyRead = UpdateList(new Array("manyRead_" + logIdStr, size,
+              zeros1.data(), zeros1.data()+zeros1.size(),
+              Expr::Int32, Expr::Bool), 0);
+  } else {
+    for (std::vector<MemoryLogEntry>::iterator i = concreteEntries.begin(),
+         e = concreteEntries.end(); i != e; ++i) {
+      i->threadId = 0;
+      i->manyRead = 0;
+    }
   }
 }
 
 void MemoryLog::globalReset() {
   concreteEntries.clear();
+  delete updates;
+  updates = 0;
 }
 
 /***/
