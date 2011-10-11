@@ -176,17 +176,15 @@ bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, unsigned offset, Me
   }
 
   if (entry.read) {
-    if (entry.threadId == 0)
-      entry.threadId = threadId;
-    else if (entry.threadId != threadId)
+    if (entry.threadId != 0 && entry.threadId != threadId)
       entry.manyRead = 1;
     if (entry.wgid != wgid)
       entry.wgManyRead = 1;
-  } else {
-    entry.threadId = threadId;
-    entry.wgid = wgid;
-    entry.read = 1;
   }
+
+  entry.threadId = threadId;
+  entry.wgid = wgid;
+  entry.read = 1;
   
   return false;
 }
@@ -209,11 +207,9 @@ bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, M
     return true;
   }
 
-  if (!entry.write) {
-    entry.threadId = threadId;
-    entry.wgid = wgid;
-    entry.write = 1;
-  }
+  entry.threadId = threadId;
+  entry.wgid = wgid;
+  entry.write = 1;
 
   return false;
 }
