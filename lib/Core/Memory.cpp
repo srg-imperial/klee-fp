@@ -12,6 +12,8 @@
 #include "Memory.h"
 
 #include "Context.h"
+#include "TimingSolver.h"
+#include "klee/ExecutionState.h"
 #include "klee/Expr.h"
 #include "klee/Solver.h"
 #include "klee/util/BitArray.h"
@@ -159,14 +161,20 @@ void MemoryLog::makeSymbolic() {
               Expr::Int32, Expr::Bool);
 }
 
-bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo) {
+bool MemoryLog::logRead(ExecutionState *state, TimingSolver *solver, unsigned offset, MemoryRace &raceInfo) {
+  if (!state)
+    return false;
+
+  thread_id_t threadId = state->crtThread().getTid();
+  unsigned wgid = state->crtThread().getWorkgroupId();
+
   // FIXME: creating a thread should be handled specially
   // for now, just ignore thread 0
   if (threadId == 0)
     return false;
 
   if (isSymbolic())
-    return logRead(threadId, wgid, ConstantExpr::create(offset, Expr::Int32), raceInfo);
+    return logRead(state, solver, ConstantExpr::create(offset, Expr::Int32), raceInfo);
 
   if (concreteEntries.size() < offset+1)
     concreteEntries.resize(offset+1);
@@ -193,7 +201,13 @@ bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, unsigned offset, Me
   return false;
 }
 
-bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo) {
+bool MemoryLog::logRead(ExecutionState *state, TimingSolver *solver, ref<Expr> offset, MemoryRace &raceInfo) {
+  if (!state)
+    return false;
+
+  thread_id_t threadId = state->crtThread().getTid();
+  unsigned wgid = state->crtThread().getWorkgroupId();
+
   // FIXME: creating a thread should be handled specially
   // for now, just ignore thread 0
   if (threadId == 0)
@@ -245,14 +259,20 @@ bool MemoryLog::logRead(thread_id_t threadId, unsigned wgid, ref<Expr> offset, M
   return false;
 }
 
-bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo) {
+bool MemoryLog::logWrite(ExecutionState *state, TimingSolver *solver, unsigned offset, MemoryRace &raceInfo) {
+  if (!state)
+    return false;
+
+  thread_id_t threadId = state->crtThread().getTid();
+  unsigned wgid = state->crtThread().getWorkgroupId();
+
   // FIXME: creating a thread should be handled specially
   // for now, just ignore thread 0
   if (threadId == 0)
     return false;
 
   if (isSymbolic())
-    return logWrite(threadId, wgid, ConstantExpr::create(offset, Expr::Int32), raceInfo);
+    return logWrite(state, solver, ConstantExpr::create(offset, Expr::Int32), raceInfo);
 
   if (concreteEntries.size() < offset+1)
     concreteEntries.resize(offset+1);
@@ -273,7 +293,13 @@ bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, M
   return false;
 }
 
-bool MemoryLog::logWrite(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo) {
+bool MemoryLog::logWrite(ExecutionState *state, TimingSolver *solver, ref<Expr> offset, MemoryRace &raceInfo) {
+  if (!state)
+    return false;
+
+  thread_id_t threadId = state->crtThread().getTid();
+  unsigned wgid = state->crtThread().getWorkgroupId();
+
   // FIXME: creating a thread should be handled specially
   // for now, just ignore thread 0
   if (threadId == 0)
@@ -622,9 +648,9 @@ void ObjectState::setKnownSymbolic(unsigned offset,
 
 /***/
 
-ref<Expr> ObjectState::read8(unsigned offset, thread_id_t threadId, unsigned wgid) const {
+ref<Expr> ObjectState::read8(unsigned offset, ExecutionState *state, TimingSolver *solver) const {
   MemoryRace race;
-  if (memoryLog.logRead(threadId, wgid, offset, race)) {
+  if (memoryLog.logRead(state, solver, offset, race)) {
     llvm::errs() << "memory read: race detected\n";
   }
 
@@ -640,7 +666,7 @@ ref<Expr> ObjectState::read8(unsigned offset, thread_id_t threadId, unsigned wgi
   }    
 }
 
-ref<Expr> ObjectState::read8(ref<Expr> offset, thread_id_t threadId, unsigned wgid) const {
+ref<Expr> ObjectState::read8(ref<Expr> offset, ExecutionState *state, TimingSolver *solver) const {
   assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic read8");
   unsigned base, size;
   fastRangeCheckOffset(offset, &base, &size);
@@ -657,10 +683,10 @@ ref<Expr> ObjectState::read8(ref<Expr> offset, thread_id_t threadId, unsigned wg
   return ReadExpr::create(getUpdates(), ZExtExpr::create(offset, Expr::Int32));
 }
 
-void ObjectState::write8(unsigned offset, uint8_t value, thread_id_t threadId, unsigned wgid) {
+void ObjectState::write8(unsigned offset, uint8_t value, ExecutionState *state, TimingSolver *solver) {
   //assert(read_only == false && "writing to read-only object!");
   MemoryRace race;
-  if (memoryLog.logWrite(threadId, wgid, offset, race)) {
+  if (memoryLog.logWrite(state, solver, offset, race)) {
     llvm::errs() << "memory write: race detected\n";
   }
 
@@ -671,13 +697,13 @@ void ObjectState::write8(unsigned offset, uint8_t value, thread_id_t threadId, u
   markByteUnflushed(offset);
 }
 
-void ObjectState::write8(unsigned offset, ref<Expr> value, thread_id_t threadId, unsigned wgid) {
+void ObjectState::write8(unsigned offset, ref<Expr> value, ExecutionState *state, TimingSolver *solver) {
   // can happen when ExtractExpr special cases
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
-    write8(offset, (uint8_t) CE->getZExtValue(8), threadId, wgid);
+    write8(offset, (uint8_t) CE->getZExtValue(8), state, solver);
   } else {
     MemoryRace race;
-    if (memoryLog.logWrite(threadId, wgid, offset, race)) {
+    if (memoryLog.logWrite(state, solver, offset, race)) {
       llvm::errs() << "memory write: race detected\n";
     }
 
@@ -688,7 +714,7 @@ void ObjectState::write8(unsigned offset, ref<Expr> value, thread_id_t threadId,
   }
 }
 
-void ObjectState::write8(ref<Expr> offset, ref<Expr> value, thread_id_t threadId, unsigned wgid) {
+void ObjectState::write8(ref<Expr> offset, ref<Expr> value, ExecutionState *state, TimingSolver *solver) {
   assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic write8");
   unsigned base, size;
   fastRangeCheckOffset(offset, &base, &size);
@@ -707,17 +733,17 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value, thread_id_t threadId
 
 /***/
 
-ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width, thread_id_t threadId, unsigned wgid) const {
+ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width, ExecutionState *state, TimingSolver *solver) const {
   // Truncate offset to 32-bits.
   offset = ZExtExpr::create(offset, Expr::Int32);
 
   // Check for reads at constant offsets.
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(offset))
-    return read(CE->getZExtValue(32), width, threadId, wgid);
+    return read(CE->getZExtValue(32), width, state, solver);
 
   // Treat bool specially, it is the only non-byte sized write we allow.
   if (width == Expr::Bool)
-    return ExtractExpr::create(read8(offset, threadId, wgid), 0, Expr::Bool);
+    return ExtractExpr::create(read8(offset, state, solver), 0, Expr::Bool);
 
   // Otherwise, follow the slow general case.
   unsigned NumBytes = width / 8;
@@ -727,17 +753,17 @@ ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width, thread_id_t thr
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
     ref<Expr> Byte = read8(AddExpr::create(offset, 
                                            ConstantExpr::create(idx, 
-                                                                Expr::Int32)), threadId, wgid);
+                                                                Expr::Int32)), state, solver);
     Res = idx ? ConcatExpr::create(Byte, Res) : Byte;
   }
 
   return Res;
 }
 
-ref<Expr> ObjectState::read(unsigned offset, Expr::Width width, thread_id_t threadId, unsigned wgid) const {
+ref<Expr> ObjectState::read(unsigned offset, Expr::Width width, ExecutionState *state, TimingSolver *solver) const {
   // Treat bool specially, it is the only non-byte sized write we allow.
   if (width == Expr::Bool)
-    return ExtractExpr::create(read8(offset, threadId, wgid), 0, Expr::Bool);
+    return ExtractExpr::create(read8(offset, state, solver), 0, Expr::Bool);
 
   // Otherwise, follow the slow general case.
   unsigned NumBytes = width / 8;
@@ -745,27 +771,27 @@ ref<Expr> ObjectState::read(unsigned offset, Expr::Width width, thread_id_t thre
   ref<Expr> Res(0);
   for (unsigned i = 0; i != NumBytes; ++i) {
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
-    ref<Expr> Byte = read8(offset + idx, threadId, wgid);
+    ref<Expr> Byte = read8(offset + idx, state, solver);
     Res = idx ? ConcatExpr::create(Byte, Res) : Byte;
   }
 
   return Res;
 }
 
-void ObjectState::write(ref<Expr> offset, ref<Expr> value, thread_id_t threadId, unsigned wgid) {
+void ObjectState::write(ref<Expr> offset, ref<Expr> value, ExecutionState *state, TimingSolver *solver) {
   // Truncate offset to 32-bits.
   offset = ZExtExpr::create(offset, Expr::Int32);
 
   // Check for writes at constant offsets.
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(offset)) {
-    write(CE->getZExtValue(32), value, threadId, wgid);
+    write(CE->getZExtValue(32), value, state, solver);
     return;
   }
 
   // Treat bool specially, it is the only non-byte sized write we allow.
   Expr::Width w = value->getWidth();
   if (w == Expr::Bool) {
-    write8(offset, ZExtExpr::create(value, Expr::Int8), threadId, wgid);
+    write8(offset, ZExtExpr::create(value, Expr::Int8), state, solver);
     return;
   }
 
@@ -775,11 +801,11 @@ void ObjectState::write(ref<Expr> offset, ref<Expr> value, thread_id_t threadId,
   for (unsigned i = 0; i != NumBytes; ++i) {
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
     write8(AddExpr::create(offset, ConstantExpr::create(idx, Expr::Int32)),
-           ExtractExpr::create(value, 8 * i, Expr::Int8), threadId, wgid);
+           ExtractExpr::create(value, 8 * i, Expr::Int8), state, solver);
   }
 }
 
-void ObjectState::write(unsigned offset, ref<Expr> value, thread_id_t threadId, unsigned wgid) {
+void ObjectState::write(unsigned offset, ref<Expr> value, ExecutionState *state, TimingSolver *solver) {
   // Check for writes of constant values.
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
     Expr::Width w = CE->getWidth();
@@ -788,10 +814,10 @@ void ObjectState::write(unsigned offset, ref<Expr> value, thread_id_t threadId, 
       switch (w) {
       default: assert(0 && "Invalid write size!");
       case  Expr::Bool:
-      case  Expr::Int8:  write8(offset, val, threadId, wgid); return;
-      case Expr::Int16: write16(offset, val, threadId, wgid); return;
-      case Expr::Int32: write32(offset, val, threadId, wgid); return;
-      case Expr::Int64: write64(offset, val, threadId, wgid); return;
+      case  Expr::Int8:  write8(offset, val, state, solver); return;
+      case Expr::Int16: write16(offset, val, state, solver); return;
+      case Expr::Int32: write32(offset, val, state, solver); return;
+      case Expr::Int64: write64(offset, val, state, solver); return;
       }
     }
   }
@@ -799,7 +825,7 @@ void ObjectState::write(unsigned offset, ref<Expr> value, thread_id_t threadId, 
   // Treat bool specially, it is the only non-byte sized write we allow.
   Expr::Width w = value->getWidth();
   if (w == Expr::Bool) {
-    write8(offset, ZExtExpr::create(value, Expr::Int8), threadId, wgid);
+    write8(offset, ZExtExpr::create(value, Expr::Int8), state, solver);
     return;
   }
 
@@ -808,31 +834,31 @@ void ObjectState::write(unsigned offset, ref<Expr> value, thread_id_t threadId, 
   assert(w == NumBytes * 8 && "Invalid write size!");
   for (unsigned i = 0; i != NumBytes; ++i) {
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
-    write8(offset + idx, ExtractExpr::create(value, 8 * i, Expr::Int8), threadId, wgid);
+    write8(offset + idx, ExtractExpr::create(value, 8 * i, Expr::Int8), state, solver);
   }
 } 
 
-void ObjectState::write16(unsigned offset, uint16_t value, thread_id_t threadId, unsigned wgid) {
+void ObjectState::write16(unsigned offset, uint16_t value, ExecutionState *state, TimingSolver *solver) {
   unsigned NumBytes = 2;
   for (unsigned i = 0; i != NumBytes; ++i) {
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
-    write8(offset + idx, (uint8_t) (value >> (8 * i)), threadId, wgid);
+    write8(offset + idx, (uint8_t) (value >> (8 * i)), state, solver);
   }
 }
 
-void ObjectState::write32(unsigned offset, uint32_t value, thread_id_t threadId, unsigned wgid) {
+void ObjectState::write32(unsigned offset, uint32_t value, ExecutionState *state, TimingSolver *solver) {
   unsigned NumBytes = 4;
   for (unsigned i = 0; i != NumBytes; ++i) {
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
-    write8(offset + idx, (uint8_t) (value >> (8 * i)), threadId, wgid);
+    write8(offset + idx, (uint8_t) (value >> (8 * i)), state, solver);
   }
 }
 
-void ObjectState::write64(unsigned offset, uint64_t value, thread_id_t threadId, unsigned wgid) {
+void ObjectState::write64(unsigned offset, uint64_t value, ExecutionState *state, TimingSolver *solver) {
   unsigned NumBytes = 8;
   for (unsigned i = 0; i != NumBytes; ++i) {
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
-    write8(offset + idx, (uint8_t) (value >> (8 * i)), threadId, wgid);
+    write8(offset + idx, (uint8_t) (value >> (8 * i)), state, solver);
   }
 }
 

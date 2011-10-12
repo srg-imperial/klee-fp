@@ -26,8 +26,10 @@ namespace llvm {
 namespace klee {
 
 class BitArray;
+class ExecutionState;
 class MemoryManager;
 class Solver;
+class TimingSolver;
 
 class MemoryObject {
   friend class STPBuilder;
@@ -207,11 +209,11 @@ public:
   bool isSymbolic() const { return updates; }
   void makeSymbolic();
 
-  bool logRead(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo);
-  bool logWrite(thread_id_t threadId, unsigned wgid, unsigned offset, MemoryRace &raceInfo);
+  bool logRead(ExecutionState *state, TimingSolver *solver, unsigned offset, MemoryRace &raceInfo);
+  bool logWrite(ExecutionState *state, TimingSolver *solver, unsigned offset, MemoryRace &raceInfo);
 
-  bool logRead(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo);
-  bool logWrite(thread_id_t threadId, unsigned wgid, ref<Expr> offset, MemoryRace &raceInfo);
+  bool logRead(ExecutionState *state, TimingSolver *solver, ref<Expr> offset, MemoryRace &raceInfo);
+  bool logWrite(ExecutionState *state, TimingSolver *solver, ref<Expr> offset, MemoryRace &raceInfo);
 
   void localReset();
   void globalReset();
@@ -271,18 +273,18 @@ public:
   // make contents all concrete and random
   void initializeToRandom();
 
-  ref<Expr> read(ref<Expr> offset, Expr::Width width, thread_id_t threadId = 0, unsigned wgid = 0) const;
-  ref<Expr> read(unsigned offset, Expr::Width width, thread_id_t threadId = 0, unsigned wgid = 0) const;
-  ref<Expr> read8(unsigned offset, thread_id_t threadId = 0, unsigned wgid = 0) const;
+  ref<Expr> read(ref<Expr> offset, Expr::Width width, ExecutionState *state = 0, TimingSolver *solver = 0) const;
+  ref<Expr> read(unsigned offset, Expr::Width width, ExecutionState *state = 0, TimingSolver *solver = 0) const;
+  ref<Expr> read8(unsigned offset, ExecutionState *state = 0, TimingSolver *solver = 0) const;
 
   // return bytes written.
-  void write(unsigned offset, ref<Expr> value, thread_id_t threadId = 0, unsigned wgid = 0);
-  void write(ref<Expr> offset, ref<Expr> value, thread_id_t threadId = 0, unsigned wgid = 0);
+  void write(unsigned offset, ref<Expr> value, ExecutionState *state = 0, TimingSolver *solver = 0);
+  void write(ref<Expr> offset, ref<Expr> value, ExecutionState *state = 0, TimingSolver *solver = 0);
 
-  void write8(unsigned offset, uint8_t value, thread_id_t threadId = 0, unsigned wgid = 0);
-  void write16(unsigned offset, uint16_t value, thread_id_t threadId = 0, unsigned wgid = 0);
-  void write32(unsigned offset, uint32_t value, thread_id_t threadId = 0, unsigned wgid = 0);
-  void write64(unsigned offset, uint64_t value, thread_id_t threadId = 0, unsigned wgid = 0);
+  void write8(unsigned offset, uint8_t value, ExecutionState *state = 0, TimingSolver *solver = 0);
+  void write16(unsigned offset, uint16_t value, ExecutionState *state = 0, TimingSolver *solver = 0);
+  void write32(unsigned offset, uint32_t value, ExecutionState *state = 0, TimingSolver *solver = 0);
+  void write64(unsigned offset, uint64_t value, ExecutionState *state = 0, TimingSolver *solver = 0);
 
   void globalResetMemoryLog();
   void localResetMemoryLog();
@@ -294,9 +296,9 @@ private:
 
   void makeSymbolic();
 
-  ref<Expr> read8(ref<Expr> offset, thread_id_t threadId = 0, unsigned wgid = 0) const;
-  void write8(unsigned offset, ref<Expr> value, thread_id_t threadId = 0, unsigned wgid = 0);
-  void write8(ref<Expr> offset, ref<Expr> value, thread_id_t threadId = 0, unsigned wgid = 0);
+  ref<Expr> read8(ref<Expr> offset, ExecutionState *state = 0, TimingSolver *solver = 0) const;
+  void write8(unsigned offset, ref<Expr> value, ExecutionState *state = 0, TimingSolver *solver = 0);
+  void write8(ref<Expr> offset, ref<Expr> value, ExecutionState *state = 0, TimingSolver *solver = 0);
 
   void fastRangeCheckOffset(ref<Expr> offset, unsigned *base_r, 
                             unsigned *size_r) const;

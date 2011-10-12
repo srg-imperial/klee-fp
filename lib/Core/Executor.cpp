@@ -1540,13 +1540,11 @@ void Executor::executeCall(ExecutionState &state,
         // size. This happens to work fir x86-32 and x86-64, however.
         Expr::Width WordSize = Context::get().getPointerWidth();
         if (WordSize == Expr::Int32) {
-          os->write(offset, arguments[i], state.crtThread().getTid(),
-                    state.crtThread().getWorkgroupId());
+          os->write(offset, arguments[i], &state, solver);
           offset += Expr::getMinBytesForWidth(arguments[i]->getWidth());
         } else {
           assert(WordSize == Expr::Int64 && "Unknown word size!");
-          os->write(offset, arguments[i], state.crtThread().getTid(),
-                    state.crtThread().getWorkgroupId());
+          os->write(offset, arguments[i], &state, solver);
           offset += llvm::RoundUpToAlignment(arguments[i]->getWidth(), 
                                              WordSize) / 8;
         }
@@ -3140,10 +3138,8 @@ void Executor::executeAlloc(ExecutionState &state,
         assert(states.size() == 1 && "realloc not supported in this addrspace");
         ObjectState *os = states[0];
         unsigned count = std::min(reallocFrom->size, os->size);
-        thread_id_t tid = state.crtThread().getTid();
-        unsigned wgid = state.crtThread().getWorkgroupId();
         for (unsigned i=0; i<count; i++)
-          os->write(i, reallocFrom->read8(tid, i), tid, wgid);
+          os->write(i, reallocFrom->read8(i, &state, solver), &state, solver);
         state.addressSpace(addrspace).unbindObject(reallocFrom->getObject());
       }
     }
@@ -3579,13 +3575,11 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                                 "readonly.err");
         } else {
           ObjectState *wos = state.addressSpace(addrspace).getWriteable(mo, os);
-          wos->write(offset, value, state.crtThread().getTid(),
-                     state.crtThread().getWorkgroupId());
+          wos->write(offset, value, &state, solver);
 
 	}          
       } else {
-	ref<Expr> result = os->read(offset, type, state.crtThread().getTid(),
-                                    state.crtThread().getWorkgroupId());
+	ref<Expr> result = os->read(offset, type, &state, solver);
 
         if (interpreterOpts.MakeConcreteSymbolic)
           result = replaceReadWithSymbolic(state, result);
@@ -3626,12 +3620,10 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                                 "readonly.err");
         } else {
           ObjectState *wos = bound->addressSpace(addrspace).getWriteable(mo, os);
-          wos->write(mo->getOffsetExpr(address), value, state.crtThread().getTid(),
-                     state.crtThread().getWorkgroupId());
+          wos->write(mo->getOffsetExpr(address), value, &state, solver);
         }
       } else {
-        ref<Expr> result = os->read(mo->getOffsetExpr(address), type, state.crtThread().getTid(),
-                                    state.crtThread().getWorkgroupId());
+        ref<Expr> result = os->read(mo->getOffsetExpr(address), type, &state, solver);
         bindLocal(target, *bound, result);
       }
     }
@@ -3728,10 +3720,8 @@ void Executor::executeMakeSymbolic(ExecutionState &state,
       if (obj->numBytes != mo->size) {
         terminateStateOnError(state, "replay size mismatch", "user.err");
       } else {
-        thread_id_t tid = state.crtThread().getTid();
-        unsigned wgid = state.crtThread().getWorkgroupId();
         for (unsigned i=0; i<mo->size; i++)
-          os->write8(i, obj->bytes[i], tid, wgid);
+          os->write8(i, obj->bytes[i], &state, solver);
       }
     }
   }
@@ -3816,13 +3806,13 @@ void Executor::runFunctionAsMain(Function *f,
 				arg = memory->allocate(state, len + 1, false, true, state->pc()->inst);
 				ObjectState *os = bindObjectInState(*state, 0, arg, false);
 				for (j = 0; j < len + 1; j++)
-                                  os->write8(j, s[j], tid, wgid);
+                                  os->write8(j, s[j], state, solver);
 			}
 
 			if (arg) {
-				argvOS->write(i * NumPtrBytes, arg->getBaseExpr(), tid, wgid);
+				argvOS->write(i * NumPtrBytes, arg->getBaseExpr(), state, solver);
 			} else {
-				argvOS->write(i * NumPtrBytes, Expr::createPointer(0), tid, wgid);
+				argvOS->write(i * NumPtrBytes, Expr::createPointer(0), state, solver);
 			}
 		}
 	}
@@ -3953,8 +3943,7 @@ void Executor::doImpliedValueConcretization(ExecutionState &state,
         assert(!os->readOnly && 
                "not possible? read only object with static read?");
         ObjectState *wos = state.addressSpace().getWriteable(mo, os);
-        wos->write(CE, it->second, state.crtThread().getTid(),
-                   state.crtThread().getWorkgroupId());
+        wos->write(CE, it->second, &state, solver);
       }
     }
   }
