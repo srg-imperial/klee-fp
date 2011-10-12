@@ -227,7 +227,18 @@ bool MemoryLog::logRead(ExecutionState *state, TimingSolver *solver, ref<Expr> o
 
   ref<Expr> query = AndExpr::create(oldWrite,
                                AndExpr::create(threadIdMismatch, wgidMismatch));
-  // TODO: run query
+
+  bool result;
+  bool success = solver->mayBeTrue(*state, query, result);
+  assert(success && "FIXME: Unhandled solver failure");
+  (void) success;
+  if (result) {
+    raceInfo.raceType = MemoryRace::RT_readwrite;
+    // TODO: get assignments from the solver for these
+    raceInfo.op1ThreadId = 1;
+    raceInfo.op2ThreadId = 2;
+    return true;
+  }
 
   ref<ConstantExpr> trueConst = ConstantExpr::create(1, Expr::Bool);
 
@@ -324,7 +335,19 @@ bool MemoryLog::logWrite(ExecutionState *state, TimingSolver *solver, ref<Expr> 
     OrExpr::create(OrExpr::create(oldManyRead, oldWgManyRead),
                    AndExpr::create(OrExpr::create(oldRead, oldWrite), 
                               AndExpr::create(threadIdMismatch, wgidMismatch)));
-  // TODO: run query
+
+  bool result;
+  bool success = solver->mayBeTrue(*state, query, result);
+  assert(success && "FIXME: Unhandled solver failure");
+  (void) success;
+  if (result) {
+    // TODO: use assignment to see if this is writewrite or readwrite?
+    raceInfo.raceType = MemoryRace::RT_writewrite;
+    // TODO: get assignments from the solver for these
+    raceInfo.op1ThreadId = 1;
+    raceInfo.op2ThreadId = 2;
+    return true;
+  }
 
   ref<ConstantExpr> trueConst = ConstantExpr::create(1, Expr::Bool);
 
