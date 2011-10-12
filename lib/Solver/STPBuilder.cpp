@@ -392,7 +392,7 @@ ExprHandle STPBuilder::constructSDivByConstant(ExprHandle expr_n, unsigned width
     // including the address.
     char buf[32];
     sprintf(buf, "%s_%p", root->name.c_str(), (void*) root);
-    root->stpInitialArray = buildArray(buf, 32, 8);
+    root->stpInitialArray = buildArray(buf, root->getDomain(), root->getRange());
 
     if (root->isConstantArray()) {
       // FIXME: Flush the concrete values into STP. Ideally we would do this
