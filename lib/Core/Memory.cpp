@@ -695,6 +695,11 @@ ref<Expr> ObjectState::read8(ref<Expr> offset, ExecutionState *state, TimingSolv
   fastRangeCheckOffset(offset, &base, &size);
   flushRangeForRead(base, size);
 
+  MemoryRace race;
+  if (memoryLog.logRead(state, solver, offset, race)) {
+    llvm::errs() << "memory read: race detected\n";
+  }
+
   if (size>4096) {
     std::string allocInfo;
     object->getAllocInfo(allocInfo);
@@ -742,6 +747,11 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value, ExecutionState *stat
   unsigned base, size;
   fastRangeCheckOffset(offset, &base, &size);
   flushRangeForWrite(base, size);
+
+  MemoryRace race;
+  if (memoryLog.logWrite(state, solver, offset, race)) {
+    llvm::errs() << "memory write: race detected\n";
+  }
 
   if (size>4096) {
     std::string allocInfo;
