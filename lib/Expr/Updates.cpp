@@ -23,8 +23,6 @@ UpdateNode::UpdateNode(const UpdateNode *_next,
     next(_next),
     index(_index),
     value(_value) {
-  assert(_value->getWidth() == Expr::Int8 && 
-         "Update value should be 8-bit wide.");
   computeHash();
   if (next) {
     ++next->refCount;
