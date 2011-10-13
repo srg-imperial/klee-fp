@@ -136,27 +136,27 @@ void MemoryLog::makeSymbolic() {
 
   updates = new MemoryLogUpdates;
   updates->threadId.root =
-    new Array("threadId_" + logId, size,
+    new Array("threadId_" + logIdStr, size,
               threadId.data(), threadId.data()+threadId.size(),
               Expr::Int32, Expr::Int32);
   updates->wgid.root =
-    new Array("wgid_" + logId, size,
+    new Array("wgid_" + logIdStr, size,
               wgid.data(), wgid.data()+wgid.size(),
               Expr::Int32, Expr::Int32);
   updates->read.root =
-    new Array("read_" + logId, size,
+    new Array("read_" + logIdStr, size,
               read.data(), read.data()+read.size(),
               Expr::Int32, Expr::Bool);
   updates->write.root =
-    new Array("write_" + logId, size,
+    new Array("write_" + logIdStr, size,
               write.data(), write.data()+write.size(),
               Expr::Int32, Expr::Bool);
   updates->manyRead.root =
-    new Array("manyRead_" + logId, size,
+    new Array("manyRead_" + logIdStr, size,
               manyRead.data(), manyRead.data()+manyRead.size(),
               Expr::Int32, Expr::Bool);
   updates->wgManyRead.root =
-    new Array("wgManyRead_" + logId, size,
+    new Array("wgManyRead_" + logIdStr, size,
               wgManyRead.data(), wgManyRead.data()+wgManyRead.size(),
               Expr::Int32, Expr::Bool);
 }
