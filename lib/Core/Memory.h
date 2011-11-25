@@ -215,7 +215,7 @@ public:
   bool logRead(ExecutionState *state, TimingSolver *solver, ref<Expr> offset, MemoryRace &raceInfo);
   bool logWrite(ExecutionState *state, TimingSolver *solver, ref<Expr> offset, MemoryRace &raceInfo);
 
-  void localReset();
+  void localReset(unsigned wgid);
   void globalReset();
 };
 
@@ -287,7 +287,7 @@ public:
   void write64(unsigned offset, uint64_t value, ExecutionState *state = 0, TimingSolver *solver = 0);
 
   void globalResetMemoryLog();
-  void localResetMemoryLog();
+  void localResetMemoryLog(unsigned wgid);
 
 private:
   const UpdateList &getUpdates() const;

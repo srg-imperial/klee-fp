@@ -362,27 +362,34 @@ bool MemoryLog::logWrite(ExecutionState *state, TimingSolver *solver, ref<Expr> 
   return false;
 }
 
-void MemoryLog::localReset() {
+void MemoryLog::localReset(unsigned wgid) {
   if (isSymbolic()) {
     ref<ConstantExpr> zero1 = ConstantExpr::create(0, Expr::Bool),
-                      zero32 = ConstantExpr::create(0, Expr::Int32);
-    std::vector<ref<ConstantExpr> > zeros32(size, zero32), zeros1(size, zero1);
+                      zero32 = ConstantExpr::create(0, Expr::Int32),
+                      wgidConst = ConstantExpr::create(wgid, Expr::Int32);
 
-    std::string logIdStr;
-    llvm::raw_string_ostream(logIdStr) << logId++;
+    for (unsigned ofs = 0; ofs != size; ++ofs) {
+      ref<ConstantExpr> offset = ConstantExpr::create(ofs, Expr::Int32);
 
-    // FIXME: Leaks old threadId and manyRead arrays.
-    updates->threadId = UpdateList(new Array("threadId_" + logIdStr, size,
-              zeros32.data(), zeros32.data()+zeros32.size(),
-              Expr::Int32, Expr::Int32), 0);
-    updates->manyRead = UpdateList(new Array("manyRead_" + logIdStr, size,
-              zeros1.data(), zeros1.data()+zeros1.size(),
-              Expr::Int32, Expr::Bool), 0);
+      ref<Expr> oldWgid = ReadExpr::create(updates->wgid, offset);
+      ref<Expr> oldThreadId = ReadExpr::create(updates->threadId, offset);
+      ref<Expr> oldManyRead = ReadExpr::create(updates->manyRead, offset);
+
+      ref<Expr> match = EqExpr::create(oldWgid, wgidConst);
+
+      ref<Expr> newThreadId = SelectExpr::create(match, zero32, oldThreadId);
+      ref<Expr> newManyRead = SelectExpr::create(match, zero1, oldManyRead);
+
+      updates->threadId.extend(offset, newThreadId);
+      updates->manyRead.extend(offset, newManyRead);
+    }
   } else {
     for (std::vector<MemoryLogEntry>::iterator i = concreteEntries.begin(),
          e = concreteEntries.end(); i != e; ++i) {
-      i->threadId = 0;
-      i->manyRead = 0;
+      if (i->wgid == wgid) {
+        i->threadId = 0;
+        i->manyRead = 0;
+      }
     }
   }
 }
@@ -917,8 +924,8 @@ void ObjectState::print() {
   }
 }
 
-void ObjectState::localResetMemoryLog() {
-  memoryLog.localReset();
+void ObjectState::localResetMemoryLog(unsigned wgid) {
+  memoryLog.localReset(wgid);
 }
 
 void ObjectState::globalResetMemoryLog() {

@@ -300,7 +300,7 @@ bool ExecutionState::barrierThread(wlist_id_t wlist, unsigned threadCount,
       if (isGlobal)
         (*it->second).globalResetMemoryLog();
       else
-        (*it->second).localResetMemoryLog();
+        (*it->second).localResetMemoryLog(crtThread().getWorkgroupId());
     }
 
     notifyAll(wlist);
