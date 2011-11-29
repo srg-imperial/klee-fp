@@ -483,7 +483,7 @@ static void __fix_linkage(llvm::Module *mainModule, std::string libcSymName, std
     }
   } else {
     libcSym->setName(libcAliasName);
-    assert(libcSym->getNameStr() == libcAliasName);
+    assert(libcSym->getName() == libcAliasName);
   }
 }
 

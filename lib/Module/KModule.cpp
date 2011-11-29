@@ -133,18 +133,18 @@ bool KModule::isVulnerablePoint(KInstruction *kinst) {
   if (!target)
     return false;
 
-  std::string targetName = target->getNameStr();
+  std::string targetName = target->getName();
 
   if (targetName.find("__klee_model_") == 0)
     targetName = targetName.substr(strlen("__klee_model_"));
 
-  if (vulnerablePoints.count(target->getNameStr()) == 0)
+  if (vulnerablePoints.count(target->getName()) == 0)
     return false;
 
   Path sourceFile(kinst->info->file);
   program_point_t cpoint = std::make_pair(sourceFile.getLast(), kinst->info->line);
 
-  if (vulnerablePoints[target->getNameStr()].count(cpoint) == 0)
+  if (vulnerablePoints[target->getName()].count(cpoint) == 0)
     return false;
 
   return true;
@@ -549,7 +549,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
     if (it->isDeclaration())
       continue;
 
-    fnList[it->getNameStr()] = it;
+    fnList[it->getName()] = it;
   }
 
   for (std::map<std::string, Function*>::iterator it = fnList.begin();

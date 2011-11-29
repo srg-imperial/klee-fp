@@ -75,10 +75,10 @@ void MemoryObject::getAllocInfo(std::string &result) const {
   if (allocSite) {
     info << " allocated at ";
     if (const Instruction *i = dyn_cast<Instruction>(allocSite)) {
-      info << i->getParent()->getParent()->getNameStr() << "():";
+      info << i->getParent()->getParent()->getName() << "():";
       info << *i;
     } else if (const GlobalValue *gv = dyn_cast<GlobalValue>(allocSite)) {
-      info << "global:" << gv->getNameStr();
+      info << "global:" << gv->getName();
     } else {
       info << "value:" << *allocSite;
     }
@@ -794,7 +794,7 @@ ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width, ExecutionState 
     ref<Expr> Byte = read8(AddExpr::create(offset, 
                                            ConstantExpr::create(idx, 
                                                                 Expr::Int32)), state, solver);
-    Res = idx ? ConcatExpr::create(Byte, Res) : Byte;
+    Res = i ? ConcatExpr::create(Byte, Res) : Byte;
   }
 
   return Res;
@@ -812,7 +812,7 @@ ref<Expr> ObjectState::read(unsigned offset, Expr::Width width, ExecutionState *
   for (unsigned i = 0; i != NumBytes; ++i) {
     unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
     ref<Expr> Byte = read8(offset + idx, state, solver);
-    Res = idx ? ConcatExpr::create(Byte, Res) : Byte;
+    Res = i ? ConcatExpr::create(Byte, Res) : Byte;
   }
 
   return Res;

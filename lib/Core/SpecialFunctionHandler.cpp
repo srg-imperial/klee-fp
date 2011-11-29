@@ -1361,7 +1361,7 @@ void SpecialFunctionHandler::handleOclCompile(ExecutionState &state,
   CI->getPreprocessorOpts().Includes.push_back(KLEE_SRC_DIR "/include/klee/clkernel.h");
   CI->getPreprocessorOpts().addRemappedFile(codeName, buf);
 
-  Triple kleeTriple(sys::getHostTriple());
+  Triple kleeTriple(sys::getDefaultTargetTriple());
   kleeTriple.setOS(Triple::KLEEOpenCL);
   CI->getTargetOpts().Triple = kleeTriple.str();
 

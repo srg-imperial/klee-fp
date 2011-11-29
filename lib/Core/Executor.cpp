@@ -623,7 +623,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
     // not defined in this module; if it isn't resolvable then it
     // should be null.
     if (f->hasExternalWeakLinkage() && 
-        !externalDispatcher->resolveSymbol(f->getNameStr())) {
+        !externalDispatcher->resolveSymbol(f->getName())) {
       addr = Expr::createPointer(0);
     } else {
       addr = Expr::createPointer((unsigned long) (void*) f);
@@ -682,7 +682,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
           extern void *__dso_handle __attribute__ ((__weak__));
           addr = &__dso_handle; // wtf ?
         } else {
-          addr = externalDispatcher->resolveSymbol(i->getNameStr());
+          addr = externalDispatcher->resolveSymbol(i->getName());
         }
         if (!addr)
           klee_error("unable to load symbol(%s) while initializing globals.", 
@@ -699,7 +699,7 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
 
       if (UseAsmAddresses && i->getName()[0]=='\01') {
         char *end;
-        uint64_t address = ::strtoll(i->getNameStr().c_str()+1, &end, 0);
+        uint64_t address = ::strtoll(i->getName().str().c_str()+1, &end, 0);
 
         if (end && *end == '\0') {
           klee_message("NOTE: allocated global at asm specified address: %#08llx"
@@ -713,7 +713,8 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
       if (!mo)
         mo = memory->allocate(&state, size, false, true, &*i);
       if(!mo)
-	klee_message("cannot allocate memory for global %s", i->getNameStr().c_str());
+	klee_message("cannot allocate memory for global %s",
+                     i->getName().str().c_str());
       assert(mo && "out of memory");
       ObjectState *os = bindObjectInState(state, addrspace, mo, false);
       globalObjects.insert(std::make_pair(i, mo));
@@ -2940,7 +2941,7 @@ void Executor::callUnmodelledFunction(ExecutionState &state,
 
   if (NoExternals && !okExternals.count(function->getName())) {
     std::cerr << "KLEE:ERROR: Calling not-OK external function : " 
-               << function->getNameStr() << "\n";
+              << function->getName().str() << "\n";
     terminateStateOnError(state, "externals disallowed", "user.err");
     return;
   }
@@ -2984,7 +2985,7 @@ void Executor::callUnmodelledFunction(ExecutionState &state,
 
   if (!SuppressExternalWarnings) {
     std::ostringstream os;
-    os << "calling external: " << function->getNameStr() << "(";
+    os << "calling external: " << function->getName().str() << "(";
     for (unsigned i=0; i<arguments.size(); i++) {
       os << arguments[i];
       if (i != arguments.size()-1)
