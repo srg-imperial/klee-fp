@@ -3794,8 +3794,6 @@ void Executor::runFunctionAsMain(Function *f,
 
 		for (int i = 0; i < argc + 1 + envc + 1 + 1; i++) {
 			MemoryObject *arg;
-                        thread_id_t tid = state->crtThread().getTid();
-                        unsigned wgid = state->crtThread().getWorkgroupId();
 
 			if (i == argc || i >= argc + 1 + envc) {
 				arg = 0;
