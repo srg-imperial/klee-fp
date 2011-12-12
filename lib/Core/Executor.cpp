@@ -279,9 +279,6 @@ namespace {
 }
 
 
-static void *theMMap = 0;
-static unsigned theMMapSize = 0;
-
 namespace klee {
   RNG theRNG;
 }
@@ -596,6 +593,9 @@ MemoryObject * Executor::addExternalObject(ExecutionState &state,
   return mo;
 }
 
+
+extern void *__dso_handle __attribute__ ((__weak__));
+
 void Executor::initializeGlobals(ExecutionState &state) {
   initializeGlobals(state, kmodule(state)->module);
 }
@@ -679,7 +679,6 @@ void Executor::initializeGlobals(ExecutionState &state, Module *m) {
       if (size) {
         void *addr;
         if (i->getName() == "__dso_handle") {
-          extern void *__dso_handle __attribute__ ((__weak__));
           addr = &__dso_handle; // wtf ?
         } else {
           addr = externalDispatcher->resolveSymbol(i->getName());
@@ -3836,11 +3835,6 @@ void Executor::runFunctionAsMain(Function *f,
 
   if (statsTracker)
     statsTracker->done();
-
-  if (theMMap) {
-    munmap(theMMap, theMMapSize);
-    theMMap = 0;
-  }
 }
 
 unsigned Executor::getPathStreamID(const ExecutionState &state) {
