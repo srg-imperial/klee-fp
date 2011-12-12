@@ -25,8 +25,8 @@
 
 namespace klee {
 
-class KFunction;
-class KInstruction;
+struct KFunction;
+struct KInstruction;
 class ExecutionState;
 class Process;
 class CallPathNode;

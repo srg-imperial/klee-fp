@@ -34,7 +34,7 @@ namespace klee {
   class Expr;
   class ExecutionState;
   struct KInstruction;
-  struct KModule;
+  class KModule;
   template<typename T> class ref;
   
   class SpecialFunctionHandler {

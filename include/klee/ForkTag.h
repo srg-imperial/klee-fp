@@ -19,7 +19,7 @@
 
 namespace klee {
 
-class KFunction;
+struct KFunction;
 
 enum ForkClass {
   KLEE_FORK_DEFAULT = 0,
