@@ -208,33 +208,6 @@ bvt float_utilst::to_integer(
 
 /*******************************************************************\
 
-Function: float_utilst::build_constant
-
-  Inputs:
-
- Outputs:
-
- Purpose:
-
-\*******************************************************************/
-
-#if 0
-bvt float_utilst::build_constant(const ieee_floatt &src)
-{
-  unbiased_floatt result;
-
-  result.sign=const_literal(src.get_sign());
-  result.NaN=const_literal(src.is_NaN());
-  result.infinity=const_literal(src.is_infinity());
-  result.exponent=bv_utils.build_constant(src.get_exponent(), spec.e);
-  result.fraction=bv_utils.build_constant(src.get_fraction(), spec.f+1);
-
-  return pack(bias(result));
-}
-#endif
-
-/*******************************************************************\
-
 Function: float_utilst::conversion
 
   Inputs:
@@ -1443,34 +1416,6 @@ bvt float_utilst::pack(const biased_floatt &src)
 
   return bv_utils.concatenate(result);
 }
-
-/*******************************************************************\
-
-Function: float_utilst::get
-
-  Inputs:
-
- Outputs:
-
- Purpose:
-
-\*******************************************************************/
-
-#if 0
-ieee_floatt float_utilst::get(const bvt &src) const
-{
-  mp_integer int_value=0;
-
-  for(unsigned i=0; i<bv_utils.width(src); i++)
-    int_value+=power(2, i)*prop.l_get(src[i]).is_true();
-
-  ieee_floatt result;
-  result.spec=spec;
-  result.unpack(int_value);
-
-  return result;
-}
-#endif
 
 /*******************************************************************\
 

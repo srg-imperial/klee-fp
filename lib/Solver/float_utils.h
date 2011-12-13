@@ -334,8 +334,6 @@ public:
 
   ieee_float_spect spec;
 
-  bvt build_constant(const ieee_floatt &src);
-
   literalt sign_bit(const bvt &src) { return bv_utils.sign_bit(src); }
 
   // extraction
@@ -372,9 +370,6 @@ public:
   // relations
   typedef enum { LT, LE, EQ, GT, GE } relt;
   literalt relation(const bvt &src1, relt rel, const bvt &src2);
-
-  // constants
-  ieee_floatt get(const bvt &src) const;
 
   // helpers
   literalt exponent_all_ones(const bvt &src);
