@@ -28,6 +28,8 @@
 #endif
 #undef Expr
 
+#include "float_utils.h"
+
 namespace klee {
   class ExprHolder {
     friend class ExprHandle;
@@ -86,6 +88,10 @@ class STPBuilder {
 
   unsigned fpCount;
 
+  // CBMC stuff.
+  propt prop;
+  float_utilst spfloat, dpfloat;
+
 private:
   unsigned getShiftBits(unsigned amount) {
     return (amount == 64) ? 6 : 5;
@@ -123,6 +129,14 @@ private:
   
   ::VCExpr buildVar(const char *name, unsigned width);
   ::VCExpr buildArray(const char *name, unsigned indexWidth, unsigned valueWidth);
+
+  float_utilst &floatUtils(ref<Expr> e) {
+    if (e->getWidth() == 32)
+      return spfloat;
+    if (e->getWidth() == 64)
+      return dpfloat;
+    assert(0);
+  }
 
 public:
   STPBuilder(::VC _vc, bool _optimizeDivides=true);

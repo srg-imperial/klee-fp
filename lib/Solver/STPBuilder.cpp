@@ -53,12 +53,16 @@ namespace {
 /***/
 
 STPBuilder::STPBuilder(::VC _vc, bool _optimizeDivides) 
-  : vc(_vc), optimizeDivides(_optimizeDivides), fpCount(0)
+  : vc(_vc), optimizeDivides(_optimizeDivides), fpCount(0),
+    spfloat(prop), dpfloat(prop)
 {
   tempVars[0] = buildVar("__tmpInt8", 8);
   tempVars[1] = buildVar("__tmpInt16", 16);
   tempVars[2] = buildVar("__tmpInt32", 32);
   tempVars[3] = buildVar("__tmpInt64", 64);
+
+  spfloat.spec = ieee_float_spect::single_precision();
+  dpfloat.spec = ieee_float_spect::double_precision();
 }
 
 STPBuilder::~STPBuilder() {
@@ -906,6 +910,56 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
     *width_out = e->getWidth();
     *et_out = etBV;
     return buildVar(ss.str().c_str(), e->getWidth());
+  }
+
+  case Expr::UIToFP: {
+    UIToFPExpr *ue = cast<UIToFPExpr>(e);
+    ref<Expr> res = floatUtils(e).from_unsigned_integer(ue->src);
+    return constructActual(res, width_out, et_out);
+  }
+
+  case Expr::SIToFP: {
+    SIToFPExpr *se = cast<SIToFPExpr>(e);
+    ref<Expr> res = floatUtils(e).from_signed_integer(se->src);
+    return constructActual(res, width_out, et_out);
+  }
+
+  case Expr::FCmp: {
+    FCmpExpr *ce = cast<FCmpExpr>(e);
+    float_utilst &u = floatUtils(ce->left);
+    ref<Expr> res;
+    switch (ce->getPredicate()) {
+    case FCmpExpr::OEQ:
+      res = u.relation(ce->left, float_utilst::EQ, ce->right);
+      break;
+    case FCmpExpr::OGT:
+      res = u.relation(ce->left, float_utilst::GT, ce->right);
+      break;
+    case FCmpExpr::OGE:
+      res = u.relation(ce->left, float_utilst::GE, ce->right);
+      break;
+    case FCmpExpr::OLT:
+      res = u.relation(ce->left, float_utilst::LT, ce->right);
+      break;
+    case FCmpExpr::OLE:
+      res = u.relation(ce->left, float_utilst::LE, ce->right);
+      break;
+    case FCmpExpr::ONE:
+      res = OrExpr::create(u.relation(ce->left, float_utilst::LT, ce->right),
+                           u.relation(ce->left, float_utilst::GT, ce->right));
+      break;
+    case FCmpExpr::ORD:
+      res = NotExpr::create(OrExpr::create(u.is_NaN(ce->left),
+                                           u.is_NaN(ce->right)));
+      break;
+    case FCmpExpr::UNO:
+      res = OrExpr::create(u.is_NaN(ce->left),
+                           u.is_NaN(ce->right));
+      break;
+    default:
+      assert(0 && "fp cmp not implemented yet");
+    }
+    return constructActual(res, width_out, et_out);
   }
 
   default: 
