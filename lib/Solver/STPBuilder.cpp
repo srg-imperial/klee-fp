@@ -905,11 +905,10 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
 
   case Expr::FPToSI:
   case Expr::FPToUI: {
-    std::ostringstream ss;
-    ss << "FPtoI" << fpCount++;
-    *width_out = e->getWidth();
-    *et_out = etBV;
-    return buildVar(ss.str().c_str(), e->getWidth());
+    F2IConvertExpr *ce = cast<F2IConvertExpr>(e);
+    ref<Expr> res = floatUtils(ce->src).to_integer(ce->src, ce->getWidth(),
+                                                  e->getKind() == Expr::FPToSI);
+    return constructActual(res, width_out, et_out);
   }
 
   case Expr::UIToFP: {
@@ -959,6 +958,38 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
     default:
       assert(0 && "fp cmp not implemented yet");
     }
+    return constructActual(res, width_out, et_out);
+  }
+
+  case Expr::FPExt:
+  case Expr::FPTrunc: {
+    F2FConvertExpr *ce = cast<F2FConvertExpr>(e);
+    float_utilst &fromu = floatUtils(ce->src), &tou = floatUtils(ce);
+    ref<Expr> res = fromu.conversion(ce->src, tou.spec);
+    return constructActual(res, width_out, et_out);
+  }
+
+  case Expr::FAdd: {
+    FAddExpr *ae = cast<FAddExpr>(e);
+    ref<Expr> res = floatUtils(e).add(ae->left, ae->right);
+    return constructActual(res, width_out, et_out);
+  }
+
+  case Expr::FSub: {
+    FSubExpr *se = cast<FSubExpr>(e);
+    ref<Expr> res = floatUtils(e).sub(se->left, se->right);
+    return constructActual(res, width_out, et_out);
+  }
+
+  case Expr::FMul: {
+    FMulExpr *me = cast<FMulExpr>(e);
+    ref<Expr> res = floatUtils(e).mul(me->left, me->right);
+    return constructActual(res, width_out, et_out);
+  }
+
+  case Expr::FDiv: {
+    FDivExpr *de = cast<FDivExpr>(e);
+    ref<Expr> res = floatUtils(e).div(de->left, de->right);
     return constructActual(res, width_out, et_out);
   }
 
