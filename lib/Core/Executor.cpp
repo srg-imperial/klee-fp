@@ -177,6 +177,10 @@ namespace {
                    cl::init(false));
 
   cl::opt<bool>
+  UseFPRewriter("use-fp-rewriter",
+                cl::init(false));
+
+  cl::opt<bool>
   NoExternals("no-externals", 
            cl::desc("Do not allow external functin calls"));
 
@@ -290,7 +294,8 @@ Solver *constructSolverChain(STPSolver *stpSolver,
                              std::string stpQueryPCLogPath) {
   Solver *solver = stpSolver;
 
-  solver = createFPRewritingSolver(solver);
+  if (UseFPRewriter)
+    solver = createFPRewritingSolver(solver);
 
   if (UseSTPQueryPCLog)
     solver = createPCLoggingSolver(solver, 
