@@ -73,11 +73,13 @@
 using namespace llvm;
 using namespace klee;
 
+#ifdef HAVE_OPENCL
 llvm::cl::opt<bool>
 DumpOpenCLSource("dump-opencl-source", llvm::cl::init(false));
 
 llvm::cl::opt<bool>
 DumpOpenCLModules("dump-opencl-modules", llvm::cl::init(false));
+#endif
 
 /// \todo Almost all of the demands in this file should be replaced
 /// with terminateState calls.
