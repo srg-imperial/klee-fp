@@ -46,6 +46,11 @@ namespace {
   UseConstructHash("use-construct-hash", 
                    llvm::cl::desc("Use hash-consing during STP query construction."),
                    llvm::cl::init(true));
+
+  llvm::cl::opt<bool>
+  UseFPToIAbstraction("use-fptoi-abstraction", 
+                      llvm::cl::desc("Use abstraction for FPTo?I expression."),
+                      llvm::cl::init(false));
 }
 
 ///
@@ -905,10 +910,18 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
 
   case Expr::FPToSI:
   case Expr::FPToUI: {
-    F2IConvertExpr *ce = cast<F2IConvertExpr>(e);
-    ref<Expr> res = floatUtils(ce->src).to_integer(ce->src, ce->getWidth(),
+    if (UseFPToIAbstraction) {
+      std::ostringstream ss;
+      ss << "FPtoI" << fpCount++;
+      *width_out = e->getWidth();
+      *et_out = etBV;
+      return buildVar(ss.str().c_str(), e->getWidth());
+    } else {
+      F2IConvertExpr *ce = cast<F2IConvertExpr>(e);
+      ref<Expr> res = floatUtils(ce->src).to_integer(ce->src, ce->getWidth(),
                                                   e->getKind() == Expr::FPToSI);
-    return constructActual(res, width_out, et_out);
+      return constructActual(res, width_out, et_out);
+    }
   }
 
   case Expr::UIToFP: {
