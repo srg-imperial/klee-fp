@@ -228,7 +228,8 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
       case Intrinsic::x86_sse2_cvtps2dq: {
         Value *src = GET_ARG_OPERAND(ii, 0);
 
-        Value *res = builder.CreateFPToSI(src, ii->getType());
+        FPToSIInst *res = new FPToSIInst(src, ii->getType(), "", ii);
+        res->setMetadata("round_nearest", MDNode::get(getGlobalContext(), 0, 0));
 
         ii->replaceAllUsesWith(res);
 
@@ -246,6 +247,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
 
         ExtractElementInst *lowElem = ExtractElementInst::Create(src, zero32, "", ii);
         FPToSIInst *conv = new FPToSIInst(lowElem, i32, "", ii);
+        conv->setMetadata("round_nearest", MDNode::get(getGlobalContext(), 0, 0));
 
         ii->replaceAllUsesWith(conv);
 

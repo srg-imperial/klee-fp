@@ -445,13 +445,14 @@ public:
 
 class F2ISIMDOperation : public SIMDOperation {
 public:
-  typedef ref<Expr> (*ExprCtor)(const ref<Expr> &e, Expr::Width W, bool isIEEE);
+  typedef ref<Expr> (*ExprCtor)(const ref<Expr> &e, Expr::Width W, bool isIEEE, bool roundNearest);
   ExprCtor Ctor;
+  bool RoundNearest;
 
-  F2ISIMDOperation(const Executor *Exec, KModule *kmodule, ExprCtor Ctor) : SIMDOperation(Exec, kmodule), Ctor(Ctor) {}
+  F2ISIMDOperation(const Executor *Exec, KModule *kmodule, ExprCtor Ctor, bool RoundNearest) : SIMDOperation(Exec, kmodule), Ctor(Ctor), RoundNearest(RoundNearest) {}
 
   ref<Expr> evalOne(LLVM_TYPE_Q Type *tt, LLVM_TYPE_Q Type *ft, ref<Expr> l, ref<Expr> r) {
-    return Ctor(l, Exec->getWidthForLLVMType(kmodule, tt), ft->isFP128Ty());
+    return Ctor(l, Exec->getWidthForLLVMType(kmodule, tt), ft->isFP128Ty(), RoundNearest);
   }
 };
 
@@ -2406,7 +2407,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     bindLocal(ki, state, F2ISIMDOperation(this, kmodule(state),
        (i->getOpcode() == Instruction::FPToUI
       ? FPToUIExpr::create
-      : FPToSIExpr::create)).eval(type, arg));
+      : FPToSIExpr::create),
+       i->getMetadata("round_nearest")).eval(type, arg));
     break;
   }
 

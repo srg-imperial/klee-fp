@@ -173,29 +173,52 @@ bvt float_utilst::to_integer(
 {
   assert(bv_utils.width(src)==spec.width());
 
-  const unbiased_floatt unpacked=unpack(src);
+  unbiased_floatt unpacked=unpack(src);
+
+  // for the other rounding modes, we need a correct answer, though we can
+  // probably get away with a truncated answer in some cases
+  if (rounding_mode != ieee_floatt::ROUND_TO_ZERO)
+    unpacked.exponent=bv_utils.zero_extension(unpacked.exponent,
+                                              bv_utils.width(unpacked.exponent)+1);
 
   // if the exponent is positive, shift right
   bvt offset=bv_utils.build_constant(spec.f, bv_utils.width(unpacked.exponent));
   bvt distance=bv_utils.sub(offset, unpacked.exponent);
-  bvt shift_result=bv_utils.shift(unpacked.fraction, bv_utilst::LRIGHT, distance);
+  bvt result;
 
-  // if the exponent is negative, we have zero anyways
-  bvt result=shift_result;
-  literalt exponent_sign=sign_bit(unpacked.exponent);
+  if (rounding_mode == ieee_floatt::ROUND_TO_ZERO) {
+    result=bv_utils.shift(unpacked.fraction, bv_utilst::LRIGHT, distance);
 
-  result=prop.land(result, bv_utils.sign_extension(prop.lnot(exponent_sign),
-                                                   bv_utils.width(result)));
+    // if the exponent is negative, we have zero anyways
+    literalt exponent_sign=sign_bit(unpacked.exponent);
+    result=prop.land(result, bv_utils.sign_extension(prop.lnot(exponent_sign),
+                                                     bv_utils.width(result)));
 
-  // chop out the right number of bits from the result
-  if(bv_utils.width(result)>dest_width)
-  {
-    result=bv_utils.extract(result, 0, dest_width-1);
-  }
-  else if(bv_utils.width(result)<dest_width)
-  {
-    // extend
-    result=bv_utils.zero_extension(result, dest_width);
+    // chop out the right number of bits from the result
+    if(bv_utils.width(result)>dest_width)
+    {
+      result=bv_utils.extract(result, 0, dest_width-1);
+    }
+    else if(bv_utils.width(result)<dest_width)
+    {
+      // extend
+      result=bv_utils.zero_extension(result, dest_width);
+    }
+  } else {
+    // 2^(spec.e + 1) bits ought to be enough for anyone
+    unsigned round_width=2<<spec.e;
+    result=bv_utils.concatenate(bv_utils.zeros(round_width -
+                                  bv_utils.width(unpacked.fraction)),
+                                unpacked.fraction);
+    result=bv_utils.shift(result, bv_utilst::LRIGHT, distance);
+
+    literalt increment=need_increment(dest_width, unpacked.sign, result);
+
+    // chop off all the extra bits
+    unsigned extra_bits=round_width-dest_width;
+    result=bv_utils.extract(result, extra_bits, round_width-1);
+
+    result=bv_utils.incrementer(result, increment);
   }
 
   assert(bv_utils.width(result)==dest_width);
@@ -1089,6 +1112,81 @@ bvt float_utilst::rounder(const unbiased_floatt &src)
 
 /*******************************************************************\
 
+Function: float_utilst::need_increment
+
+  Inputs:
+
+ Outputs:
+
+ Purpose: Determines whether the given fraction must be incremented
+          under the current rounding mode after being truncated to
+          the given number of bits.
+
+\*******************************************************************/
+
+literalt float_utilst::need_increment(unsigned bits, literalt sign,
+                                      const bvt &fraction)
+{
+  unsigned extra_bits=bv_utils.width(fraction)-bits;
+
+  // more than two extra bits are superfluous, and are
+  // turned into a sticky bit
+
+  literalt sticky_bit=const_literal(false);
+
+  if(extra_bits>=2)
+  {
+    bvt tail=bv_utils.extract(fraction, 0, extra_bits-2);
+    sticky_bit=prop.lor(tail);
+  }
+
+  // the rounding bit is the last extra bit
+  assert(extra_bits>=1);
+  literalt rounding_bit=bv_utils.bit(fraction, extra_bits-1);
+
+  literalt rounding_least=bv_utils.bit(fraction, extra_bits);
+  literalt increment;
+
+  switch(rounding_mode)
+  {
+  case ieee_floatt::ROUND_TO_EVEN: // round-to-nearest (ties to even)
+    increment=prop.land(rounding_bit,
+                        prop.lor(rounding_least, sticky_bit));
+    break;
+
+  case ieee_floatt::ROUND_TO_PLUS_INF: // round up
+    increment=prop.land(prop.lnot(sign),
+                        prop.lor(rounding_bit, sticky_bit));
+    break;
+
+  case ieee_floatt::ROUND_TO_MINUS_INF: // round down
+    increment=prop.land(sign,
+                        prop.lor(rounding_bit, sticky_bit));
+    break;
+
+  case ieee_floatt::ROUND_TO_ZERO: // round to zero
+    increment=const_literal(false);
+    break;
+
+  case ieee_floatt::UNKNOWN: // UNKNOWN, rounding is not determined
+    assert(0);
+    break;
+    
+  case ieee_floatt::NONDETERMINISTIC:
+    // the increment is non-deterministic
+    // increment=prop.new_variable(); // TODO: make this non-deterministic.
+    increment=const_literal(false);
+    break;
+  
+  default:
+    assert(0);
+  }
+
+  return increment;
+}
+
+/*******************************************************************\
+
 Function: float_utilst::round_fraction
 
   Inputs:
@@ -1123,64 +1221,14 @@ void float_utilst::round_fraction(unbiased_floatt &result)
   {
     unsigned extra_bits=bv_utils.width(result.fraction)-fraction_size;
 
-    // more than two extra bits are superflus, and are
-    // turned into a sticky bit
-
-    literalt sticky_bit=const_literal(false);
-
-    if(extra_bits>=2)
-    {
-      bvt tail=bv_utils.extract(result.fraction, 0, extra_bits-2);
-      sticky_bit=prop.lor(tail);
-    }
-
-    // the rounding bit is the last extra bit
-    assert(extra_bits>=1);
-    literalt rounding_bit=bv_utils.bit(result.fraction, extra_bits-1);
+    // determine if we need increment
+    literalt increment=need_increment(fraction_size, result.sign, result.fraction);
 
     // chop off all the extra bits
     result.fraction=bv_utils.extract(
       result.fraction, extra_bits, bv_utils.width(result.fraction)-1);
 
     assert(bv_utils.width(result.fraction)==fraction_size);
-
-    literalt rounding_least=bv_utils.bit(result.fraction, 0);
-    literalt increment;
-
-    switch(rounding_mode)
-    {
-    case ieee_floatt::ROUND_TO_EVEN: // round-to-nearest (ties to even)
-      increment=prop.land(rounding_bit,
-                          prop.lor(rounding_least, sticky_bit));
-      break;
-
-    case ieee_floatt::ROUND_TO_PLUS_INF: // round up
-      increment=prop.land(prop.lnot(result.sign),
-                          prop.lor(rounding_bit, sticky_bit));
-      break;
-
-    case ieee_floatt::ROUND_TO_MINUS_INF: // round down
-      increment=prop.land(result.sign,
-                          prop.lor(rounding_bit, sticky_bit));
-      break;
-
-    case ieee_floatt::ROUND_TO_ZERO: // round to zero
-      increment=const_literal(false);
-      break;
-
-    case ieee_floatt::UNKNOWN: // UNKNOWN, rounding is not determined
-      assert(0);
-      break;
-      
-    case ieee_floatt::NONDETERMINISTIC:
-      // the increment is non-deterministic
-      // increment=prop.new_variable(); // TODO: make this non-deterministic.
-      increment=const_literal(false);
-      break;
-    
-    default:
-      assert(0);
-    }
 
     // incrementing the fraction might result in an overflow
     result.fraction=

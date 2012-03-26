@@ -2097,24 +2097,28 @@ unsigned AnyExpr::computeHash() {
   return hashValue;
 }
 
-ref<Expr> FPToUIExpr::create(const ref<Expr> &e, Width W, bool isIEEE) {
+ref<Expr> FPToUIExpr::create(const ref<Expr> &e, Width W, bool isIEEE,
+                             bool roundNearest) {
   if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
     return ce->FPToUI(W, isIEEE);
 
   if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
     if (!SemMismatch(isIEEE, fee->getSemantics()))
-        return FPToUIExpr::create(fee->getKid(0), W, fee->fromIsIEEE());
+        return FPToUIExpr::create(fee->getKid(0), W, fee->fromIsIEEE(),
+                                  roundNearest);
 
-  return FPToUIExpr::alloc(e, W, isIEEE);
+  return FPToUIExpr::alloc(e, W, isIEEE, roundNearest);
 }
 
-ref<Expr> FPToSIExpr::create(const ref<Expr> &e, Width W, bool isIEEE) {
+ref<Expr> FPToSIExpr::create(const ref<Expr> &e, Width W, bool isIEEE,
+                             bool roundNearest) {
   if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
     return ce->FPToSI(W, isIEEE);
 
   if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
     if (!SemMismatch(isIEEE, fee->getSemantics()))
-        return FPToSIExpr::create(fee->getKid(0), W, fee->fromIsIEEE());
+        return FPToSIExpr::create(fee->getKid(0), W, fee->fromIsIEEE(),
+                                  roundNearest);
 
-  return FPToSIExpr::alloc(e, W, isIEEE);
+  return FPToSIExpr::alloc(e, W, isIEEE, roundNearest);
 }

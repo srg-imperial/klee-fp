@@ -144,6 +144,12 @@ private:
     assert(0);
   }
 
+  float_utilst floatUtils(ref<Expr> e, ieee_floatt::rounding_modet mode) {
+    float_utilst f = floatUtils(e);
+    f.rounding_mode = mode;
+    return f;
+  }
+
 public:
   STPBuilder(::VC _vc, bool _optimizeDivides=true);
   ~STPBuilder();

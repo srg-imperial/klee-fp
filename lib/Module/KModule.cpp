@@ -375,7 +375,6 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   pm.add(createLowerAtomicPass());          // Lower llvm.atomic.*
   if (InstrumentSIMD)
     pm.add(new SIMDInstrumentationPass());
-  pm.add(new LowerSSEPass());
   // FIXME: This false here is to work around a bug in
   // IntrinsicLowering which caches values which may eventually be
   // deleted (via RAUW). This can be removed once LLVM fixes this
@@ -435,6 +434,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   }
   pm3.add(new IntrinsicCleanerPass(*targetData));
   pm3.add(new PhiCleanerPass());
+  pm3.add(new LowerSSEPass());
   pm3.run(*module);
 
   // For cleanliness see if we can discard any of the functions we

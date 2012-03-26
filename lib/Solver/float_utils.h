@@ -430,6 +430,8 @@ protected:
   bvt pack(const biased_floatt &src);
   unbiased_floatt unpack(const bvt &src);
 
+  bvt need_increment(unsigned bits, bvt sign, const literalt &fraction);
+
   void round_fraction(unbiased_floatt &result);
   void round_exponent(unbiased_floatt &result);
 

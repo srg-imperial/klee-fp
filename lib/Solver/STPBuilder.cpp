@@ -932,7 +932,10 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
       return buildVar(ss.str().c_str(), e->getWidth());
     } else {
       F2IConvertExpr *ce = cast<F2IConvertExpr>(e);
-      ref<Expr> res = floatUtils(ce->src).to_integer(ce->src, ce->getWidth(),
+      ref<Expr> res = floatUtils(ce->src,
+          ce->roundNearest()
+            ? ieee_floatt::ROUND_TO_EVEN
+            : ieee_floatt::ROUND_TO_ZERO).to_integer(ce->src, ce->getWidth(),
                                                   e->getKind() == Expr::FPToSI);
       return constructActual(res, width_out, et_out);
     }

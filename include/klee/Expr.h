@@ -1197,13 +1197,17 @@ public:
   ref<Expr> src;
   Width width;
   bool FromIsIEEE:1;
+  bool RoundNearest:1;
 
 public:
-  F2IConvertExpr(const ref<Expr> &src, Width width, bool FromIsIEEE)
-    : src(src), width(width), FromIsIEEE(FromIsIEEE) {}
+  F2IConvertExpr(const ref<Expr> &src, Width width, bool FromIsIEEE,
+                 bool RoundNearest)
+    : src(src), width(width), FromIsIEEE(FromIsIEEE),
+      RoundNearest(RoundNearest) {}
 
   unsigned getWidth() const { return width; }
   bool fromIsIEEE() const { return FromIsIEEE; }
+  bool roundNearest() const { return RoundNearest; }
 
   unsigned getNumKids() const { return 1; }
   ref<Expr> getKid(unsigned i) const { return (i==0) ? src : 0; }
@@ -1258,7 +1262,7 @@ public:                                                              \
  };
 
 #define F2I_CONVERT_EXPR_CLASS(_class_kind) \
-    EXPR_CLASS(_class_kind, F2IConvertExpr, 1, (const ref<Expr> &src, Width width, bool fromIsIEEE), (src, width, fromIsIEEE), (kids[0], width, FromIsIEEE)) \
+    EXPR_CLASS(_class_kind, F2IConvertExpr, 1, (const ref<Expr> &src, Width width, bool fromIsIEEE, bool roundNearest), (src, width, fromIsIEEE, roundNearest), (kids[0], width, FromIsIEEE, RoundNearest)) \
  };
 
 FLOAT_CONVERT_EXPR_CLASS(UIToFP)
