@@ -978,8 +978,8 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
                            u.relation(ce->left, float_utilst::GT, ce->right));
       break;
     case FCmpExpr::ORD:
-      res = NotExpr::create(OrExpr::create(u.is_NaN(ce->left),
-                                           u.is_NaN(ce->right)));
+      res = Expr::createIsZero(OrExpr::create(u.is_NaN(ce->left),
+                                              u.is_NaN(ce->right)));
       break;
     case FCmpExpr::UNO:
       res = OrExpr::create(u.is_NaN(ce->left),

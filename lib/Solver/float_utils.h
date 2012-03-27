@@ -142,7 +142,7 @@ public:
   }
 
   bvt ones(unsigned width) {
-    return lnot(zeros(width));
+    return cast<klee::ConstantExpr>(zeros(width))->Not();
   }
 
   bvt extract(const bvt &a, unsigned first, unsigned last) const {
@@ -166,7 +166,7 @@ public:
   }
 
   literalt lnot(literalt a) {
-    return klee::NotExpr::create(a);
+    return klee::Expr::createIsZero(a);
   }
 
   literalt lor(literalt a, literalt b) {

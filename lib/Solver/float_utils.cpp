@@ -175,10 +175,10 @@ bvt float_utilst::to_integer(
 
   unbiased_floatt unpacked=unpack(src);
 
-  // for the other rounding modes, we need a correct answer, though we can
-  // probably get away with a truncated answer in some cases
+  // for the other rounding modes, we need a correct exponent, though we may
+  // be able to get away with a truncated exponent in some cases
   if (rounding_mode != ieee_floatt::ROUND_TO_ZERO)
-    unpacked.exponent=bv_utils.zero_extension(unpacked.exponent,
+    unpacked.exponent=bv_utils.sign_extension(unpacked.exponent,
                                               bv_utils.width(unpacked.exponent)+1);
 
   // if the exponent is positive, shift right
@@ -193,32 +193,34 @@ bvt float_utilst::to_integer(
     literalt exponent_sign=sign_bit(unpacked.exponent);
     result=prop.land(result, bv_utils.sign_extension(prop.lnot(exponent_sign),
                                                      bv_utils.width(result)));
-
-    // chop out the right number of bits from the result
-    if(bv_utils.width(result)>dest_width)
-    {
-      result=bv_utils.extract(result, 0, dest_width-1);
-    }
-    else if(bv_utils.width(result)<dest_width)
-    {
-      // extend
-      result=bv_utils.zero_extension(result, dest_width);
-    }
   } else {
+    unsigned result_width=bv_utils.width(unpacked.fraction);
+
     // 2^(spec.e + 1) bits ought to be enough for anyone
+    // TODO: figure out the maximum number of extra bits we need here
     unsigned round_width=2<<spec.e;
-    result=bv_utils.concatenate(bv_utils.zeros(round_width -
-                                  bv_utils.width(unpacked.fraction)),
+    unsigned extra_bits=round_width-result_width;
+    result=bv_utils.concatenate(bv_utils.zeros(extra_bits),
                                 unpacked.fraction);
     result=bv_utils.shift(result, bv_utilst::LRIGHT, distance);
 
-    literalt increment=need_increment(dest_width, unpacked.sign, result);
+    literalt increment=need_increment(result_width, unpacked.sign, result);
 
     // chop off all the extra bits
-    unsigned extra_bits=round_width-dest_width;
     result=bv_utils.extract(result, extra_bits, round_width-1);
 
     result=bv_utils.incrementer(result, increment);
+  }
+
+  // chop out the right number of bits from the result
+  if(bv_utils.width(result)>dest_width)
+  {
+    result=bv_utils.extract(result, 0, dest_width-1);
+  }
+  else if(bv_utils.width(result)<dest_width)
+  {
+    // extend
+    result=bv_utils.zero_extension(result, dest_width);
   }
 
   assert(bv_utils.width(result)==dest_width);
