@@ -218,7 +218,11 @@ void ExprCPrinter::printFPToUI(std::ostream &out, CType &ty, FPToUIExpr &e) {
 
 void ExprCPrinter::printFPToSI(std::ostream &out, CType &ty, FPToSIExpr &e) {
   ty = getSIntType(e.getWidth());
+  if (e.roundNearest())
+    out << "llrint(";
   printFloatSubExpr(out, e.src);
+  if (e.roundNearest())
+    out << ")";
 }
 
 void ExprCPrinter::printFOrd1(std::ostream &out, CType &ty, FOrd1Expr &e) {
