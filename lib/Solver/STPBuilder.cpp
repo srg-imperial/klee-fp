@@ -985,6 +985,10 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
       res = OrExpr::create(u.is_NaN(ce->left),
                            u.is_NaN(ce->right));
       break;
+    case FCmpExpr::UNE:
+      res = Expr::createIsZero(
+              u.relation(ce->left, float_utilst::EQ, ce->right));
+      break;
     default:
       assert(0 && "fp cmp not implemented yet");
     }
