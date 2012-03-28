@@ -985,6 +985,27 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
       res = OrExpr::create(u.is_NaN(ce->left),
                            u.is_NaN(ce->right));
       break;
+    case FCmpExpr::UEQ:
+      res = Expr::createIsZero(
+              OrExpr::create(u.relation(ce->left, float_utilst::LT, ce->right),
+                            u.relation(ce->left, float_utilst::GT, ce->right)));
+      break;
+    case FCmpExpr::UGT:
+      res = Expr::createIsZero(
+              u.relation(ce->left, float_utilst::LE, ce->right));
+      break;
+    case FCmpExpr::UGE:
+      res = Expr::createIsZero(
+              u.relation(ce->left, float_utilst::LT, ce->right));
+      break;
+    case FCmpExpr::ULT:
+      res = Expr::createIsZero(
+              u.relation(ce->left, float_utilst::GE, ce->right));
+      break;
+    case FCmpExpr::ULE:
+      res = Expr::createIsZero(
+              u.relation(ce->left, float_utilst::GT, ce->right));
+      break;
     case FCmpExpr::UNE:
       res = Expr::createIsZero(
               u.relation(ce->left, float_utilst::EQ, ce->right));
