@@ -122,6 +122,21 @@ static Value *CreateAbsDiff(IRBuilder<> &builder, bool isSigned, LLVM_TYPE_Q Int
   return builder.CreateSelect(lmrIsNeg, builder.CreateNeg(lmr), lmr);
 }
 
+static void AddRoundNearestMetadata(Instruction *I) {
+  static MDNode *N = 0;
+  if (!N) {
+    LLVM_TYPE_Q Type *i32 = Type::getInt32Ty(getGlobalContext());
+    Value *one32 = ConstantInt::get(i32, 1);
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 0)
+    N = MDNode::get(getGlobalContext(), ArrayRef<Value *>(&one32, 1));
+#else
+    N = MDNode::get(getGlobalContext(), &one32, 1);
+#endif
+  }
+
+  I->setMetadata("round_nearest", N);
+}
+
 #if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 8)
 #define GET_ARG_OPERAND(INST, NUM) (INST)->getOperand((NUM)+1)
 #else
@@ -229,7 +244,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
         Value *src = GET_ARG_OPERAND(ii, 0);
 
         FPToSIInst *res = new FPToSIInst(src, ii->getType(), "", ii);
-        res->setMetadata("round_nearest", MDNode::get(getGlobalContext(), 0, 0));
+        AddRoundNearestMetadata(res);
 
         ii->replaceAllUsesWith(res);
 
@@ -247,7 +262,7 @@ bool LowerSSEPass::runOnBasicBlock(BasicBlock &b) {
 
         ExtractElementInst *lowElem = ExtractElementInst::Create(src, zero32, "", ii);
         FPToSIInst *conv = new FPToSIInst(lowElem, i32, "", ii);
-        conv->setMetadata("round_nearest", MDNode::get(getGlobalContext(), 0, 0));
+        AddRoundNearestMetadata(conv);
 
         ii->replaceAllUsesWith(conv);
 
