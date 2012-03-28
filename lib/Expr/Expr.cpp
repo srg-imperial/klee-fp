@@ -683,22 +683,24 @@ ref<ConstantExpr> ConstantExpr::FSin(bool isIEEE) {
   }
 }
 
-ref<ConstantExpr> ConstantExpr::FPToUI(Width W, bool isIEEE) {
-  return FPToI(W, isIEEE, false);
+ref<ConstantExpr> ConstantExpr::FPToUI(Width W, bool isIEEE, bool roundNearest) {
+  return FPToI(W, isIEEE, false, roundNearest);
 }
 
-ref<ConstantExpr> ConstantExpr::FPToSI(Width W, bool isIEEE) {
-  return FPToI(W, isIEEE, true);
+ref<ConstantExpr> ConstantExpr::FPToSI(Width W, bool isIEEE, bool roundNearest) {
+  return FPToI(W, isIEEE, true, roundNearest);
 }
 
-ref<ConstantExpr> ConstantExpr::FPToI(Width W, bool isIEEE, bool isSigned) {
+ref<ConstantExpr> ConstantExpr::FPToI(Width W, bool isIEEE, bool isSigned,
+                                      bool roundNearest) {
     uint64_t bits[2];
     bool isExact;
     getAPFloatValue()
         .convertToInteger(bits,
 	                  W,
                           isSigned,
-                          APFloat::rmTowardZero, 
+                          roundNearest ? APFloat::rmNearestTiesToEven
+                                       : APFloat::rmTowardZero, 
                           &isExact);
     return ConstantExpr::alloc(APInt(W, 2, bits));
 }
@@ -1964,8 +1966,8 @@ static bool simplifyFeq(const ref<ConstantExpr> &cl, Expr *r, const ref<Expr> &p
        * the non-constant operand. */
       bool isSigned = isa<SIToFPExpr>(r);
       ref<Expr> kid = ifc->getKid(0);
-      ref<ConstantExpr> clint = isSigned ? cl->FPToSI(kid->getWidth(), isIEEE)
-                                         : cl->FPToUI(kid->getWidth(), isIEEE);
+      ref<ConstantExpr> clint = isSigned ? cl->FPToSI(kid->getWidth(), isIEEE, false)
+                                         : cl->FPToUI(kid->getWidth(), isIEEE, false);
       ref<ConstantExpr> clf = isSigned ? cl->SIToFP(ifc->getSemantics())
                                        : cl->UIToFP(ifc->getSemantics());
       if (cl->FCmp(clf, ConstantExpr::create(FCmpExpr::OEQ, 4), isIEEE)->isOne()) {
@@ -2100,7 +2102,7 @@ unsigned AnyExpr::computeHash() {
 ref<Expr> FPToUIExpr::create(const ref<Expr> &e, Width W, bool isIEEE,
                              bool roundNearest) {
   if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
-    return ce->FPToUI(W, isIEEE);
+    return ce->FPToUI(W, isIEEE, roundNearest);
 
   if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
     if (!SemMismatch(isIEEE, fee->getSemantics()))
@@ -2113,7 +2115,7 @@ ref<Expr> FPToUIExpr::create(const ref<Expr> &e, Width W, bool isIEEE,
 ref<Expr> FPToSIExpr::create(const ref<Expr> &e, Width W, bool isIEEE,
                              bool roundNearest) {
   if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
-    return ce->FPToSI(W, isIEEE);
+    return ce->FPToSI(W, isIEEE, roundNearest);
 
   if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
     if (!SemMismatch(isIEEE, fee->getSemantics()))

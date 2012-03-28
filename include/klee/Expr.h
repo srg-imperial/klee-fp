@@ -521,7 +521,7 @@ public:
   typedef ref<ConstantExpr> I2FConvertOp(const llvm::fltSemantics *sem);
   I2FConvertOp UIToFP, SIToFP;
 
-  typedef ref<ConstantExpr> F2IConvertOp(Width W, bool isIEEE);
+  typedef ref<ConstantExpr> F2IConvertOp(Width W, bool isIEEE, bool roundNearest);
   F2IConvertOp FPToUI, FPToSI;
 
   typedef ref<ConstantExpr> FConstBinOp(const ref<ConstantExpr> &RHS, bool isIEEE);
@@ -537,7 +537,7 @@ public:
   FUnaryOp FSqrt, FCos, FSin;
 private:
   ref<ConstantExpr> IToFP(const llvm::fltSemantics *sem, bool isSigned);
-  ref<ConstantExpr> FPToI(Width W, bool isIEEE, bool isSigned);
+  ref<ConstantExpr> FPToI(Width W, bool isIEEE, bool isSigned, bool roundNearest);
 };
 
 // Utility classes
