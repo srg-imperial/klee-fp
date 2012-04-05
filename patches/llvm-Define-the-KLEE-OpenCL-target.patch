@@ -1,18 +1,18 @@
-From 929b62cb99068a0ca1876fc6325aa9ceab341c07 Mon Sep 17 00:00:00 2001
+From 24fc37073ca989c4a81d455b235d78544aec3c3f Mon Sep 17 00:00:00 2001
 From: Peter Collingbourne <peter@pcc.me.uk>
 Date: Tue, 26 Jul 2011 20:29:31 +0100
 Subject: [PATCH] Define the KLEE-OpenCL target
 
 ---
  include/llvm/ADT/Triple.h |    1 +
- lib/Support/Triple.cpp    |    2 ++
- 2 files changed, 3 insertions(+), 0 deletions(-)
+ lib/Support/Triple.cpp    |    3 +++
+ 2 files changed, 4 insertions(+), 0 deletions(-)
 
 diff --git a/include/llvm/ADT/Triple.h b/include/llvm/ADT/Triple.h
-index 102c95a..d9545f4 100644
+index a48620e..94d2ad4 100644
 --- a/include/llvm/ADT/Triple.h
 +++ b/include/llvm/ADT/Triple.h
-@@ -84,6 +84,7 @@ public:
+@@ -83,6 +83,7 @@ public:
      FreeBSD,
      IOS,
      KFreeBSD,
@@ -21,10 +21,10 @@ index 102c95a..d9545f4 100644
      Lv2,        // PS3
      MacOSX,
 diff --git a/lib/Support/Triple.cpp b/lib/Support/Triple.cpp
-index d261c53..4e1ad29 100644
+index ae7640a..ae1c200 100644
 --- a/lib/Support/Triple.cpp
 +++ b/lib/Support/Triple.cpp
-@@ -104,6 +104,7 @@ const char *Triple::getOSTypeName(OSType Kind) {
+@@ -98,6 +98,7 @@ const char *Triple::getOSTypeName(OSType Kind) {
    case FreeBSD: return "freebsd";
    case IOS: return "ios";
    case KFreeBSD: return "kfreebsd";
@@ -32,14 +32,15 @@ index d261c53..4e1ad29 100644
    case Linux: return "linux";
    case Lv2: return "lv2";
    case MacOSX: return "macosx";
-@@ -270,6 +271,7 @@ static Triple::OSType parseOS(StringRef OSName) {
-     .StartsWith("freebsd", Triple::FreeBSD)
-     .StartsWith("ios", Triple::IOS)
-     .StartsWith("kfreebsd", Triple::KFreeBSD)
-+    .StartsWith("kleeopencl", Triple::KLEEOpenCL)
-     .StartsWith("linux", Triple::Linux)
-     .StartsWith("lv2", Triple::Lv2)
-     .StartsWith("macosx", Triple::MacOSX)
+@@ -330,6 +331,8 @@ Triple::OSType Triple::ParseOS(StringRef OSName) {
+     return IOS;
+   else if (OSName.startswith("kfreebsd"))
+     return KFreeBSD;
++  else if (OSName.startswith("kleeopencl"))
++    return KLEEOpenCL;
+   else if (OSName.startswith("linux"))
+     return Linux;
+   else if (OSName.startswith("lv2"))
 -- 
 1.7.5.3
 
