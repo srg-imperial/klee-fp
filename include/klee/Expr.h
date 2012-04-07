@@ -465,7 +465,7 @@ public:
   bool isZero() const { return getAPValue().isMinValue(); }
 
   /// isOne - Is this a constant one.
-  bool isOne() const { return getZExtValue() == 1; }
+  bool isOne() const { return getLimitedValue() == 1; }
   
   /// isTrue - Is this the true expression.
   bool isTrue() const { 
