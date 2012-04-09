@@ -55,8 +55,6 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
     // increment now since LowerIntrinsic deletion makes iterator invalid.
     ++i;  
     if(ii) {
-      IRBuilder<> builder(ii->getParent(), ii);
-
       switch (ii->getIntrinsicID()) {
       case Intrinsic::vastart:
       case Intrinsic::vaend:
