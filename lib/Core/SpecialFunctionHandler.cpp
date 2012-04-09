@@ -210,7 +210,12 @@ HandlerInfo handlerInfo[] = {
   add("_Znwm", handleNew, true),
   add("_ZnwmRKSt9nothrow_t", handleNew, true),
 
-  add("syscall", handleSyscall, true)
+  add("syscall", handleSyscall, true),
+
+  add("lrint", handleFPToSIRound, true),
+  add("lrintf", handleFPToSIRound, true),
+  add("llrint", handleFPToSIRound, true),
+  add("llrintf", handleFPToSIRound, true),
 
 #undef addDNR
 #undef add  
@@ -1621,4 +1626,14 @@ void SpecialFunctionHandler::handleSin(ExecutionState &state,
                                         std::vector<ref<Expr> > &arguments) {
   executor.bindLocal(target, state, 
                      FSinExpr::create(arguments[0], false));
+}
+
+void SpecialFunctionHandler::handleFPToSIRound(ExecutionState &state,
+                                           KInstruction *target,
+                                           std::vector<ref<Expr> > &arguments) {
+  unsigned width = cast<IntegerType>(target->inst->getType())->getBitWidth();
+  executor.bindLocal(target, state, 
+                     FPToSIExpr::create(arguments[0], width,
+                                        /*fromIsIEEE=*/false,
+                                        /*roundNearest=*/true));
 }

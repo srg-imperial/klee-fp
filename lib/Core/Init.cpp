@@ -235,6 +235,10 @@ static const char *modelledExternals[] = {
   "_Znwj",
   "_Znam",
   "_Znwm",
+  "lrint",
+  "lrintf",
+  "llrint",
+  "llrintf",
 };
 // Symbols we aren't going to warn about
 static const char *dontCareExternals[] = {

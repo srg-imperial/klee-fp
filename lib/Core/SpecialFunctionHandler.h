@@ -156,6 +156,7 @@ namespace klee {
     HANDLER(handleSqrt);
     HANDLER(handleCos);
     HANDLER(handleSin);
+    HANDLER(handleFPToSIRound);
 #undef HANDLER
   };
 } // End klee namespace
