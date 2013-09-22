@@ -44,6 +44,11 @@ namespace {
   AssumeFPAssoc("assume-fp-assoc", 
                 llvm::cl::desc("Assume floating point operations are associative"),
                 llvm::cl::init(false));
+
+  cl::opt<bool>
+  DisableFPCanon("disable-fp-canon", 
+                llvm::cl::desc("Disable all floating point canonicalisation rules"),
+                llvm::cl::init(false));
 }
 
 /***/
@@ -1138,7 +1143,7 @@ static ref<Expr> AndExpr_create(Expr *l, Expr *r) {
   if (r->getKind() == Expr::SExt && r->getKid(0)->getWidth() == 1)
     return SelectExpr::create(r->getKid(0), l, ConstantExpr::create(0, r->getWidth()));
 
-  if (l->getKind() == Expr::FCmp && r->getKind() == Expr::FCmp) {
+  if (!DisableFPCanon && l->getKind() == Expr::FCmp && r->getKind() == Expr::FCmp) {
     FCmpExpr *fl = cast<FCmpExpr>(l), *fr = cast<FCmpExpr>(r);
     if (fl->isIEEE() == fr->isIEEE()) {
       if (l->getKid(0) == r->getKid(0) && l->getKid(1) == r->getKid(1))
@@ -1164,7 +1169,7 @@ static ref<Expr> OrExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
   return OrExpr_createPartial(r, cl);
 }
 static ref<Expr> OrExpr_create(Expr *l, Expr *r) {
-  if (l->getKind() == Expr::FCmp && r->getKind() == Expr::FCmp) {
+  if (!DisableFPCanon && l->getKind() == Expr::FCmp && r->getKind() == Expr::FCmp) {
     FCmpExpr *fl = cast<FCmpExpr>(l), *fr = cast<FCmpExpr>(r);
     if (fl->isIEEE() == fr->isIEEE()) {
       if (l->getKid(0) == r->getKid(0) && l->getKid(1) == r->getKid(1))
@@ -1324,49 +1329,55 @@ static ref<Expr> reassociate(ref<Expr> (*ctor)(const ref<Expr> &l,
 }
 
 static ref<Expr> FAddExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
-  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
-    APFloat apf = cl->getAPFloatValue(isIEEE);
-    if (apf.isZero() && (apf.isNegative() || AssumePositiveZero))
-      return r;
+  if (!DisableFPCanon) {
+    if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
+      APFloat apf = cl->getAPFloatValue(isIEEE);
+      if (apf.isZero() && (apf.isNegative() || AssumePositiveZero))
+        return r;
+    }
+    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
+      APFloat apf = cr->getAPFloatValue(isIEEE);
+      if (apf.isZero() && (apf.isNegative() || AssumePositiveZero))
+        return l;
+    }
+    ref<Expr> res = reassociate(FAddExpr::create, Expr::FAdd, l, r, isIEEE);
+    if (!res.isNull())
+      return res;
   }
-  if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
-    APFloat apf = cr->getAPFloatValue(isIEEE);
-    if (apf.isZero() && (apf.isNegative() || AssumePositiveZero))
-      return l;
-  }
-  ref<Expr> res = reassociate(FAddExpr::create, Expr::FAdd, l, r, isIEEE);
-  if (!res.isNull())
-    return res;
   return FAddExpr::alloc(l, r, isIEEE);
 }
 
 static ref<Expr> FSubExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
-  if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
-    APFloat apf = cr->getAPFloatValue(isIEEE);
-    if (apf.isZero() && !apf.isNegative())
-      return l;
+  if (!DisableFPCanon) {
+    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
+      APFloat apf = cr->getAPFloatValue(isIEEE);
+      if (apf.isZero() && !apf.isNegative())
+        return l;
+    }
   }
   return FSubExpr::alloc(l, r, isIEEE);
 }
 
 static ref<Expr> FMulExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
-  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
-    APFloat apf = cl->getAPFloatValue(isIEEE);
-    if (isOne(apf))
-      return r;
-    if (AssumeFinite && AssumePositiveZero && apf.isZero())
-      return l;
+  if (!DisableFPCanon) {
+    if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
+      APFloat apf = cl->getAPFloatValue(isIEEE);
+      if (isOne(apf))
+        return r;
+      if (AssumeFinite && AssumePositiveZero && apf.isZero())
+        return l;
+    }
+    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
+      APFloat apf = cr->getAPFloatValue(isIEEE);
+      if (isOne(apf))
+        return l;
+      if (AssumeFinite && AssumePositiveZero && apf.isZero())
+        return r;
+    }
+    ref<Expr> res = reassociate(FMulExpr::create, Expr::FMul, l, r, isIEEE);
+    if (!res.isNull())
+      return res;
   }
-  if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
-    APFloat apf = cr->getAPFloatValue(isIEEE);
-    if (isOne(apf))
-      return l;
-    if (AssumeFinite && AssumePositiveZero && apf.isZero())
-      return r;
-  }
-  ref<Expr> res = reassociate(FMulExpr::create, Expr::FMul, l, r, isIEEE);
-  if (!res.isNull())
-    return res;
   return FMulExpr::alloc(l, r, isIEEE);
 }
 
@@ -1911,6 +1922,9 @@ static SimplifyResult simplifyTRUE(const ref<Expr> &l, const ref<Expr> &r, Expr:
 }
 
 static ref<Expr> FCmpExpr_create(const ref<Expr> &l, const ref<Expr> &r, const ref<Expr> &pred, bool isIEEE) {
+  if (DisableFPCanon)
+    return FCmpExpr::alloc(l, r, pred, isIEEE);
+
   unsigned p = dyn_cast<ConstantExpr>(pred)->getZExtValue();
   if ((p & (FCmpExpr::OLT | FCmpExpr::OGT)) == FCmpExpr::OGT) {
     p ^= FCmpExpr::OLT | FCmpExpr::OGT;
@@ -1951,6 +1965,9 @@ static ref<Expr> FCmpExpr_create(const ref<Expr> &l, const ref<Expr> &r, const r
 }
 
 static bool simplifyFeq(const ref<ConstantExpr> &cl, Expr *r, const ref<Expr> &pred, bool isIEEE, ref<Expr> &result) { 
+  if (DisableFPCanon)
+    return false;
+
   unsigned p = dyn_cast<ConstantExpr>(pred)->getZExtValue();
   if (!(p == FCmpExpr::OEQ || p == FCmpExpr::UEQ))
     return false;
@@ -2037,13 +2054,15 @@ ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r, const ref<Expr
 FCMPCREATE_T(FCmpExpr, FCmp, FCmpExpr, FCmpExpr_createPartial, FCmpExpr_createPartialR)
 
 ref<Expr> FOrd1Expr::create(const ref<Expr> &e, bool isIEEE) {
-  Expr::FPCategories cat = e->getCategories(isIEEE);
-
-  if (cat == Expr::fcMaybeNaN) // Definitely a NaN
-    return ConstantExpr::create(0, Expr::Bool);
-
-  if ((cat & Expr::fcMaybeNaN) == 0) // Definitely not a NaN
-    return ConstantExpr::create(1, Expr::Bool);
+  if (!DisableFPCanon) {
+    Expr::FPCategories cat = e->getCategories(isIEEE);
+   
+    if (cat == Expr::fcMaybeNaN) // Definitely a NaN
+      return ConstantExpr::create(0, Expr::Bool);
+   
+    if ((cat & Expr::fcMaybeNaN) == 0) // Definitely not a NaN
+      return ConstantExpr::create(1, Expr::Bool);
+  }
 
   return FOrd1Expr::alloc(e, isIEEE);
 }
@@ -2103,12 +2122,14 @@ ref<Expr> FPToUIExpr::create(const ref<Expr> &e, Width W, bool isIEEE,
                              bool roundNearest) {
   if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
     return ce->FPToUI(W, isIEEE, roundNearest);
-
-  if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
-    if (!SemMismatch(isIEEE, fee->getSemantics()))
-        return FPToUIExpr::create(fee->getKid(0), W, fee->fromIsIEEE(),
-                                  roundNearest);
-
+  
+  if (!DisableFPCanon) {  
+    if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
+      if (!SemMismatch(isIEEE, fee->getSemantics()))
+          return FPToUIExpr::create(fee->getKid(0), W, fee->fromIsIEEE(),
+                                    roundNearest);
+  }
+  
   return FPToUIExpr::alloc(e, W, isIEEE, roundNearest);
 }
 
@@ -2117,10 +2138,12 @@ ref<Expr> FPToSIExpr::create(const ref<Expr> &e, Width W, bool isIEEE,
   if (ConstantExpr *ce = dyn_cast<ConstantExpr>(e))
     return ce->FPToSI(W, isIEEE, roundNearest);
 
-  if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
-    if (!SemMismatch(isIEEE, fee->getSemantics()))
-        return FPToSIExpr::create(fee->getKid(0), W, fee->fromIsIEEE(),
-                                  roundNearest);
+  if (!DisableFPCanon) {  
+    if (FPExtExpr *fee = dyn_cast<FPExtExpr>(e))
+      if (!SemMismatch(isIEEE, fee->getSemantics()))
+          return FPToSIExpr::create(fee->getKid(0), W, fee->fromIsIEEE(),
+                                    roundNearest);
+  }
 
   return FPToSIExpr::alloc(e, W, isIEEE, roundNearest);
 }
