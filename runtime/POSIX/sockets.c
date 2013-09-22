@@ -1413,7 +1413,7 @@ void freeaddrinfo(struct addrinfo *res) {
 // getnameinfo() ///////////////////////////////////////////////////////////////
 
 int getnameinfo(const struct sockaddr *sa, socklen_t salen, char *host,
-    socklen_t hostlen, char *serv, socklen_t servlen, unsigned int flags) {
+    socklen_t hostlen, char *serv, socklen_t servlen, int flags) {
 
   if (sa->sa_family != AF_INET || salen < sizeof(struct sockaddr_in)) {
     return EAI_FAMILY;
