@@ -1019,7 +1019,7 @@ ExprHandle STPBuilder::constructActual(ref<Expr> e, int *width_out, STPExprType 
   case Expr::FPExt:
   case Expr::FPTrunc: {
     F2FConvertExpr *ce = cast<F2FConvertExpr>(e);
-    float_utilst &fromu = floatUtils(ce->src), &tou = floatUtils(ce);
+    float_utilst fromu = floatUtils(ce->src), tou = floatUtils(ce);
     ref<Expr> res = fromu.conversion(ce->src, tou.spec);
     return constructActual(res, width_out, et_out);
   }
