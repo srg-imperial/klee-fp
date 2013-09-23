@@ -2037,21 +2037,20 @@ static ref<Expr> FCmpExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr, co
   return FCmpExpr_create(l, cr, pred, isIEEE);
 }
 
-#define FCMPCREATE_T(_e_op, _op, _reflexive_e_op, partialL, partialR) \
-ref<Expr>  _e_op ::create(const ref<Expr> &l, const ref<Expr> &r, const ref<Expr> &pred, bool isIEEE) { \
-  assert(l->getWidth()==r->getWidth() && "type mismatch");             \
-  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {                  \
-    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))                  \
-      return cl->_op(cr, cast<ConstantExpr>(pred), isIEEE);            \
-    return partialR(cl, r.get(), pred, isIEEE);                        \
-  } else if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {           \
-    return partialL(l.get(), cr, pred, isIEEE);                        \
-  } else {                                                             \
-    return _e_op ## _create(l.get(), r.get(), pred, isIEEE);           \
-  }                                                                    \
-}
+ref<Expr> FCmpExpr::create(const ref<Expr> &l, const ref<Expr> &r, const ref<Expr> &pred, bool isIEEE) {
+  assert(l->getWidth()==r->getWidth() && "type mismatch");
+  if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
+    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))
+      return cl->FCmp(cr, cast<ConstantExpr>(pred), isIEEE);
+    if (!DisableFPCanon)
+      return FCmpExpr_createPartialR(cl, r.get(), pred, isIEEE);
+  } else if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
+    if (!DisableFPCanon)
+      return FCmpExpr_createPartial(l.get(), cr, pred, isIEEE);
+  }
 
-FCMPCREATE_T(FCmpExpr, FCmp, FCmpExpr, FCmpExpr_createPartial, FCmpExpr_createPartialR)
+  return FCmpExpr_create(l.get(), r.get(), pred, isIEEE);
+}
 
 ref<Expr> FOrd1Expr::create(const ref<Expr> &e, bool isIEEE) {
   if (!DisableFPCanon) {
