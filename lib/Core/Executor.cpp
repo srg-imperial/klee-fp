@@ -1217,7 +1217,12 @@ ref<klee::ConstantExpr> Executor::evalConstant(const KModule *kmodule, const Con
     } else if (isa<ConstantPointerNull>(c)) {
       return Expr::createPointer(0);
     } else if (isa<UndefValue>(c) || isa<ConstantAggregateZero>(c)) {
-      return ConstantExpr::create(0, getWidthForLLVMType(kmodule, c->getType()));
+      // Zero-width constants aren't common, but they can be found in exception
+      // filters (which KLEE doesn't use).
+      Expr::Width w = getWidthForLLVMType(kmodule, c->getType());
+      if (w == 0)
+        return ref<ConstantExpr>();
+      return ConstantExpr::create(0, w);
     } else if (const ConstantStruct *cs = dyn_cast<ConstantStruct>(c)) {
       const StructLayout *sl = kmodule->targetData->getStructLayout(cs->getType());
       llvm::SmallVector<ref<Expr>, 4> kids;
