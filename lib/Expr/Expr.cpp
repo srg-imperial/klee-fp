@@ -805,9 +805,10 @@ ref<Expr> ConcatExpr::create(const ref<Expr> &l, const ref<Expr> &r) {
 
     // Merge Concat(Constant, Concat(Constant, _))
     //    -> Concat(Concat(Constant, Constant), _)
-    if (ConcatExpr *rCE = dyn_cast<ConcatExpr>(r))
-      if (ConstantExpr *rlCE = dyn_cast<ConstantExpr>(rCE->getKid(0)))
-        return ConcatExpr::create(lCE->Concat(rlCE), rCE->getKid(1));
+    if (!DisableFPCanon)
+      if (ConcatExpr *rCE = dyn_cast<ConcatExpr>(r))
+        if (ConstantExpr *rlCE = dyn_cast<ConstantExpr>(rCE->getKid(0)))
+          return ConcatExpr::create(lCE->Concat(rlCE), rCE->getKid(1));
   }
 
   if (SelectExpr *lSE = dyn_cast<SelectExpr>(l)) {
@@ -872,16 +873,20 @@ ref<Expr> ConcatExpr::create8(const ref<Expr> &kid1, const ref<Expr> &kid2,
 ref<Expr> ExtractExpr::create(ref<Expr> expr, unsigned off, Width w) {
   unsigned kw = expr->getWidth();
   assert(w > 0 && off + w <= kw && "invalid extract");
+
+  OrExpr *OE;
+  AndExpr *AE;
+  XorExpr *XE;
   
   if (w == kw) {
     return expr;
   } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
     return CE->Extract(off, w);
-  } else if (OrExpr *OE = dyn_cast<OrExpr>(expr)) {
+  } else if (!DisableFPCanon && (OE = dyn_cast<OrExpr>(expr))) {
     return OrExpr::create(ExtractExpr::create(OE->getKid(0), off, w), ExtractExpr::create(OE->getKid(1), off, w));
-  } else if (AndExpr *AE = dyn_cast<AndExpr>(expr)) {
+  } else if (!DisableFPCanon && (AE = dyn_cast<AndExpr>(expr))) {
     return AndExpr::create(ExtractExpr::create(AE->getKid(0), off, w), ExtractExpr::create(AE->getKid(1), off, w));
-  } else if (XorExpr *XE = dyn_cast<XorExpr>(expr)) {
+  } else if (!DisableFPCanon && (XE = dyn_cast<XorExpr>(expr))) {
     return XorExpr::create(ExtractExpr::create(XE->getKid(0), off, w), ExtractExpr::create(XE->getKid(1), off, w));
   } else if (SExtExpr *SEE = dyn_cast<SExtExpr>(expr)) {
     if (SEE->getKid(0)->getWidth() == 1)
@@ -926,6 +931,8 @@ ref<Expr> ZExtExpr::create(const ref<Expr> &e, Width w) {
     return ExtractExpr::create(e, 0, w);
   } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
     return CE->ZExt(w);
+  } else if (DisableFPCanon) {
+    return ZExtExpr::alloc(e, w);
   } else {
     return ConcatExpr::create(ConstantExpr::create(0, w - kBits), e);
   }
@@ -1134,13 +1141,13 @@ static ref<Expr> AndExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
   return AndExpr_createPartial(r, cl);
 }
 static ref<Expr> AndExpr_create(Expr *l, Expr *r) {
-  if (l->getKind() == Expr::Concat && r->getKind() == Expr::Concat && l->getKid(0)->getWidth() == r->getKid(0)->getWidth())
+  if (!DisableFPCanon && l->getKind() == Expr::Concat && r->getKind() == Expr::Concat && l->getKid(0)->getWidth() == r->getKid(0)->getWidth())
     return ConcatExpr::create(AndExpr::create(l->getKid(0), r->getKid(0)), AndExpr::create(l->getKid(1), r->getKid(1)));
 
-  if (l->getKind() == Expr::SExt && l->getKid(0)->getWidth() == 1)
+  if (!DisableFPCanon && l->getKind() == Expr::SExt && l->getKid(0)->getWidth() == 1)
     return SelectExpr::create(l->getKid(0), r, ConstantExpr::create(0, l->getWidth()));
 
-  if (r->getKind() == Expr::SExt && r->getKid(0)->getWidth() == 1)
+  if (!DisableFPCanon && r->getKind() == Expr::SExt && r->getKid(0)->getWidth() == 1)
     return SelectExpr::create(r->getKid(0), l, ConstantExpr::create(0, r->getWidth()));
 
   if (!DisableFPCanon && l->getKind() == Expr::FCmp && r->getKind() == Expr::FCmp) {
@@ -1238,13 +1245,13 @@ static ref<Expr> ShlExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
       return l;
     else if (crv >= l->getWidth())
       return ConstantExpr::create(0, l->getWidth());
-    else
+    else if (!DisableFPCanon)
       return ConcatExpr::create(ExtractExpr::create(l, 0, l->getWidth() - crv), ConstantExpr::create(0, crv));
   } else if (l->getWidth() == Expr::Bool) { // l & !r
     return AndExpr::create(l, Expr::createIsZero(r));
-  } else{
-    return ShlExpr::alloc(l, r);
   }
+
+  return ShlExpr::alloc(l, r);
 }
 
 static ref<Expr> LShrExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
