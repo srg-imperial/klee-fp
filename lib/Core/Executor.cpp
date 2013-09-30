@@ -280,6 +280,11 @@ namespace {
 		 cl::desc("fork when various schedules are possible (defaul=disabled)"),
 		 cl::init(false));
 
+  cl::opt<bool>
+  IgnoreFPAccuracy("ignore-fpaccuracy", 
+		   cl::desc("ignore fpaccuracy metadata"),
+		   cl::init(false));
+
 }
 
 
@@ -2373,7 +2378,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   }
 
   case Instruction::FDiv: {
-    if (i->getMetadata("fpaccuracy")) {
+    if (!IgnoreFPAccuracy && i->getMetadata("fpaccuracy")) {
       ref<Expr> undef =
         AnyExpr::create(getWidthForLLVMType(kmodule(state), i->getType()));
       bindLocal(ki, state, undef);
