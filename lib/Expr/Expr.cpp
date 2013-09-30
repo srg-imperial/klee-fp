@@ -1351,7 +1351,10 @@ static ref<Expr> FAddExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool is
     if (!res.isNull())
       return res;
   }
-  return FAddExpr::alloc(l, r, isIEEE);
+  if (!DisableFPCanon && l->hash() > r->hash())
+    return FAddExpr::alloc(r, l, isIEEE);
+  else
+    return FAddExpr::alloc(l, r, isIEEE);
 }
 
 static ref<Expr> FSubExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
@@ -1385,7 +1388,10 @@ static ref<Expr> FMulExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool is
     if (!res.isNull())
       return res;
   }
-  return FMulExpr::alloc(l, r, isIEEE);
+  if (!DisableFPCanon && l->hash() > r->hash())
+    return FMulExpr::alloc(r, l, isIEEE);
+  else
+    return FMulExpr::alloc(l, r, isIEEE);
 }
 
 static ref<Expr> FDivExpr_create(const ref<Expr> &l, const ref<Expr> &r, bool isIEEE) {
